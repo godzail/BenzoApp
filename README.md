@@ -74,25 +74,22 @@ BenzoApp/
 
 1. **Clone the repository:**
 
-   ```sh
+   ```text
    git clone https://github.com/yourusername/BenzoApp.git
    cd BenzoApp
    ```
 
-2. **Install dependencies:**
+2. **Install dependencies (recommended with [uv](https://github.com/astral-sh/uv)):**
 
    ```sh
-   pip install -r requirements.txt
-   # Or use pyproject.toml with poetry/pipenv if preferred
+   uv sync
    ```
 
 3. **Run the application:**
 
-   ```sh
+   ```text
    # On Windows
    .\run.bat
-   # Or manually
-   python src/main.py
    ```
 
 ---
@@ -100,7 +97,7 @@ BenzoApp/
 ## Usage
 
 1. Open your browser and navigate to [http://127.0.0.1:8000](http://127.0.0.1:8000).
-2. Use the search form to find gas stations by city, radius, and fuel type.
+2. Use the search form to find gas stations by city, radius, fuel type and results number.
 3. View results and compare fuel prices.
 
 ---
@@ -156,7 +153,7 @@ Health check endpoint. Returns `{"status": "ok"}`.
 
 ## Running Tests
 
-```sh
+```text
 pytest
 ```
 
@@ -175,13 +172,13 @@ Contributions are welcome! Please open issues or pull requests for improvements,
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ---
 
 ## Contact
 
-For questions or support, please open an issue on GitHub or contact the maintainer at [your.email@example.com](mailto:your.email@example.com).
+For questions or support, please open an issue on GitHub or contact the maintainer.
 
 ---
 
