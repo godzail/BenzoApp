@@ -1,8 +1,5 @@
 [project]
-  authors = [
-    { name = "Nic", email = "nicola.sottani@gmail.com" },
-    { name = "Nikke", email = "sottani@het.it" },
-  ]
+  authors = [{ name = "Nic", email = "nicola.sottani@gmail.com" }]
   dependencies = [
     "cachetools",
     "fastapi[standard]",
@@ -21,9 +18,9 @@
     "uvicorn[standard]",
     "wrapt",
   ]
-  description = "PDF service"
+  description = "Fuel service"
   license = { text = "MIT" }
-  name = "docservice"
+  name = "BenzoApp"
   requires-python = "==3.13.*"
   version = "0.1.0"
 
