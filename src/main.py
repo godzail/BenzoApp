@@ -13,6 +13,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from pydantic import BaseModel
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 
 # Custom lifespan handler to suppress CancelledError on shutdown
@@ -123,6 +124,7 @@ class SearchResponse(BaseModel):
     warning: str | None = None
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)
 async def geocode_city(city: str) -> dict[str, float]:
     """Geocode a city name to latitude and longitude using OpenStreetMap Nominatim.
 
@@ -149,9 +151,11 @@ async def geocode_city(city: str) -> dict[str, float]:
                 "longitude": float(location["lon"]),
             }
         except httpx.RequestError as err:
+            logger.warning(f"Geocoding request error: {err}")
             raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {err}") from err
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)
 async def fetch_gas_stations(latitude: float, longitude: float, distance: int, fuel: str, results: int = 5) -> dict:
     """Fetch gas stations from Prezzi Carburante API.
 
@@ -182,6 +186,7 @@ async def fetch_gas_stations(latitude: float, longitude: float, distance: int, f
             logger.info("API response data: {}", data)
             logger.info("API response data type: {}", type(data))
         except httpx.RequestError as err:
+            logger.warning(f"Gas station API request error: {err}")
             raise HTTPException(status_code=503, detail=f"Gas station API unavailable: {err}") from err
         else:
             return data
@@ -210,10 +215,20 @@ async def search_gas_stations(request: SearchRequest, req: Request) -> SearchRes
     logger.info("Fuel type: {}", type(request.fuel))
 
     try:
-        # Geocode the city to get coordinates
-        location = await geocode_city(request.city)
+        # Geocode the city to get coordinates with retry
+        try:
+            location = await geocode_city(request.city)
+        except RetryError as retry_err:
+            logger.warning(f"Geocoding failed after retries: {retry_err}")
+            warning_msg = "City geocoding failed after several attempts. Please check the city name or try again later."
+            response_data = SearchResponse(stations=[], warning=warning_msg)
+            logger.info("Response data (geocoding failed): {}", response_data)
+            return response_data
+        except HTTPException as err:
+            logger.warning(f"Geocoding HTTPException: {err.detail}")
+            raise
 
-        # Try to fetch gas stations from Prezzi Carburante API
+        # Try to fetch gas stations from Prezzi Carburante API with retry
         try:
             stations_data = await fetch_gas_stations(
                 location["latitude"],
@@ -224,6 +239,13 @@ async def search_gas_stations(request: SearchRequest, req: Request) -> SearchRes
             )
             logger.info("Received stations data: {}", stations_data)
             logger.info("Stations data type: {}", type(stations_data))
+        except RetryError as retry_err:
+            logger.warning(f"Gas station API failed after retries: {retry_err}")
+            warning_msg = "Gas station data is temporarily unavailable after several attempts. Please try again later."
+            response_data = SearchResponse(stations=[], warning=warning_msg)
+            logger.info("Response data (API unavailable after retries): {}", response_data)
+            logger.info("Response data dict: {}", response_data.model_dump())
+            return response_data
         except HTTPException as err:
             if err.status_code == HTTP_503_SERVICE_UNAVAILABLE:
                 logger.warning("Prezzi Carburante API unavailable: {}", err.detail)
