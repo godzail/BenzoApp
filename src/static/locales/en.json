@@ -1,0 +1,17 @@
+{
+    "translation": {
+        "title": "Gas Station Finder",
+        "city": "City",
+        "radius": "Radius",
+        "fuel_type": "Fuel Type",
+        "results": "Results",
+        "search": "Search",
+        "recent_searches": "Recent Searches:",
+        "no_results": "No gas stations found for the specified criteria.",
+        "loading": "Loading...",
+        "address": "Address",
+        "distance": "Distance",
+        "price": "Price",
+        "station": "Gas Station"
+    }
+}
