@@ -17,6 +17,7 @@
     "tzdata",
     "uvicorn[standard]",
     "wrapt",
+    "tenacity",
   ]
   description = "Fuel service"
   license = { text = "MIT" }

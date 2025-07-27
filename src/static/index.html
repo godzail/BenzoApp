@@ -255,12 +255,12 @@
                             rel="stylesheet">
                     </div>
                 </template>
-                <template x-if="results.length === 0 && !loading && searched">
-                    <div class='error-message'>No gas stations found for the specified criteria.
-                    </div>
-                </template>
                 <template x-if="error">
                     <div class='error-message' x-text="error"></div>
+                </template>
+                <template x-if="results.length === 0 && !loading && searched && !error">
+                    <div class='error-message'>No gas stations found for the specified criteria.
+                    </div>
                 </template>
             </div>
         </div>
