@@ -1,56 +1,56 @@
-<div id="loading" class="mdc-layout-grid__cell--span-12">
-    <div class="mdc-linear-progress">
-        <div class="mdc-linear-progress__buffering-dots"></div>
-        <div class="mdc-linear-progress__buffer"></div>
-        <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
-            <span class="mdc-linear-progress__bar-inner"></span>
-        </div>
-        <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
-            <span class="mdc-linear-progress__bar-inner"></span>
-        </div>
-    </div>
-</div>
-
 <div id="results" class="mdc-layout-grid__cell--span-12">
     <template x-if="results.length > 0">
-        <div>
-            <template x-for="(station, index) in results" :key="index">
-                <div class="station-card mdc-card">
-                    <div class="station-card-header">
-                        <div class="station-brand">
-                            <span class="material-icons station-icon">local_gas_station</span>
-                            <span x-text="station.gestore || 'Gas Station'"></span>
-                        </div>
-                        <div class="station-price">
-                            <template x-if="station.fuel_prices.length > 0">
-                                <span class="price-badge">
-                                    <span class="material-icons price-icon">attach_money</span>
-                                    <span
-                                        x-text="formatCurrency(station.fuel_prices[0].price)"></span>
-                                </span>
-                            </template>
-                        </div>
-                    </div>
-                    <div class="station-card-body">
-                        <div class="station-address-row">
-                            <span class="material-icons address-icon">location_on</span>
-                            <span class="station-address" x-text="station.address"></span>
-                        </div>
-                        <div class="station-meta-row">
-                            <template x-if="station.fuel_prices.length > 0">
-                                <span class="fuel-badge"
-                                    x-text="station.fuel_prices[0].type"></span>
-                            </template>
-                            <span class="distance-badge" x-show="station.distance">
-                                <span class="material-icons distance-icon">map</span>
-                                <span
-                                    x-text="station.distance ? station.distance + ' km' : ''"></span>
-                            </span>
-                        </div>
-                    </div>
+        <div class="results-layout">
+            <details open>
+                <summary class="map-summary" id="map-summary-i18n">
+                    <span class="material-icons">map</span>
+                    <span i18n="map.summary">Map</span>
+                </summary>
+                <div class="map-view">
+                    <!-- Map will be initialized here -->
+                    <div id="map"></div>
                 </div>
-            </template>
-            <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+            </details>
+            <div class="results-list">
+                <template x-for="(station, index) in results" :key="index">
+                    <div class="station-card mdc-card">
+                        <div class="station-card-header">
+                            <div class="station-brand">
+                                <span class="material-icons station-icon">local_gas_station</span>
+                                <span x-text="station.gestore || 'Gas Station'"></span>
+                            </div>
+                            <div class="station-price">
+                                <template x-if="station.fuel_prices.length > 0">
+                                    <span class="price-badge">
+                                        <span class="material-icons price-icon">attach_money</span>
+                                        <span
+                                            x-text="formatCurrency(station.fuel_prices[0].price)"></span>
+                                    </span>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="station-card-body">
+                            <div class="station-address-row">
+                                <span class="material-icons address-icon">location_on</span>
+                                <span class="station-address" x-text="station.address"></span>
+                            </div>
+                            <div class="station-meta-row">
+                                <template x-if="station.fuel_prices.length > 0">
+                                    <span class="fuel-badge"
+                                        x-text="station.fuel_prices[0].type"></span>
+                                </template>
+                                <span class="distance-badge" x-show="station.distance">
+                                    <span class="material-icons distance-icon">map</span>
+                                    <span
+                                        x-text="station.distance ? station.distance + ' km' : ''"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
+                    rel="stylesheet">
+            </div>
         </div>
     </template>
     <template x-if="error">

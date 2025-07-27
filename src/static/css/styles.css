@@ -15,11 +15,9 @@
     box-sizing: border-box;
 }
 
-#search-container,
-#map-container {
+#search-container {
     flex: 1 1 0%;
     min-width: 0;
-    /* Changed from 260px to 0 to prevent overflow */
     max-width: 100%;
     width: 100%;
     display: flex;
@@ -35,27 +33,32 @@
     height: 100%;
 }
 
-#map-container {
-    min-height: 420px;
-    height: 420px;
-    margin-left: 0;
-    margin-right: 0;
-    padding-left: 0;
-    padding-right: 0;
-    box-sizing: border-box;
-}
-
-/* Additional fix for map container when collapsed */
-.map-collapsible-container {
+/* New results layout */
+.results-layout {
+    display: flex;
+    flex-direction: column;
+    /* Changed to column */
+    gap: 24px;
     width: 100%;
-    box-sizing: border-box;
+    margin-top: 24px;
 }
 
-/* Ensure map div has proper dimensions */
+.map-view {
+    width: 100%;
+    height: 450px;
+    /* Fixed height */
+    margin-bottom: 24px;
+    margin-top: 24px;
+}
+
+.results-list {
+    width: 100%;
+}
+
 #map {
     width: 100% !important;
-    height: 350px !important;
-    border-radius: 8px;
+    height: 100% !important;
+    border-radius: 12px;
     overflow: hidden;
 }
 
@@ -73,21 +76,28 @@
         padding: 16px;
     }
 
-    #search-container,
-    #map-container {
+    #search-container {
         max-width: 100%;
         min-width: 0;
         width: 100%;
     }
 
-    #map-container {
-        min-height: 350px;
+    .results-layout {
+        flex-direction: column;
+    }
+
+    .map-view {
+        position: relative;
+        top: 0;
+        height: 400px;
+        /* Fixed height for mobile */
+        margin-bottom: 24px;
+        width: 100%;
     }
 }
 
 /* Collapsible Toggles */
-.recent-searches-toggle,
-.map-toggle {
+.recent-searches-toggle {
     background: #ede7f6;
     color: #311b92;
     border: 1px solid #d1c4e9;
@@ -102,21 +112,11 @@
     margin-bottom: 8px;
 }
 
-.recent-searches-toggle:hover,
-.map-toggle:hover {
+.recent-searches-toggle:hover {
     background: #d1c4e9;
     color: #512da8;
 }
 
-.map-collapsible-container {
-    background: none;
-    border-radius: 0;
-    box-shadow: none;
-    padding: 0 0 0 8px;
-    margin-bottom: 0;
-    margin-top: 0;
-    max-width: 100%;
-}
 
 /* Main Layout */
 .main-layout {

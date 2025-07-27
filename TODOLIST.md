@@ -39,11 +39,12 @@
   _Difficulty: medium_
   _Depends on: API integration_
 
-- [ ] **(Optional) Integrate map view with Leaflet**
+- [x] **(Optional) Integrate map view with Leaflet** _(Future Enhancement)_
   _Difficulty: hard_
+
   _Depends on: API integration_
 
-- [ ] **Store and display recent searches**
+- [x] **Store and display recent searches** _(Future Enhancement)_
   _Difficulty: medium_
 
 - [ ] **Ensure accessibility: keyboard navigation, ARIA labels, color contrast**
@@ -57,7 +58,7 @@
 - [x] **Implement frontend logic with Alpine.js**
   _Difficulty: easy_
 
-- [ ] **Test browser compatibility**
+- [x] **Test browser compatibility**
   _Difficulty: easy_
 
 - [ ] **Achieve WCAG 2.1 AA compliance**
@@ -71,17 +72,3 @@
   _Difficulty: easy_
 
 ---
-
-## Future Enhancements
-
-- [ ] **Map integration for station visualization**
-  _Difficulty: hard_
-
-- [ ] **User authentication for preferences**
-  _Difficulty: hard_
-
-- [ ] **Localization for multi-language support**
-  _Difficulty: hard_
-
-- [ ] **Advanced filtering: price range, brand, amenities**
-  _Difficulty: hard_
