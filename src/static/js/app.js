@@ -42,7 +42,6 @@ function gasStationApp() {
             await Promise.all([
                 this.loadComponent('/static/templates/header.html', 'header-container'),
                 this.loadComponent('/static/templates/search.html', 'search-container'),
-                this.loadComponent('/static/templates/map.html', 'map-container'),
                 this.loadComponent('/static/templates/results.html', 'results-container')
             ]);
 
@@ -55,28 +54,7 @@ function gasStationApp() {
             // Use $nextTick to ensure the DOM is updated before initializing MDC/Leaflet
             this.$nextTick(() => {
                 this.initializeComponents();
-                // Wait for map div to be available before initializing map
-                this.waitForMapDivAndInit();
-                // Also ensure map is resized after initial load
-                setTimeout(() => {
-                    if (this.map) {
-                        this.map.invalidateSize();
-                        console.log('[DEBUG] Initial map size invalidated');
-                    }
-                }, 500);
             });
-        },
-
-        waitForMapDivAndInit(retries = 10) {
-            const mapContainer = document.getElementById('map');
-            if (mapContainer) {
-                // Initialize map even if container is hidden - we'll handle resizing later
-                this.initMap();
-            } else if (retries > 0) {
-                setTimeout(() => this.waitForMapDivAndInit(retries - 1), 200);
-            } else {
-                console.warn('[DEBUG] Map container not found after retries');
-            }
         },
 
         initializeComponents() {
@@ -174,31 +152,6 @@ function gasStationApp() {
             }, 100);
         },
 
-        // New method to handle map resize when toggled
-        onMapToggle(isOpen) {
-            console.log('[DEBUG] Map toggle called, isOpen:', isOpen);
-            if (this.map && isOpen) {
-                // Wait for CSS transition to complete, then resize map
-                setTimeout(() => {
-                    this.map.invalidateSize();
-                    console.log('[DEBUG] Map resized after opening');
-
-                    // If we have results, fit bounds again to ensure proper display
-                    if (this.results.length > 0) {
-                        const bounds = [];
-                        this.results.forEach(station => {
-                            if (station.latitude && station.longitude) {
-                                bounds.push([station.latitude, station.longitude]);
-                            }
-                        });
-                        if (bounds.length > 0) {
-                            this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
-                        }
-                    }
-                }, 350); // Wait for transition to complete
-            }
-        },
-
         onCityInput() {
             const value = this.formData.city.trim().toLowerCase();
             if (value.length === 0) {
@@ -263,7 +216,9 @@ function gasStationApp() {
                     this.error = '';
                 }
 
-                this.updateMap();
+                this.$nextTick(() => {
+                    this.updateMap();
+                });
 
             } catch (err) {
                 this.error = err.message;
@@ -276,6 +231,10 @@ function gasStationApp() {
         },
 
         updateMap() {
+            if (!this.mapInitialized) {
+                this.initMap();
+            }
+            
             if (!this.map) {
                 console.warn('[DEBUG] Map not initialized, cannot update');
                 return;
