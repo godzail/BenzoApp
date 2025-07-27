@@ -55,19 +55,27 @@ function gasStationApp() {
             // Use $nextTick to ensure the DOM is updated before initializing MDC/Leaflet
             this.$nextTick(() => {
                 this.initializeComponents();
-                // Wait for map div to be visible before initializing map
+                // Wait for map div to be available before initializing map
                 this.waitForMapDivAndInit();
+                // Also ensure map is resized after initial load
+                setTimeout(() => {
+                    if (this.map) {
+                        this.map.invalidateSize();
+                        console.log('[DEBUG] Initial map size invalidated');
+                    }
+                }, 500);
             });
         },
 
         waitForMapDivAndInit(retries = 10) {
             const mapContainer = document.getElementById('map');
-            if (mapContainer && mapContainer.offsetHeight > 0 && mapContainer.offsetWidth > 0) {
+            if (mapContainer) {
+                // Initialize map even if container is hidden - we'll handle resizing later
                 this.initMap();
             } else if (retries > 0) {
                 setTimeout(() => this.waitForMapDivAndInit(retries - 1), 200);
             } else {
-                console.warn('[DEBUG] Map container not visible after retries');
+                console.warn('[DEBUG] Map container not found after retries');
             }
         },
 
@@ -147,12 +155,48 @@ function gasStationApp() {
                 console.warn('[DEBUG] Map container not found');
                 return;
             }
+
+            // Initialize the map with default view
             this.map = L.map('map').setView([41.9028, 12.4964], 6); // Default: Italy
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(this.map);
+
             this.mapInitialized = true;
             console.log('[DEBUG] Map initialized');
+
+            // Handle map resize when container becomes visible
+            setTimeout(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                    console.log('[DEBUG] Map size invalidated');
+                }
+            }, 100);
+        },
+
+        // New method to handle map resize when toggled
+        onMapToggle(isOpen) {
+            console.log('[DEBUG] Map toggle called, isOpen:', isOpen);
+            if (this.map && isOpen) {
+                // Wait for CSS transition to complete, then resize map
+                setTimeout(() => {
+                    this.map.invalidateSize();
+                    console.log('[DEBUG] Map resized after opening');
+
+                    // If we have results, fit bounds again to ensure proper display
+                    if (this.results.length > 0) {
+                        const bounds = [];
+                        this.results.forEach(station => {
+                            if (station.latitude && station.longitude) {
+                                bounds.push([station.latitude, station.longitude]);
+                            }
+                        });
+                        if (bounds.length > 0) {
+                            this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+                        }
+                    }
+                }, 350); // Wait for transition to complete
+            }
         },
 
         onCityInput() {
@@ -232,13 +276,18 @@ function gasStationApp() {
         },
 
         updateMap() {
-            if (!this.map) return;
+            if (!this.map) {
+                console.warn('[DEBUG] Map not initialized, cannot update');
+                return;
+            }
 
+            // Clear existing markers
             if (this.mapMarkers && this.mapMarkers.length > 0) {
                 this.mapMarkers.forEach(marker => marker.remove());
                 this.mapMarkers = [];
             }
 
+            // Add new markers if we have results
             if (this.results.length > 0) {
                 const bounds = [];
                 this.results.forEach(station => {
@@ -250,8 +299,12 @@ function gasStationApp() {
                         bounds.push([station.latitude, station.longitude]);
                     }
                 });
+
                 if (bounds.length > 0) {
+                    // Ensure map is properly sized before fitting bounds
+                    this.map.invalidateSize();
                     this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+                    console.log('[DEBUG] Map updated with', bounds.length, 'markers');
                 }
             }
         }

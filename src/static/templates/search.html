@@ -1,18 +1,11 @@
 <div class="mdc-layout-grid__cell--span-12">
     <template x-if="recentSearches.length > 0">
-        <div x-data="{ open: false }" class="recent-searches-container">
-            <button type="button" class="mdc-button mdc-button--outlined recent-searches-toggle"
-                @click="open = !open"
-                style="width:100%;margin-bottom:8px;justify-content:space-between;display:flex;align-items:center;">
-                <span id="recent-searches-i18n">Recent Searches</span>
-                <span x-text="open ? '-' : '+'" style="font-size:1.3em;"></span>
-            </button>
-            <div class="recent-searches-list" x-show="open" x-transition>
+        <div class="recent-searches-container">
+            <h3 class="recent-searches-title" id="recent-searches-i18n">Recent Searches</h3>
+            <div class="recent-searches-list">
                 <template x-for="(search, idx) in recentSearches" :key="idx">
-                    <button class="mdc-button mdc-button--outlined recent-search-btn" type="button"
-                        @click="selectRecentSearch(search)">
-                        <span class="mdc-button__label"
-                            x-text="search.city + ' (' + search.radius + 'km, ' + search.fuel + ')'"></span>
+                    <button class="recent-search-btn" type="button" @click="selectRecentSearch(search)">
+                        <span x-text="search.city + ', ' + search.radius + 'km, ' + search.fuel"></span>
                     </button>
                 </template>
             </div>

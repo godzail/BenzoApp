@@ -10,15 +10,16 @@
     z-index: 2;
     background: #fff;
     border-radius: 14px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     padding: 24px;
     box-sizing: border-box;
-    min-height: 420px;
 }
 
-#search-container, #map-container {
+#search-container,
+#map-container {
     flex: 1 1 0%;
-    min-width: 0; /* Changed from 260px to 0 to prevent overflow */
+    min-width: 0;
+    /* Changed from 260px to 0 to prevent overflow */
     max-width: 100%;
     width: 100%;
     display: flex;
@@ -50,6 +51,20 @@
     box-sizing: border-box;
 }
 
+/* Ensure map div has proper dimensions */
+#map {
+    width: 100% !important;
+    height: 350px !important;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Fix for Leaflet map tiles loading issues when container is initially hidden */
+.leaflet-container {
+    width: 100% !important;
+    height: 100% !important;
+}
+
 @media (max-width: 900px) {
     .input-map-group {
         flex-direction: column;
@@ -57,18 +72,22 @@
         max-width: 100%;
         padding: 16px;
     }
-    #search-container, #map-container {
+
+    #search-container,
+    #map-container {
         max-width: 100%;
         min-width: 0;
         width: 100%;
     }
+
     #map-container {
         min-height: 350px;
     }
 }
 
 /* Collapsible Toggles */
-.recent-searches-toggle, .map-toggle {
+.recent-searches-toggle,
+.map-toggle {
     background: #ede7f6;
     color: #311b92;
     border: 1px solid #d1c4e9;
@@ -77,15 +96,18 @@
     font-weight: 500;
     cursor: pointer;
     transition: background 0.2s, box-shadow 0.2s;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     outline: none;
     padding: 8px 14px;
     margin-bottom: 8px;
 }
-.recent-searches-toggle:hover, .map-toggle:hover {
+
+.recent-searches-toggle:hover,
+.map-toggle:hover {
     background: #d1c4e9;
     color: #512da8;
 }
+
 .map-collapsible-container {
     background: none;
     border-radius: 0;
@@ -95,6 +117,7 @@
     margin-top: 0;
     max-width: 100%;
 }
+
 /* Main Layout */
 .main-layout {
     width: 100%;
@@ -122,52 +145,42 @@
         padding-right: 16px;
     }
 }
+
 /* Recent Searches */
 .recent-searches-container {
-    background: #f8f9fa;
-    border-radius: 10px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    padding: 16px 18px 10px 18px;
-    margin-bottom: 24px;
-    margin-top: 0;
-    max-width: 350px;
-    min-width: 220px;
+    margin-bottom: 16px;
 }
 
 .recent-searches-title {
-    font-size: 1.1rem;
+    font-size: 0.9rem;
     font-weight: 500;
-        position: relative;
-    color: #222;
-    margin-bottom: 10px;
+    color: #5f6368;
+    margin-bottom: 8px;
+    text-transform: uppercase;
 }
 
 .recent-searches-list {
     display: flex;
-    flex-direction: column;
-        margin: 0;
+    flex-wrap: wrap;
     gap: 8px;
-    margin-bottom: 0;
 }
 
 .recent-search-btn {
-    background: #fff;
-    color: #512da8;
-    border: 1px solid #d1c4e9;
-    border-radius: 8px;
+    background-color: #f1f3f4;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: 16px;
     padding: 6px 12px;
-    font-size: 1rem;
+    font-size: 0.875rem;
     font-weight: 500;
     cursor: pointer;
-    transition: background 0.2s, box-shadow 0.2s;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-    text-align: left;
-    outline: none;
+    transition: background-color 0.2s, box-shadow 0.2s;
 }
+
 .recent-search-btn:hover {
-    background: #ede7f6;
-    color: #311b92;
-    box-shadow: 0 2px 6px rgba(81,45,168,0.08);
+    background-color: #e8eaed;
+    border-color: #d2d5d8;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 @media (max-width: 600px) {
@@ -175,11 +188,15 @@
         max-width: 100%;
         padding: 12px 8px 8px 8px;
     }
+
     #search-container {
         padding: 12px;
     }
 }
-[x-cloak] { display: none !important; }
+
+[x-cloak] {
+    display: none !important;
+}
 
 /* General Styles */
 body {
@@ -209,12 +226,14 @@ body {
     padding: 20px;
     border-radius: 0 0 12px 12px;
 }
+
 #header-container .mdc-button.mdc-button--outlined {
     color: #fff !important;
     border-color: #fff;
     background: rgba(25, 118, 210, 0.7);
     transition: background 0.2s, color 0.2s;
 }
+
 #header-container .mdc-button.mdc-button--outlined:hover {
     background: #1565c0;
     color: #fff;
@@ -224,9 +243,9 @@ body {
 #header-container h1 {
     margin: 0;
     font-size: 1.8rem;
-        display: flex;
-        align-items: center;
-        gap: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-weight: 500;
 }
 
@@ -261,6 +280,7 @@ body {
     margin: 24px 0 18px 0;
     border-radius: 2px;
 }
+
 /* Results */
 #results-container {
     margin-top: 0;
@@ -278,7 +298,7 @@ body {
 .station-card {
     background: #fff;
     border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.10), 0 1.5px 4px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10), 0 1.5px 4px rgba(0, 0, 0, 0.08);
     margin-bottom: 28px;
     padding: 20px;
     transition: box-shadow 0.2s;
@@ -286,7 +306,7 @@ body {
 }
 
 .station-card:hover {
-    box-shadow: 0 8px 24px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.10);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.10);
 }
 
 .station-card-header {
@@ -319,7 +339,8 @@ body {
     gap: 12px;
 }
 
-.fuel-badge, .distance-badge {
+.fuel-badge,
+.distance-badge {
     background: #e3f2fd;
     color: #1976d2;
     border-radius: 12px;
@@ -336,7 +357,7 @@ body {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(255,255,255,0.7);
+    background: rgba(255, 255, 255, 0.7);
     z-index: 9999;
     align-items: center;
     justify-content: center;
@@ -367,4 +388,3 @@ body {
 .autocomplete-item:hover {
     background: #f0f0f0;
 }
-
