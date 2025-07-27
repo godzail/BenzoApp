@@ -1,0 +1,163 @@
+<div class="mdc-layout-grid__cell--span-12">
+    <template x-if="recentSearches.length > 0">
+        <div x-data="{ open: false }" class="recent-searches-container">
+            <button type="button" class="mdc-button mdc-button--outlined recent-searches-toggle"
+                @click="open = !open"
+                style="width:100%;margin-bottom:8px;justify-content:space-between;display:flex;align-items:center;">
+                <span id="recent-searches-i18n">Recent Searches</span>
+                <span x-text="open ? '-' : '+'" style="font-size:1.3em;"></span>
+            </button>
+            <div class="recent-searches-list" x-show="open" x-transition>
+                <template x-for="(search, idx) in recentSearches" :key="idx">
+                    <button class="mdc-button mdc-button--outlined recent-search-btn" type="button"
+                        @click="selectRecentSearch(search)">
+                        <span class="mdc-button__label"
+                            x-text="search.city + ' (' + search.radius + 'km, ' + search.fuel + ')'"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </template>
+</div>
+<div class="mdc-layout-grid__cell--span-12">
+    <form id="search-form" @submit.prevent="submitForm">
+        <div class="mdc-text-field mdc-text-field--outlined">
+            <input type="text" id="city" name="city" class="mdc-text-field__input" required
+                x-model="formData.city" @input="onCityInput" @focus="showCitySuggestions = true"
+                @blur="hideCitySuggestions">
+            <template x-if="showCitySuggestions && filteredCities.length > 0">
+                <ul class="autocomplete-list">
+                    <template x-for="city in filteredCities" :key="city">
+                        <li class="autocomplete-item" @mousedown.prevent="selectCity(city)"
+                            x-text="city"></li>
+                    </template>
+                </ul>
+            </template>
+            <div class="mdc-notched-outline">
+                <div class="mdc-notched-outline__leading"></div>
+                <div class="mdc-notched-outline__notch">
+                    <label for="city" class="mdc-floating-label" id="city-label-i18n">City</label>
+                </div>
+                <div class="mdc-notched-outline__trailing"></div>
+            </div>
+        </div>
+        <div class="mdc-select mdc-select--outlined">
+            <input type="hidden" name="radius" id="radius" x-model="formData.radius">
+            <div class="mdc-select__anchor" role="button" aria-haspopup="listbox"
+                aria-expanded="false" tabindex="0">
+                <span class="mdc-select__selected-text-container">
+                    <span class="mdc-select__selected-text">5 km</span>
+                </span>
+                <span class="mdc-select__dropdown-icon">
+                    <svg class="mdc-select__dropdown-icon-graphic" viewBox="7 10 10 5"
+                        focusable="false">
+                        <polygon class="mdc-select__dropdown-icon-inactive" stroke="none"
+                            fill-rule="evenodd" points="7 10 12 15 17 10"></polygon>
+                        <polygon class="mdc-select__dropdown-icon-active" stroke="none"
+                            fill-rule="evenodd" points="7 15 12 10 17 15"></polygon>
+                    </svg>
+                </span>
+                <span class="mdc-notched-outline">
+                    <span class="mdc-notched-outline__leading"></span>
+                    <span class="mdc-notched-outline__notch">
+                        <span class="mdc-floating-label" id="radius-label-i18n">Radius</span>
+                    </span>
+                    <span class="mdc-notched-outline__trailing"></span>
+                </span>
+            </div>
+            <div class="mdc-select__menu mdc-menu mdc-menu-surface mdc-menu-surface--fullwidth">
+                <ul class="mdc-list" role="listbox">
+                    <li class="mdc-list-item" data-value="1" role="option"><span
+                            class="mdc-list-item__text">1 km</span></li>
+                    <li class="mdc-list-item" data-value="5" role="option" aria-selected="true">
+                        <span class="mdc-list-item__text">5 km</span>
+                    </li>
+                    <li class="mdc-list-item" data-value="10" role="option"><span
+                            class="mdc-list-item__text">10 km</span></li>
+                    <li class="mdc-list-item" data-value="20" role="option"><span
+                            class="mdc-list-item__text">20 km</span></li>
+                </ul>
+            </div>
+        </div>
+        <div class="mdc-select mdc-select--outlined">
+            <input type="hidden" name="fuel" id="fuel" x-model="formData.fuel">
+            <div class="mdc-select__anchor" role="button" aria-haspopup="listbox"
+                aria-expanded="false" tabindex="0">
+                <span class="mdc-select__selected-text-container">
+                    <span class="mdc-select__selected-text">Benzina</span>
+                </span>
+                <span class="mdc-select__dropdown-icon">
+                    <svg class="mdc-select__dropdown-icon-graphic" viewBox="7 10 10 5"
+                        focusable="false">
+                        <polygon class="mdc-select__dropdown-icon-inactive" stroke="none"
+                            fill-rule="evenodd" points="7 10 12 15 17 10"></polygon>
+                        <polygon class="mdc-select__dropdown-icon-active" stroke="none"
+                            fill-rule="evenodd" points="7 15 12 10 17 15"></polygon>
+                    </svg>
+                </span>
+                <span class="mdc-notched-outline">
+                    <span class="mdc-notched-outline__leading"></span>
+                    <span class="mdc-notched-outline__notch">
+                        <span class="mdc-floating-label" id="fuel-label-i18n">Fuel Type</span>
+                    </span>
+                    <span class="mdc-notched-outline__trailing"></span>
+                </span>
+            </div>
+            <div class="mdc-select__menu mdc-menu mdc-menu-surface mdc-menu-surface--fullwidth">
+                <ul class="mdc-list" role="listbox">
+                    <li class="mdc-list-item" data-value="benzina" role="option"
+                        aria-selected="true"><span class="mdc-list-item__text">Benzina</span></li>
+                    <li class="mdc-list-item" data-value="diesel" role="option"><span
+                            class="mdc-list-item__text">Diesel</span></li>
+                    <li class="mdc-list-item" data-value="GPL" role="option"><span
+                            class="mdc-list-item__text">GPL</span></li>
+                    <li class="mdc-list-item" data-value="metano" role="option"><span
+                            class="mdc-list-item__text">Metano</span></li>
+                </ul>
+            </div>
+        </div>
+        <div class="mdc-select mdc-select--outlined">
+            <input type="hidden" name="results" id="results-count" x-model="formData.results">
+            <div class="mdc-select__anchor" role="button" aria-haspopup="listbox"
+                aria-expanded="false" tabindex="0">
+                <span class="mdc-select__selected-text-container">
+                    <span class="mdc-select__selected-text">5</span>
+                </span>
+                <span class="mdc-select__dropdown-icon">
+                    <svg class="mdc-select__dropdown-icon-graphic" viewBox="7 10 10 5"
+                        focusable="false">
+                        <polygon class="mdc-select__dropdown-icon-inactive" stroke="none"
+                            fill-rule="evenodd" points="7 10 12 15 17 10"></polygon>
+                        <polygon class="mdc-select__dropdown-icon-active" stroke="none"
+                            fill-rule="evenodd" points="7 15 12 10 17 15"></polygon>
+                    </svg>
+                </span>
+                <span class="mdc-notched-outline">
+                    <span class="mdc-notched-outline__leading"></span>
+                    <span class="mdc-notched-outline__notch">
+                        <span class="mdc-floating-label" id="results-label-i18n">Results</span>
+                    </span>
+                    <span class="mdc-notched-outline__trailing"></span>
+                </span>
+            </div>
+            <div class="mdc-select__menu mdc-menu mdc-menu-surface mdc-menu-surface--fullwidth">
+                <ul class="mdc-list" role="listbox">
+                    <li class="mdc-list-item" data-value="1" role="option"><span
+                            class="mdc-list-item__text">1</span></li>
+                    <li class="mdc-list-item" data-value="3" role="option"><span
+                            class="mdc-list-item__text">3</span></li>
+                    <li class="mdc-list-item" data-value="5" role="option" aria-selected="true">
+                        <span class="mdc-list-item__text">5</span>
+                    </li>
+                    <li class="mdc-list-item" data-value="10" role="option"><span
+                            class="mdc-list-item__text">10</span></li>
+                    <li class="mdc-list-item" data-value="20" role="option"><span
+                            class="mdc-list-item__text">20</span></li>
+                </ul>
+            </div>
+        </div>
+        <button class="mdc-button mdc-button--raised" type="submit" :disabled="loading">
+            <span class="mdc-button__label" id="search-btn-i18n">Search</span>
+        </button>
+    </form>
+</div>

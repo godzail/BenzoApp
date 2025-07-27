@@ -2,6 +2,7 @@
 # sourcery skip: avoid-global-variables, require-return-annotation
 
 import asyncio
+import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -9,7 +10,7 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from pydantic import BaseModel
@@ -61,6 +62,13 @@ app.add_middleware(
 # Mount static files using absolute path to src/static
 static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+# Favicon endpoint
+@app.get("/favicon.png", include_in_schema=False)
+async def favicon():
+    """Serve the favicon."""
+    return FileResponse(static_dir / "favicon.png")
 
 
 # Pydantic models for request/response
@@ -350,5 +358,5 @@ async def health_check() -> dict[str, str]:
 if __name__ == "__main__":
     import uvicorn
 
-    # For production, bind to 127.0.0.1 or use a reverse proxy
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="127.0.0.1", port=port)

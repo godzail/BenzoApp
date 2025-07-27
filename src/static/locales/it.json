@@ -1,0 +1,17 @@
+{
+    "translation": {
+        "title": "Ricerca Distributori Benzina",
+        "city": "Città",
+        "radius": "Raggio",
+        "fuel_type": "Tipo di Carburante",
+        "results": "Risultati",
+        "search": "Cerca",
+        "recent_searches": "Ricerche Recenti:",
+        "no_results": "Nessun distributore trovato per i criteri specificati.",
+        "loading": "Caricamento...",
+        "address": "Indirizzo",
+        "distance": "Distanza",
+        "price": "Prezzo",
+        "station": "Distributore"
+    }
+}

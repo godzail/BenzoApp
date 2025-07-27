@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gas Station Finder</title>
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
     <!-- Material Design Components -->
     <link
         href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css"
@@ -13,259 +14,45 @@
         src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>
+    <!-- i18next CDN -->
+    <script src="https://unpkg.com/i18next@23.10.0/dist/umd/i18next.min.js"></script>
+    <script src="https://unpkg.com/i18next-http-backend@2.2.0/i18nextHttpBackend.min.js"></script>
+    <!-- App Scripts -->
+    <script src="/static/js/i18n.js"></script>
     <script src="/static/js/app.js"></script>
+    <!-- Styles -->
     <link rel="stylesheet" href="/static/css/styles.css">
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
 
-<body x-data="gasStationApp()" x-init="init()">
+<body x-data="gasStationApp()" x-init="init()" x-cloak>
+    <!-- Material Design Linear Progress Bar for loading indicator -->
+    <div id="loading-bar" class="mdc-linear-progress" role="progressbar" aria-label="Loading"
+        aria-valuemin="0" aria-valuemax="1" aria-valuenow="0">
+        <div class="mdc-linear-progress__buffer">
+            <div class="mdc-linear-progress__buffer-bar"></div>
+            <div class="mdc-linear-progress__buffer-dots"></div>
+        </div>
+        <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
+            <span class="mdc-linear-progress__bar-inner"></span>
+        </div>
+        <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
+            <span class="mdc-linear-progress__bar-inner"></span>
+        </div>
+    </div>
     <div class="mdc-layout-grid">
-        <div class="mdc-layout-grid__inner">
-            <div class="mdc-layout-grid__cell--span-12">
-                <h1>Gas Station Finder</h1>
+        <div id="header-container"></div>
+        <div class="main-layout">
+            <div class="input-map-group">
+                <div id="search-container"></div>
+                <div id="map-container"></div>
             </div>
-
-            <!-- Search Form -->
-            <div class="mdc-layout-grid__cell--span-12">
-                <form id="search-form" @submit.prevent="submitForm">
-                    <div class="mdc-text-field mdc-text-field--outlined">
-                        <input type="text" id="city" name="city" class="mdc-text-field__input"
-                            required x-model="formData.city" @input="onCityInput"
-                            @focus="showCitySuggestions = true" @blur="hideCitySuggestions">
-                        <!-- City Autocomplete Dropdown -->
-                        <template x-if="showCitySuggestions && filteredCities.length > 0">
-                            <ul class="autocomplete-list">
-                                <template x-for="city in filteredCities" :key="city">
-                                    <li class="autocomplete-item"
-                                        @mousedown.prevent="selectCity(city)" x-text="city"></li>
-                                </template>
-                            </ul>
-                        </template>
-                        <div class="mdc-notched-outline">
-                            <div class="mdc-notched-outline__leading"></div>
-                            <div class="mdc-notched-outline__notch">
-                                <label for="city" class="mdc-floating-label">City</label>
-                            </div>
-                            <div class="mdc-notched-outline__trailing"></div>
-                        </div>
-                    </div>
-
-                    <div class="mdc-select mdc-select--outlined">
-                        <input type="hidden" name="radius" id="radius" x-model="formData.radius">
-                        <div class="mdc-select__anchor" role="button" aria-haspopup="listbox"
-                            aria-expanded="false" tabindex="0">
-                            <span class="mdc-select__selected-text-container">
-                                <span class="mdc-select__selected-text">5 km</span>
-                            </span>
-                            <span class="mdc-select__dropdown-icon">
-                                <svg class="mdc-select__dropdown-icon-graphic" viewBox="7 10 10 5"
-                                    focusable="false">
-                                    <polygon class="mdc-select__dropdown-icon-inactive"
-                                        stroke="none" fill-rule="evenodd" points="7 10 12 15 17 10">
-                                    </polygon>
-                                    <polygon class="mdc-select__dropdown-icon-active" stroke="none"
-                                        fill-rule="evenodd" points="7 15 12 10 17 15"></polygon>
-                                </svg>
-                            </span>
-                            <span class="mdc-notched-outline">
-                                <span class="mdc-notched-outline__leading"></span>
-                                <span class="mdc-notched-outline__notch">
-                                    <span class="mdc-floating-label">Radius</span>
-                                </span>
-                                <span class="mdc-notched-outline__trailing"></span>
-                            </span>
-                        </div>
-                        <div
-                            class="mdc-select__menu mdc-menu mdc-menu-surface mdc-menu-surface--fullwidth">
-                            <ul class="mdc-list" role="listbox">
-                                <li class="mdc-list-item" data-value="1" role="option">
-                                    <span class="mdc-list-item__text">1 km</span>
-                                </li>
-                                <li class="mdc-list-item" data-value="5" role="option"
-                                    aria-selected="true">
-                                    <span class="mdc-list-item__text">5 km</span>
-                                </li>
-                                <li class="mdc-list-item" data-value="10" role="option">
-                                    <span class="mdc-list-item__text">10 km</span>
-                                </li>
-                                <li class="mdc-list-item" data-value="20" role="option">
-                                    <span class="mdc-list-item__text">20 km</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="mdc-select mdc-select--outlined">
-                        <input type="hidden" name="fuel" id="fuel" x-model="formData.fuel">
-                        <div class="mdc-select__anchor" role="button" aria-haspopup="listbox"
-                            aria-expanded="false" tabindex="0">
-                            <span class="mdc-select__selected-text-container">
-                                <span class="mdc-select__selected-text">Benzina</span>
-                            </span>
-                            <span class="mdc-select__dropdown-icon">
-                                <svg class="mdc-select__dropdown-icon-graphic" viewBox="7 10 10 5"
-                                    focusable="false">
-                                    <polygon class="mdc-select__dropdown-icon-inactive"
-                                        stroke="none" fill-rule="evenodd" points="7 10 12 15 17 10">
-                                    </polygon>
-                                    <polygon class="mdc-select__dropdown-icon-active" stroke="none"
-                                        fill-rule="evenodd" points="7 15 12 10 17 15"></polygon>
-                                </svg>
-                            </span>
-                            <span class="mdc-notched-outline">
-                                <span class="mdc-notched-outline__leading"></span>
-                                <span class="mdc-notched-outline__notch">
-                                    <span class="mdc-floating-label">Fuel Type</span>
-                                </span>
-                                <span class="mdc-notched-outline__trailing"></span>
-                            </span>
-                        </div>
-                        <div
-                            class="mdc-select__menu mdc-menu mdc-menu-surface mdc-menu-surface--fullwidth">
-                            <ul class="mdc-list" role="listbox">
-                                <li class="mdc-list-item" data-value="benzina" role="option"
-                                    aria-selected="true">
-                                    <span class="mdc-list-item__text">Benzina</span>
-                                </li>
-                                <li class="mdc-list-item" data-value="diesel" role="option">
-                                    <span class="mdc-list-item__text">Diesel</span>
-                                </li>
-                                <li class="mdc-list-item" data-value="GPL" role="option">
-                                    <span class="mdc-list-item__text">GPL</span>
-                                </li>
-                                <li class="mdc-list-item" data-value="metano" role="option">
-                                    <span class="mdc-list-item__text">Metano</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                    <!-- Results Count Select -->
-                    <div class="mdc-select mdc-select--outlined">
-                        <input type="hidden" name="results" id="results-count"
-                            x-model="formData.results">
-                        <div class="mdc-select__anchor" role="button" aria-haspopup="listbox"
-                            aria-expanded="false" tabindex="0">
-                            <span class="mdc-select__selected-text-container">
-                                <span class="mdc-select__selected-text">5</span>
-                            </span>
-                            <span class="mdc-select__dropdown-icon">
-                                <svg class="mdc-select__dropdown-icon-graphic" viewBox="7 10 10 5"
-                                    focusable="false">
-                                    <polygon class="mdc-select__dropdown-icon-inactive"
-                                        stroke="none" fill-rule="evenodd" points="7 10 12 15 17 10">
-                                    </polygon>
-                                    <polygon class="mdc-select__dropdown-icon-active" stroke="none"
-                                        fill-rule="evenodd" points="7 15 12 10 17 15"></polygon>
-                                </svg>
-                            </span>
-                            <span class="mdc-notched-outline">
-                                <span class="mdc-notched-outline__leading"></span>
-                                <span class="mdc-notched-outline__notch">
-                                    <span class="mdc-floating-label">Results</span>
-                                </span>
-                                <span class="mdc-notched-outline__trailing"></span>
-                            </span>
-                        </div>
-                        <div
-                            class="mdc-select__menu mdc-menu mdc-menu-surface mdc-menu-surface--fullwidth">
-                            <ul class="mdc-list" role="listbox">
-                                <li class="mdc-list-item" data-value="1" role="option">
-                                    <span class="mdc-list-item__text">1</span>
-                                </li>
-                                <li class="mdc-list-item" data-value="3" role="option">
-                                    <span class="mdc-list-item__text">3</span>
-                                </li>
-                                <li class="mdc-list-item" data-value="5" role="option"
-                                    aria-selected="true">
-                                    <span class="mdc-list-item__text">5</span>
-                                </li>
-                                <li class="mdc-list-item" data-value="10" role="option">
-                                    <span class="mdc-list-item__text">10</span>
-                                </li>
-                                <li class="mdc-list-item" data-value="20" role="option">
-                                    <span class="mdc-list-item__text">20</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <button class="mdc-button mdc-button--raised" type="submit" :disabled="loading">
-                        <span class="mdc-button__label">Search</span>
-                    </button>
-                </form>
-            </div>
-
-            <!-- Loading Indicator -->
-            <div id="loading" class="mdc-layout-grid__cell--span-12">
-                <div class="mdc-linear-progress">
-                    <div class="mdc-linear-progress__buffering-dots"></div>
-                    <div class="mdc-linear-progress__buffer"></div>
-                    <div class="mdc-linear-progress__bar mdc-linear-progress__primary-bar">
-                        <span class="mdc-linear-progress__bar-inner"></span>
-                    </div>
-                    <div class="mdc-linear-progress__bar mdc-linear-progress__secondary-bar">
-                        <span class="mdc-linear-progress__bar-inner"></span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Results Container -->
-            <div id="results" class="mdc-layout-grid__cell--span-12">
-                <template x-if="results.length > 0">
-                    <div>
-                        <template x-for="(station, index) in results" :key="index">
-                            <div class="station-card mdc-card">
-                                <div class="station-card-header">
-                                    <div class="station-brand">
-                                        <span
-                                            class="material-icons station-icon">local_gas_station</span>
-                                        <span x-text="station.gestore || 'Gas Station'"></span>
-                                    </div>
-                                    <div class="station-price">
-                                        <template x-if="station.fuel_prices.length > 0">
-                                            <span class="price-badge">
-                                                <span
-                                                    class="material-icons price-icon">attach_money</span>
-                                                <span
-                                                    x-text="formatCurrency(station.fuel_prices[0].price)"></span>
-                                            </span>
-                                        </template>
-                                    </div>
-                                </div>
-                                <div class="station-card-body">
-                                    <div class="station-address-row">
-                                        <span class="material-icons address-icon">location_on</span>
-                                        <span class="station-address"
-                                            x-text="station.address"></span>
-                                    </div>
-                                    <div class="station-meta-row">
-                                        <template x-if="station.fuel_prices.length > 0">
-                                            <span class="fuel-badge"
-                                                x-text="station.fuel_prices[0].type"></span>
-                                        </template>
-                                        <span class="distance-badge" x-show="station.distance">
-                                            <span class="material-icons distance-icon">map</span>
-                                            <span
-                                                x-text="station.distance ? station.distance + ' km' : ''"></span>
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-                        <!-- Google Material Icons -->
-                        <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
-                            rel="stylesheet">
-                    </div>
-                </template>
-                <template x-if="error">
-                    <div class='error-message' x-text="error"></div>
-                </template>
-                <template x-if="results.length === 0 && !loading && searched && !error">
-                    <div class='error-message'>No gas stations found for the specified criteria.
-                    </div>
-                </template>
-            </div>
+            <div class="map-results-divider"></div>
+            <div id="results-container"></div>
         </div>
     </div>
 </body>
 
 </html>
-<!-- ...existing code from index.html... -->
