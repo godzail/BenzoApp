@@ -1,10 +1,11 @@
 <div id="results" class="mdc-layout-grid__cell--span-12">
     <template x-if="results.length > 0">
-        <div class="results-layout">
+        <section class="results-layout" aria-labelledby="results-heading">
+            <h2 id="results-heading" class="sr-only" data-i18n="results_heading"></h2>
             <details open>
-                <summary class="map-summary" id="map-summary-i18n">
+                <summary class="map-summary">
                     <span class="material-icons">map</span>
-                    <span i18n="map.summary">Map</span>
+                    <span id="map-summary-i18n"></span>
                 </summary>
                 <div class="map-view">
                     <!-- Map will be initialized here -->
@@ -13,11 +14,12 @@
             </details>
             <div class="results-list">
                 <template x-for="(station, index) in results" :key="index">
-                    <div class="station-card mdc-card">
+                    <article class="station-card mdc-card">
                         <div class="station-card-header">
                             <div class="station-brand">
                                 <span class="material-icons station-icon">local_gas_station</span>
-                                <span x-text="station.gestore || 'Gas Station'"></span>
+                                <span
+                                    x-text="station.gestore || i18next.t('translation.station')"></span>
                             </div>
                             <div class="station-price">
                                 <template x-if="station.fuel_prices.length > 0">
@@ -46,18 +48,17 @@
                                 </span>
                             </div>
                         </div>
-                    </div>
+                    </article>
                 </template>
                 <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
                     rel="stylesheet">
             </div>
-        </div>
+        </section>
     </template>
     <template x-if="error">
-        <div class='error-message' x-text="error"></div>
+        <div class='error-message' x-text="error" role="alert"></div>
     </template>
     <template x-if="results.length === 0 && !loading && searched && !error">
-        <div class='error-message' id="no-results-i18n">No gas stations found for the specified
-            criteria.</div>
+        <div class='error-message' id="no-results-i18n" role="alert"></div>
     </template>
 </div>
