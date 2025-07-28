@@ -1,19 +1,25 @@
 <div class="mdc-layout-grid__cell--span-12">
     <template x-if="recentSearches.length > 0">
-        <div class="recent-searches-container">
-            <h3 class="recent-searches-title" id="recent-searches-i18n">Recent Searches</h3>
-            <div class="recent-searches-list">
+        <section class="recent-searches-container" aria-labelledby="recent-searches-i18n">
+            <h3 class="recent-searches-title" id="recent-searches-i18n"></h3>
+            <ul class="recent-searches-list" style="list-style: none; padding: 0; margin: 0;">
                 <template x-for="(search, idx) in recentSearches" :key="idx">
-                    <button class="recent-search-btn" type="button" @click="selectRecentSearch(search)">
-                        <span x-text="search.city + ', ' + search.radius + 'km, ' + search.fuel"></span>
-                    </button>
+                    <li>
+                        <button class="recent-search-btn" type="button"
+                            @click="selectRecentSearch(search)">
+                            <span
+                                x-text="search.city + ', ' + search.radius + 'km, ' + search.fuel"></span>
+                        </button>
+                    </li>
                 </template>
-            </div>
-        </div>
+            </ul>
+        </section>
     </template>
 </div>
 <div class="mdc-layout-grid__cell--span-12">
-    <form id="search-form" @submit.prevent="submitForm">
+    <form id="search-form" @submit.prevent="submitForm" aria-labelledby="search-form-title">
+        <h2 id="search-form-title" class="sr-only" data-i18n="search_form_title">Search for gas
+            stations</h2>
         <div class="mdc-text-field mdc-text-field--outlined">
             <input type="text" id="city" name="city" class="mdc-text-field__input" required
                 x-model="formData.city" @input="onCityInput" @focus="showCitySuggestions = true"
@@ -29,7 +35,7 @@
             <div class="mdc-notched-outline">
                 <div class="mdc-notched-outline__leading"></div>
                 <div class="mdc-notched-outline__notch">
-                    <label for="city" class="mdc-floating-label" id="city-label-i18n">City</label>
+                    <label for="city" class="mdc-floating-label" id="city-label-i18n"></label>
                 </div>
                 <div class="mdc-notched-outline__trailing"></div>
             </div>
@@ -53,7 +59,7 @@
                 <span class="mdc-notched-outline">
                     <span class="mdc-notched-outline__leading"></span>
                     <span class="mdc-notched-outline__notch">
-                        <span class="mdc-floating-label" id="radius-label-i18n">Radius</span>
+                        <span class="mdc-floating-label" id="radius-label-i18n"></span>
                     </span>
                     <span class="mdc-notched-outline__trailing"></span>
                 </span>
@@ -91,7 +97,7 @@
                 <span class="mdc-notched-outline">
                     <span class="mdc-notched-outline__leading"></span>
                     <span class="mdc-notched-outline__notch">
-                        <span class="mdc-floating-label" id="fuel-label-i18n">Fuel Type</span>
+                        <span class="mdc-floating-label" id="fuel-label-i18n"></span>
                     </span>
                     <span class="mdc-notched-outline__trailing"></span>
                 </span>
@@ -128,7 +134,7 @@
                 <span class="mdc-notched-outline">
                     <span class="mdc-notched-outline__leading"></span>
                     <span class="mdc-notched-outline__notch">
-                        <span class="mdc-floating-label" id="results-label-i18n">Results</span>
+                        <span class="mdc-floating-label" id="results-label-i18n"></span>
                     </span>
                     <span class="mdc-notched-outline__trailing"></span>
                 </span>
@@ -150,7 +156,7 @@
             </div>
         </div>
         <button class="mdc-button mdc-button--raised" type="submit" :disabled="loading">
-            <span class="mdc-button__label" id="search-btn-i18n">Search</span>
+            <span class="mdc-button__label" id="search-btn-i18n"></span>
         </button>
     </form>
 </div>

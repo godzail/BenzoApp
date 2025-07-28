@@ -21,11 +21,7 @@ function gasStationApp() {
         mapInitialized: false,
         mapMarkers: [],
         showCitySuggestions: false,
-        cityList: [
-            'Rome', 'Milan', 'Naples', 'Turin', 'Palermo', 'Genoa', 'Bologna',
-            'Florence', 'Bari', 'Catania', 'Venice', 'Verona', 'Messina', 'Padua',
-            'Trieste', 'Taranto', 'Brescia', 'Prato', 'Parma', 'Modena'
-        ],
+        cityList: [],
         filteredCities: [],
 
         formatCurrency(value) {
@@ -38,11 +34,12 @@ function gasStationApp() {
         },
 
         async init() {
-            // Load all HTML templates first
+            // Load all HTML templates and initial data
             await Promise.all([
                 this.loadComponent('/static/templates/header.html', 'header-container'),
                 this.loadComponent('/static/templates/search.html', 'search-container'),
-                this.loadComponent('/static/templates/results.html', 'results-container')
+                this.loadComponent('/static/templates/results.html', 'results-container'),
+                this.loadCities()
             ]);
 
             // Load recent searches and set last city if available
@@ -54,7 +51,23 @@ function gasStationApp() {
             // Use $nextTick to ensure the DOM is updated before initializing MDC/Leaflet
             this.$nextTick(() => {
                 this.initializeComponents();
+                // Update i18n texts after templates are loaded
+                if (window.updateI18nTexts) {
+                    window.updateI18nTexts();
+                }
             });
+        },
+
+        async loadCities() {
+            try {
+                const response = await fetch('/static/data/cities.json');
+                if (!response.ok) throw new Error('Failed to load city list');
+                this.cityList = await response.json();
+            } catch (error) {
+                console.error('Error loading cities:', error);
+                // Fallback to a minimal list in case of failure
+                this.cityList = ['Rome', 'Milan', 'Naples'];
+            }
         },
 
         initializeComponents() {
@@ -218,6 +231,10 @@ function gasStationApp() {
 
                 this.$nextTick(() => {
                     this.updateMap();
+                    // Ensure translations are applied to new content
+                    if (window.updateI18nTexts) {
+                        updateI18nTexts();
+                    }
                 });
 
             } catch (err) {
@@ -234,7 +251,7 @@ function gasStationApp() {
             if (!this.mapInitialized) {
                 this.initMap();
             }
-            
+
             if (!this.map) {
                 console.warn('[DEBUG] Map not initialized, cannot update');
                 return;

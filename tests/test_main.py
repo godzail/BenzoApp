@@ -29,7 +29,7 @@ def test_read_root(client: TestClient) -> None:
 
 
 def test_search_gas_stations_invalid_city(client: TestClient) -> None:
-    """Test /search returns 404 for a non-existent city."""
+    """Test /search returns a warning for a non-existent city."""
     payload = {
         "city": "NonExistentCity12345",
         "radius": 5,
@@ -37,8 +37,10 @@ def test_search_gas_stations_invalid_city(client: TestClient) -> None:
         "results": 2,
     }
     response = client.post("/search", json=payload)
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert "city not found" in response.text.lower()
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["stations"] == []
+    assert "geocoding failed" in data["warning"].lower()
 
 
 def test_search_gas_stations_missing_field(client: TestClient) -> None:
