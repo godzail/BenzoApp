@@ -41,10 +41,7 @@ BenzoApp is a modern web application for finding gas stations and fuel prices, p
 
 ## Screenshots
 
-<!-- If available, add screenshots here. Example: -->
-<!--
-![Main UI](src/static/screenshots/main.png)
--->
+![Main UI](screenshot.png)
 
 ---
 
@@ -53,19 +50,36 @@ BenzoApp is a modern web application for finding gas stations and fuel prices, p
 ```text
 BenzoApp/
 ├── src/
-│   ├── main.py           # FastAPI backend
-│   └── static/           # Frontend assets
-│       ├── index.html
+│   ├── main.py                # FastAPI backend (main app logic)
+│   ├── models.py              # Pydantic models and settings
+│   └── static/                # Frontend assets
+│       ├── index.html         # Main HTML entry point
+│       ├── favicon.png        # Favicon
 │       ├── css/
-│       │   └── styles.css
-│       └── js/
-│           └── app.js
+│       │   └── styles.css     # Main stylesheet
+│       ├── js/
+│       │   ├── app.js         # Main frontend logic
+│       │   └── i18n.js        # Internationalization logic
+│       ├── data/
+│       │   └── cities.json    # List of supported cities
+│       ├── locales/
+│       │   ├── en.json        # English translations
+│       │   └── it.json        # Italian translations
+│       └── templates/         # HTML partials for UI components
+│           ├── header.html
+│           ├── map.html
+│           ├── results.html
+│           └── search.html
 ├── tests/
-│   └── test_main.py      # Automated tests
-├── pyproject.toml        # Project metadata and dependencies
-├── run.bat               # Windows run script
-├── README.md
-└── ...
+│   ├── __init__.py
+│   └── test_main.py           # Automated tests for backend
+├── coverage/                  # Test coverage reports (generated)
+├── docs/                      # Documentation and code review reports
+├── pyproject.toml             # Project metadata and dependencies
+├── uv.lock                    # Lockfile for uv/poetry
+├── run.bat                    # Windows run script
+├── README.md                  # Project documentation
+└── ...                        # Other files (see repo for full list)
 ```
 
 ---
