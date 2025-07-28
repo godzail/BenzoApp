@@ -12,6 +12,9 @@
         "address": "Address",
         "distance": "Distance",
         "price": "Price",
-        "station": "Gas Station"
+        "station": "Gas Station",
+        "map_summary": "Map",
+        "search_form_title": "Search for gas stations",
+        "results_heading": "Search Results"
     }
 }

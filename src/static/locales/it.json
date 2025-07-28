@@ -12,6 +12,9 @@
         "address": "Indirizzo",
         "distance": "Distanza",
         "price": "Prezzo",
-        "station": "Distributore"
+        "station": "Distributore",
+        "map_summary": "Mappa",
+        "search_form_title": "Cerca distributori di benzina",
+        "results_heading": "Risultati della ricerca"
     }
 }
