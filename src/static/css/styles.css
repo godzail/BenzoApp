@@ -13,6 +13,7 @@
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     padding: 24px;
     box-sizing: border-box;
+    position: relative;
 }
 
 #search-container {
@@ -31,6 +32,8 @@
     box-sizing: border-box;
     min-height: 0;
     height: 100%;
+    position: relative;
+    z-index: 3;
 }
 
 /* New results layout */
@@ -49,6 +52,8 @@
     /* Fixed height */
     margin-bottom: 24px;
     margin-top: 24px;
+    position: relative;
+    z-index: 1;
 }
 
 .results-list {
@@ -200,15 +205,15 @@
 
 /* Screen-reader only utility class */
 .sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
 }
 
 /* General Styles */
@@ -390,7 +395,7 @@ body {
     position: absolute;
     background: white;
     border: 1px solid #ccc;
-    z-index: 1000;
+    z-index: 10000;
 }
 
 .autocomplete-item {
