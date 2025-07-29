@@ -15,6 +15,10 @@
         "station": "Gas Station",
         "map_summary": "Map",
         "search_form_title": "Search for gas stations",
-        "results_heading": "Search Results"
+        "results_heading": "Search Results",
+        "benzina": "Gasoline",
+        "diesel": "Diesel",
+        "gpl": "LPG",
+        "metano": "Methane"
     }
 }

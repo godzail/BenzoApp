@@ -1,7 +1,10 @@
 // i18next initialization and language switcher
 window.setLang = function (lang) {
+    console.log('[DEBUG] i18next.changeLanguage called with lang:', lang);
     i18next.changeLanguage(lang, function (err, t) {
         updateI18nTexts();
+        // Dispatch event to notify app of language change
+        window.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang: lang } }));
     });
     localStorage.setItem('lang', lang);
 };
@@ -22,6 +25,7 @@ function updateI18nTexts() {
     };
 
     for (const [id, key] of Object.entries(i18nMap)) {
+        console.log('[DEBUG] Updating element', id, 'with key', key, 'to value:', i18next.t(key));
         const el = document.getElementById(id);
         if (el) {
             el.innerText = i18next.t(key);
@@ -30,9 +34,38 @@ function updateI18nTexts() {
 
     // Update elements with data-i18n attributes
     document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
+        let key = el.getAttribute('data-i18n');
         if (key) {
+            // Prepend 'translation.' if not already present
+            if (!key.startsWith('translation.')) {
+                key = 'translation.' + key;
+            }
             el.innerText = i18next.t(key);
+            console.log('[DEBUG] Updating element with data-i18n', key, 'to value:', i18next.t(key));
+        }
+    });
+
+    // Update MDC select components
+    document.querySelectorAll('.mdc-select').forEach(selectEl => {
+        const select = mdc.select.MDCSelect.attachTo(selectEl);
+        const selectedTextEl = selectEl.querySelector('.mdc-select__selected-text');
+        if (selectedTextEl) {
+            // Find the currently selected option
+            const hiddenInput = selectEl.querySelector('input[type="hidden"]');
+            if (hiddenInput) {
+                const currentValue = hiddenInput.value;
+                const listItem = selectEl.querySelector(`.mdc-list-item[data-value="${ currentValue }"]`);
+                if (listItem) {
+                    const textEl = listItem.querySelector('.mdc-list-item__text');
+                    if (textEl) {
+                        const key = textEl.getAttribute('data-i18n');
+                        if (key) {
+                            selectedTextEl.textContent = i18next.t(key);
+                            console.log('[DEBUG] Updating MDC select selected text with key', key, 'to value:', i18next.t(key));
+                        }
+                    }
+                }
+            }
         }
     });
 

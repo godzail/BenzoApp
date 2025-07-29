@@ -15,6 +15,10 @@
         "station": "Distributore",
         "map_summary": "Mappa",
         "search_form_title": "Cerca distributori di benzina",
-        "results_heading": "Risultati della ricerca"
+        "results_heading": "Risultati della ricerca",
+        "benzina": "Benzina",
+        "diesel": "Gasolio",
+        "gpl": "GPL",
+        "metano": "Metano"
     }
 }
