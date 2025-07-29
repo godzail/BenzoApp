@@ -29,12 +29,16 @@ def get_settings() -> Settings:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifespan context manager to handle startup and shutdown events."""
-    try:
-        yield
-    except (asyncio.CancelledError, KeyboardInterrupt):
-        logger.info("Shutdown: CancelledError or KeyboardInterrupt caught, exiting cleanly.")
-    except Exception as err:
-        logger.exception(f"Unexpected error in lifespan: {err}")
+    # Create a shared HTTP client for connection pooling
+    async with httpx.AsyncClient() as client:
+        # Store the client in app state for use in endpoints
+        _app.state.http_client = client
+        try:
+            yield
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            logger.info("Shutdown: CancelledError or KeyboardInterrupt caught, exiting cleanly.")
+        except Exception as err:
+            logger.exception(f"Unexpected error in lifespan: {err}")
 
 
 # --- FastAPI App Initialization ---
@@ -66,24 +70,27 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # --- API Service Functions ---
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)
-async def geocode_city(city: str, settings: Annotated[Settings, Depends(get_settings)]) -> dict[str, float]:
+async def geocode_city(
+    city: str,
+    settings: Annotated[Settings, Depends(get_settings)],
+    http_client: Annotated[httpx.AsyncClient, Depends(lambda: app.state.http_client)],
+) -> dict[str, float]:
     """Geocode a city name to latitude and longitude using OpenStreetMap Nominatim."""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(
-                settings.nominatim_api_url,
-                params={"q": city, "format": "json", "limit": 1},
-                headers={"User-Agent": settings.user_agent},
-            )
-            response.raise_for_status()
-            data = response.json()
-            if not data:
-                raise HTTPException(status_code=404, detail="City not found")
-            location = data[0]
-            return {"latitude": float(location["lat"]), "longitude": float(location["lon"])}
-        except httpx.RequestError as err:
-            logger.warning(f"Geocoding request error: {err}")
-            raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {err}") from err
+    try:
+        response = await http_client.get(
+            settings.nominatim_api_url,
+            params={"q": city, "format": "json", "limit": 1},
+            headers={"User-Agent": settings.user_agent},
+        )
+        response.raise_for_status()
+        data = response.json()
+        if not data:
+            raise HTTPException(status_code=404, detail="City not found")
+        location = data[0]
+        return {"latitude": float(location["lat"]), "longitude": float(location["lon"])}
+    except httpx.RequestError as err:
+        logger.warning(f"Geocoding request error: {err}")
+        raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {err}") from err
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)
@@ -93,33 +100,62 @@ async def fetch_gas_stations(
     distance: int,
     fuel: str,
     settings: Annotated[Settings, Depends(get_settings)],
+    http_client: Annotated[httpx.AsyncClient, Depends(lambda: app.state.http_client)],
     results: int = 5,
 ) -> dict:
     """Fetch gas stations from Prezzi Carburante API."""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(
-                settings.prezzi_carburante_api_url,
-                params={
-                    "latitude": latitude,
-                    "longitude": longitude,
-                    "distance": distance,
-                    "fuel": fuel,
-                    "results": results,
-                },
-            )
-            response.raise_for_status()
-            return response.json()
-        except httpx.RequestError as err:
-            logger.warning(f"Gas station API request error: {err}")
-            raise HTTPException(status_code=503, detail=f"Gas station API unavailable: {err}") from err
+    try:
+        logger.info(
+            "Making request to gas station API: URL={}, params={}",
+            settings.prezzi_carburante_api_url,
+            {
+                "latitude": latitude,
+                "longitude": longitude,
+                "distance": distance,
+                "fuel": fuel,
+                "results": results,
+            },
+        )
+        response = await http_client.get(
+            settings.prezzi_carburante_api_url,
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                "distance": distance,
+                "fuel": fuel,
+                "results": results,
+            },
+        )
+        logger.info(
+            "Received response from gas station API: status_code={}, response_text={}",
+            response.status_code,
+            response.text[:500] if response.text else "No response text",
+        )
+        response.raise_for_status()
+        return response.json()
+    except httpx.HTTPStatusError as err:
+        logger.error(
+            "Gas station API HTTP error: {} - {} - Response: {}",
+            err.response.status_code,
+            err.response.reason_phrase,
+            err.response.text[:500] if err.response.text else "No response text",
+        )
+        raise HTTPException(
+            status_code=err.response.status_code, detail=f"Gas station API error: {err.response.reason_phrase}"
+        ) from err
+    except httpx.RequestError as err:
+        logger.error(f"Gas station API request error: {err}")
+        raise HTTPException(status_code=503, detail=f"Gas station API unavailable: {err}") from err
 
 
 # --- API Endpoints ---
 @app.get("/favicon.png", include_in_schema=False)
 async def favicon():
     """Serve the favicon."""
-    return FileResponse(static_dir / "favicon.png")
+    return FileResponse(
+        static_dir / "favicon.png",
+        headers={"Cache-Control": "public, max-age=3600"},  # Cache for 1 hour
+    )
 
 
 @app.post("/search")
@@ -128,12 +164,28 @@ async def search_gas_stations(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> SearchResponse:
     """Search for gas stations near a city within a given radius."""
-    logger.info("Received search request: city={}, radius={}, fuel={}", request.city, request.radius, request.fuel)
+    logger.info(
+        "Received search request: city={}, radius={}km, fuel={}, results={}",
+        request.city,
+        request.radius,
+        request.fuel,
+        request.results,
+    )
     try:
-        location = await geocode_city(request.city, settings)
-    except (RetryError, HTTPException) as err:
-        logger.warning(f"Geocoding failed: {err}")
-        warning_msg = "City geocoding failed. Please check the city name or try again later."
+        location = await geocode_city(request.city, settings, app.state.http_client)
+        logger.info(
+            "Geocoded city '{}' to coordinates: latitude={}, longitude={}",
+            request.city,
+            location["latitude"],
+            location["longitude"],
+        )
+    except RetryError as err:
+        logger.warning(f"Geocoding failed after retries: {err}")
+        warning_msg = "City geocoding service is temporarily unavailable. Please try again later."
+        return SearchResponse(stations=[], warning=warning_msg)
+    except HTTPException as err:
+        logger.warning(f"Geocoding HTTP error: {err}")
+        warning_msg = "City not found. Please check the city name and try again."
         return SearchResponse(stations=[], warning=warning_msg)
 
     try:
@@ -143,22 +195,36 @@ async def search_gas_stations(
             request.radius,
             request.fuel,
             settings,
+            app.state.http_client,
             request.results,
         )
-    except (RetryError, HTTPException) as err:
-        logger.warning(f"Gas station API failed: {err}")
+        logger.info(
+            "Retrieved {} gas stations for city '{}' within {}km radius",
+            len(stations_data),
+            request.city,
+            request.radius,
+        )
+    except RetryError as err:
+        logger.warning(f"Gas station API failed after retries: {err}")
         warning_msg = "Gas station data is temporarily unavailable. Please try again later."
+        return SearchResponse(stations=[], warning=warning_msg)
+    except HTTPException as err:
+        logger.warning(f"Gas station API HTTP error: {err}")
+        warning_msg = "Failed to fetch gas station data. Please try again later."
         return SearchResponse(stations=[], warning=warning_msg)
 
     stations = []
     for station_id, data in stations_data.items():
         try:
+            # Since the API returns data for the specific fuel type requested,
+            # we can directly use the fuel type from the request
+            fuel_price = float(data.get("prezzo", 0.0))
             station = Station(
                 id=station_id,
                 address=data.get("indirizzo", ""),
                 latitude=float(data.get("latitudine", 0.0)),
                 longitude=float(data.get("longitudine", 0.0)),
-                fuel_prices=[FuelPrice(type=request.fuel, price=float(data.get("prezzo", 0.0)))],
+                fuel_prices=[FuelPrice(type=request.fuel, price=fuel_price)],
             )
             stations.append(station)
         except (ValueError, TypeError) as err:
@@ -171,10 +237,13 @@ async def search_gas_stations(
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root() -> str:
+async def read_root():
     """Serve the main HTML page."""
     index_path = static_dir / "index.html"
-    return index_path.read_text()
+    return FileResponse(
+        index_path,
+        headers={"Cache-Control": "public, max-age=3600"},  # Cache for 1 hour
+    )
 
 
 @app.get("/health")
