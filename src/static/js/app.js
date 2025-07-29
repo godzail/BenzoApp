@@ -42,6 +42,12 @@ function gasStationApp() {
                 this.loadCities()
             ]);
 
+            // Listen for language change events
+            window.addEventListener('languageChanged', (event) => {
+                console.log('[DEBUG] Language changed to:', event.detail.lang);
+                this.reinitializeComponents();
+            });
+
             // Load recent searches and set last city if available
             this.loadRecentSearches();
             if (this.recentSearches.length > 0 && this.recentSearches[0].city) {
@@ -54,6 +60,58 @@ function gasStationApp() {
                 // Update i18n texts after templates are loaded
                 if (window.updateI18nTexts) {
                     window.updateI18nTexts();
+                    console.log('[DEBUG] updateI18nTexts called after templates loaded');
+                }
+            });
+        },
+
+        reinitializeComponents() {
+            console.log('[DEBUG] Reinitializing MDC components after language change');
+
+            // First, update i18n texts for all select options (if available)
+            if (window.updateI18nTexts) {
+                window.updateI18nTexts();
+                console.log('[DEBUG] updateI18nTexts called before MDCSelect re-init');
+            }
+
+            // Now reinitialize select components
+            document.querySelectorAll('.mdc-select').forEach(el => {
+                // Destroy existing instance if it exists
+                if (el.MDCSelect) {
+                    el.MDCSelect.destroy();
+                }
+
+                // Create new instance
+                const select = mdc.select.MDCSelect.attachTo(el);
+                el.MDCSelect = select;
+
+                // Reattach event listener
+                select.listen('MDCSelect:change', () => {
+                    const hiddenInput = el.querySelector('input[type="hidden"]');
+                    if (hiddenInput) {
+                        hiddenInput.value = select.value;
+                        hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                });
+
+                // Set the value and update the selected text to use the new language
+                const inputName = el.querySelector('input[type="hidden"]')?.name;
+                if (inputName && this.formData[inputName]) {
+                    select.value = this.formData[inputName];
+                    // Find the text element for the currently selected value
+                    const listItem = el.querySelector(`.mdc-list-item[data-value="${ this.formData[inputName] }"]`);
+                    if (listItem) {
+                        const textEl = listItem.querySelector('.mdc-list-item__text');
+                        if (textEl) {
+                            const key = textEl.getAttribute('data-i18n');
+                            if (key) {
+                                const selectedTextEl = el.querySelector('.mdc-select__selected-text');
+                                if (selectedTextEl) {
+                                    selectedTextEl.textContent = i18next.t(key);
+                                }
+                            }
+                        }
+                    }
                 }
             });
         },
@@ -232,6 +290,7 @@ function gasStationApp() {
                 this.$nextTick(() => {
                     this.updateMap();
                     // Ensure translations are applied to new content
+                    console.log('[DEBUG] updateI18nTexts called after search results loaded');
                     if (window.updateI18nTexts) {
                         updateI18nTexts();
                     }
@@ -285,4 +344,7 @@ function gasStationApp() {
             }
         }
     };
-}
+};
+
+// Expose the gasStationApp function to the window object
+window.gasStationApp = gasStationApp;
