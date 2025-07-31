@@ -1,4 +1,16 @@
-"""Gas Station Finder API."""
+"""Gas Station Finder API.
+
+This module implements a FastAPI-based backend service for searching gas stations near a specified city.
+It provides endpoints for geocoding city names, fetching gas station data, and serving static frontend assets.
+
+Features:
+- Geocodes city names to latitude/longitude using OpenStreetMap Nominatim.
+- Fetches gas station data from Prezzi Carburante API with retry logic.
+- Serves static files and frontend HTML.
+- Provides health check and favicon endpoints.
+
+Intended for use as the backend of a web application to help users find nearby gas stations and compare fuel prices.
+"""
 # sourcery skip: avoid-global-variables, require-return-annotation
 
 import asyncio
@@ -11,12 +23,12 @@ import httpx
 from cachetools.func import lru_cache
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
-from .models import FuelPrice, SearchRequest, SearchResponse, Settings, Station
+from src.models import FuelPrice, SearchRequest, SearchResponse, Settings, Station, StationSearchParams
 
 
 @lru_cache(maxsize=1)
@@ -95,36 +107,29 @@ async def geocode_city(
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)
 async def fetch_gas_stations(
-    latitude: float,
-    longitude: float,
-    distance: int,
-    fuel: str,
+    params: StationSearchParams,
     settings: Annotated[Settings, Depends(get_settings)],
     http_client: Annotated[httpx.AsyncClient, Depends(lambda: app.state.http_client)],
-    results: int = 5,
 ) -> dict:
-    """Fetch gas stations from Prezzi Carburante API."""
+    """Fetch gas stations from Prezzi Carburante API.
+
+    Parameters:
+    - params: StationSearchParams object containing latitude, longitude, distance, fuel, and results.
+    - settings: Application settings (injected).
+    - http_client: Shared HTTP client (injected).
+
+    Returns:
+    - dict: JSON response from the Prezzi Carburante API.
+    """
     try:
         logger.info(
             "Making request to gas station API: URL={}, params={}",
             settings.prezzi_carburante_api_url,
-            {
-                "latitude": latitude,
-                "longitude": longitude,
-                "distance": distance,
-                "fuel": fuel,
-                "results": results,
-            },
+            params.dict(),
         )
         response = await http_client.get(
             settings.prezzi_carburante_api_url,
-            params={
-                "latitude": latitude,
-                "longitude": longitude,
-                "distance": distance,
-                "fuel": fuel,
-                "results": results,
-            },
+            params=params.dict(),
         )
         logger.info(
             "Received response from gas station API: status_code={}, response_text={}",
@@ -141,7 +146,8 @@ async def fetch_gas_stations(
             err.response.text[:500] if err.response.text else "No response text",
         )
         raise HTTPException(
-            status_code=err.response.status_code, detail=f"Gas station API error: {err.response.reason_phrase}"
+            status_code=err.response.status_code,
+            detail=f"Gas station API error: {err.response.reason_phrase}",
         ) from err
     except httpx.RequestError as err:
         logger.error(f"Gas station API request error: {err}")
@@ -158,7 +164,7 @@ async def favicon():
     )
 
 
-@app.post("/search")
+@app.post("/search", response_class=JSONResponse)
 async def search_gas_stations(
     request: SearchRequest,
     settings: Annotated[Settings, Depends(get_settings)],
@@ -171,6 +177,16 @@ async def search_gas_stations(
         request.fuel,
         request.results,
     )
+
+    # Normalize basic inputs to be user-friendly
+    city_query = request.city.strip()
+    request.city = city_query
+    if request.results <= 0:
+        request.results = 5
+    request.radius = max(request.radius, 1)
+    request.radius = min(request.radius, 200)
+
+    # Geocode city
     try:
         location = await geocode_city(request.city, settings, app.state.http_client)
         logger.info(
@@ -188,20 +204,31 @@ async def search_gas_stations(
         warning_msg = "City not found. Please check the city name and try again."
         return SearchResponse(stations=[], warning=warning_msg)
 
+    # Fetch stations
     try:
-        stations_data = await fetch_gas_stations(
-            location["latitude"],
-            location["longitude"],
-            request.radius,
-            request.fuel,
+        params = StationSearchParams(
+            latitude=location["latitude"],
+            longitude=location["longitude"],
+            distance=request.radius,
+            fuel=request.fuel,
+            results=request.results,
+        )
+        stations_payload = await fetch_gas_stations(
+            params,
             settings,
             app.state.http_client,
-            request.results,
         )
+        # Expecting a mapping; defensively handle lists or unexpected shapes
+        if isinstance(stations_payload, list):
+            payload_iter = enumerate(stations_payload)
+        elif isinstance(stations_payload, dict):
+            payload_iter = stations_payload.items()
+        else:
+            logger.warning(f"Unexpected stations payload type: {type(stations_payload)}")
+            return SearchResponse(stations=[], warning="Unexpected data format from provider.")
         logger.info(
-            "Retrieved {} gas stations for city '{}' within {}km radius",
-            len(stations_data),
-            request.city,
+            "Retrieved gas stations for city '{}' within {}km radius",
+            city_query,
             request.radius,
         )
     except RetryError as err:
@@ -213,17 +240,17 @@ async def search_gas_stations(
         warning_msg = "Failed to fetch gas station data. Please try again later."
         return SearchResponse(stations=[], warning=warning_msg)
 
-    stations = []
-    for station_id, data in stations_data.items():
+    # Build response
+    stations: list[Station] = []
+    for station_id, data in payload_iter:
         try:
-            # Since the API returns data for the specific fuel type requested,
-            # we can directly use the fuel type from the request
-            fuel_price = float(data.get("prezzo", 0.0))
+            prezzo_raw = (data or {}).get("prezzo", 0.0)
+            fuel_price = float(prezzo_raw) if prezzo_raw is not None else 0.0
             station = Station(
-                id=station_id,
-                address=data.get("indirizzo", ""),
-                latitude=float(data.get("latitudine", 0.0)),
-                longitude=float(data.get("longitudine", 0.0)),
+                id=str(station_id),
+                address=(data or {}).get("indirizzo", ""),
+                latitude=float((data or {}).get("latitudine") or 0.0),
+                longitude=float((data or {}).get("longitudine") or 0.0),
                 fuel_prices=[FuelPrice(type=request.fuel, price=fuel_price)],
             )
             stations.append(station)
