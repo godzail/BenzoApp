@@ -46,6 +46,20 @@ function gasStationApp() {
             window.addEventListener('languageChanged', (event) => {
                 console.log('[DEBUG] Language changed to:', event.detail.lang);
                 this.reinitializeComponents();
+                // Ensure map markers/popups reflect current language (IT expected by user)
+                if (this.mapInitialized) {
+                    console.log('[DEBUG] Refreshing map markers/popups after language change, current lng:', i18next.language);
+                    if (this.mapMarkers && this.mapMarkers.length > 0) {
+                        this.mapMarkers.forEach(marker => {
+                            if (marker.__station) {
+                                const html = this.buildPopupContent(marker.__station);
+                                marker.bindPopup(html);
+                            }
+                        });
+                    }
+                    // Optionally re-run update to fit bounds and ensure binding is applied
+                    this.updateMap();
+                }
             });
 
             // Load recent searches and set last city if available
@@ -94,22 +108,27 @@ function gasStationApp() {
                     }
                 });
 
-                // Set the value and update the selected text to use the new language
+                // Always set the selected value and update the visible text using current language
                 const inputName = el.querySelector('input[type="hidden"]')?.name;
+                let currentValue = null;
                 if (inputName && this.formData[inputName]) {
-                    select.value = this.formData[inputName];
-                    // Find the text element for the currently selected value
-                    const listItem = el.querySelector(`.mdc-list-item[data-value="${ this.formData[inputName] }"]`);
-                    if (listItem) {
+                    currentValue = this.formData[inputName];
+                    select.value = currentValue;
+                } else {
+                    // Try to infer from currently marked selected list item
+                    const selectedLi = el.querySelector('.mdc-list-item[aria-selected="true"]');
+                    currentValue = selectedLi?.getAttribute('data-value') || select.value;
+                }
+                // Update visible text using data-i18n key from the selected list item
+                if (currentValue) {
+                    const listItem = el.querySelector(`.mdc-list-item[data-value="${ currentValue }"]`);
+                    const selectedTextEl = el.querySelector('.mdc-select__selected-text');
+                    if (listItem && selectedTextEl) {
                         const textEl = listItem.querySelector('.mdc-list-item__text');
                         if (textEl) {
                             const key = textEl.getAttribute('data-i18n');
-                            if (key) {
-                                const selectedTextEl = el.querySelector('.mdc-select__selected-text');
-                                if (selectedTextEl) {
-                                    selectedTextEl.textContent = i18next.t(key);
-                                }
-                            }
+                            // If key present, translate; else keep raw text
+                            selectedTextEl.textContent = key ? i18next.t(key) : textEl.textContent;
                         }
                     }
                 }
@@ -144,6 +163,16 @@ function gasStationApp() {
                 const inputName = el.querySelector('input[type="hidden"]')?.name;
                 if (inputName && this.formData[inputName]) {
                     select.value = this.formData[inputName];
+                }
+                // Ensure selected text reflects current language after init
+                const selectedLi = el.querySelector(`.mdc-list-item[data-value="${ select.value }"]`) || el.querySelector('.mdc-list-item[aria-selected="true"]');
+                const selectedTextEl = el.querySelector('.mdc-select__selected-text');
+                if (selectedLi && selectedTextEl) {
+                    const textEl = selectedLi.querySelector('.mdc-list-item__text');
+                    if (textEl) {
+                        const key = textEl.getAttribute('data-i18n');
+                        selectedTextEl.textContent = key ? i18next.t(key) : textEl.textContent;
+                    }
                 }
             });
 
@@ -306,6 +335,13 @@ function gasStationApp() {
             }
         },
 
+        buildPopupContent(station) {
+            // Build popup HTML using current i18n language (should be IT when selected)
+            const title = station.gestore || i18next.t('translation.station');
+            console.log('[DEBUG] buildPopupContent using lang:', i18next.language, 'title:', title);
+            return `<b>${ title }</b><br>${ station.address }`;
+        },
+
         updateMap() {
             if (!this.mapInitialized) {
                 this.initMap();
@@ -327,9 +363,12 @@ function gasStationApp() {
                 const bounds = [];
                 this.results.forEach(station => {
                     if (station.latitude && station.longitude) {
-                        const marker = L.marker([station.latitude, station.longitude])
-                            .addTo(this.map)
-                            .bindPopup(`<b>${ station.gestore || 'Gas Station' }</b><br>${ station.address }`);
+                        const marker = L.marker([station.latitude, station.longitude]).addTo(this.map);
+                        // Attach station for later popup refresh
+                        marker.__station = station;
+                        // Bind popup content using current language
+                        const html = this.buildPopupContent(station);
+                        marker.bindPopup(html);
                         this.mapMarkers.push(marker);
                         bounds.push([station.latitude, station.longitude]);
                     }

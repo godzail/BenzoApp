@@ -1,7 +1,34 @@
-"""Pydantic models for the Gas Station Finder API."""
+# --- Search Parameters Model ---
+"""Pydantic models for the Gas Station Finder API.
 
-from pydantic import BaseModel, Field
+This module defines data models and configuration settings for the Gas Station Finder API, including:
+- Application settings (Settings)
+- Search request/response models
+- Gas station and fuel price models
+- Search parameter grouping for API calls
+"""
+
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
+
+
+# --- Search Parameters Model ---
+class StationSearchParams(BaseModel):
+    """Parameters for searching gas stations by location and fuel type.
+
+    Parameters:
+    - latitude: Latitude of the search location.
+    - longitude: Longitude of the search location.
+    - distance: Search radius in kilometers.
+    - fuel: Fuel type to search for.
+    - results: Number of results to return (default: 5).
+    """
+
+    latitude: float
+    longitude: float
+    distance: int
+    fuel: str
+    results: int = 5
 
 
 # --- Settings and Configuration ---
@@ -32,10 +59,18 @@ class Settings(BaseSettings):
 class SearchRequest(BaseModel):
     """Represents a search request for gas stations."""
 
-    city: str
-    radius: int
-    fuel: str
-    results: int = 5
+    city: str = Field(min_length=2)
+    radius: int = Field(ge=1, le=200)
+    fuel: str = Field(min_length=3)
+    results: int = Field(default=5, ge=1, le=20)
+
+    @staticmethod
+    def _norm_city(v: str) -> str:
+        return v.strip()
+
+    @property
+    def city_normalized(self) -> str:
+        return self._norm_city(self.city)
 
     model_config = {
         "json_schema_extra": {
