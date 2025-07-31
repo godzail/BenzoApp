@@ -1,4 +1,4 @@
-<div id="results" class="mdc-layout-grid__cell--span-12">
+<div id="results" class="mdc-layout-grid__cell--span-12" aria-live="polite">
     <template x-if="results.length > 0">
         <section class="results-layout" aria-labelledby="results-heading">
             <h2 id="results-heading" class="sr-only" data-i18n="results_heading"></h2>
@@ -24,7 +24,6 @@
                             <div class="station-price">
                                 <template x-if="station.fuel_prices.length > 0">
                                     <span class="price-badge">
-                                        <span class="material-icons price-icon">attach_money</span>
                                         <span
                                             x-text="formatCurrency(station.fuel_prices[0].price)"></span>
                                     </span>
@@ -59,6 +58,6 @@
         <div class='error-message' x-text="error" role="alert"></div>
     </template>
     <template x-if="results.length === 0 && !loading && searched && !error">
-        <div class='error-message' id="no-results-i18n" role="alert"></div>
+        <div class='error-message' id="no-results-i18n" role="alert" data-i18n="no_results"></div>
     </template>
 </div>

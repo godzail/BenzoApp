@@ -19,6 +19,7 @@
         "benzina": "Gasoline",
         "diesel": "Diesel",
         "gpl": "LPG",
-        "metano": "Methane"
+        "metano": "Methane",
+        "required": "is required"
     }
 }
