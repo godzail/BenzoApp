@@ -169,7 +169,15 @@ async def search_gas_stations(
     request: SearchRequest,
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> SearchResponse:
-    """Search for gas stations near a city within a given radius."""
+    """Search for gas stations near a city within a given radius.
+
+    Parameters:
+    - request: SearchRequest containing city, radius, fuel, and results.
+    - settings: Application settings (injected).
+
+    Returns:
+    - SearchResponse: List of stations and an optional warning message.
+    """
     logger.info(
         "Received search request: city={}, radius={}km, fuel={}, results={}",
         request.city,
@@ -178,89 +186,71 @@ async def search_gas_stations(
         request.results,
     )
 
-    # Normalize basic inputs to be user-friendly
-    city_query = request.city.strip()
-    request.city = city_query
-    if request.results <= 0:
-        request.results = 5
-    request.radius = max(request.radius, 1)
-    request.radius = min(request.radius, 200)
+    # Normalize inputs without mutating the incoming request object
+    city: str = (request.city or "").strip()
+    results: int = request.results if request.results and request.results > 0 else 5
+    radius: int = min(max(request.radius or 1, 1), 200)
 
     # Geocode city
     try:
-        location = await geocode_city(request.city, settings, app.state.http_client)
-        logger.info(
-            "Geocoded city '{}' to coordinates: latitude={}, longitude={}",
-            request.city,
-            location["latitude"],
-            location["longitude"],
+        location = await geocode_city(city, settings, app.state.http_client)
+    except RetryError:
+        return SearchResponse(
+            stations=[],
+            warning="City geocoding service is temporarily unavailable. Please try again later.",
         )
-    except RetryError as err:
-        logger.warning(f"Geocoding failed after retries: {err}")
-        warning_msg = "City geocoding service is temporarily unavailable. Please try again later."
-        return SearchResponse(stations=[], warning=warning_msg)
-    except HTTPException as err:
-        logger.warning(f"Geocoding HTTP error: {err}")
-        warning_msg = "City not found. Please check the city name and try again."
-        return SearchResponse(stations=[], warning=warning_msg)
+    except HTTPException:
+        return SearchResponse(stations=[], warning="City not found. Please check the city name and try again.")
 
     # Fetch stations
     try:
         params = StationSearchParams(
             latitude=location["latitude"],
             longitude=location["longitude"],
-            distance=request.radius,
+            distance=radius,
             fuel=request.fuel,
-            results=request.results,
+            results=results,
         )
-        stations_payload = await fetch_gas_stations(
-            params,
-            settings,
-            app.state.http_client,
+        stations_payload = await fetch_gas_stations(params, settings, app.state.http_client)
+    except RetryError:
+        return SearchResponse(
+            stations=[],
+            warning="Gas station data is temporarily unavailable. Please try again later.",
         )
-        # Expecting a mapping; defensively handle lists or unexpected shapes
-        if isinstance(stations_payload, list):
-            payload_iter = enumerate(stations_payload)
-        elif isinstance(stations_payload, dict):
-            payload_iter = stations_payload.items()
-        else:
-            logger.warning(f"Unexpected stations payload type: {type(stations_payload)}")
-            return SearchResponse(stations=[], warning="Unexpected data format from provider.")
-        logger.info(
-            "Retrieved gas stations for city '{}' within {}km radius",
-            city_query,
-            request.radius,
-        )
-    except RetryError as err:
-        logger.warning(f"Gas station API failed after retries: {err}")
-        warning_msg = "Gas station data is temporarily unavailable. Please try again later."
-        return SearchResponse(stations=[], warning=warning_msg)
-    except HTTPException as err:
-        logger.warning(f"Gas station API HTTP error: {err}")
-        warning_msg = "Failed to fetch gas station data. Please try again later."
-        return SearchResponse(stations=[], warning=warning_msg)
+    except HTTPException:
+        return SearchResponse(stations=[], warning="Failed to fetch gas station data. Please try again later.")
 
-    # Build response
+    # Normalize payload to an iterable of station data dicts
+    if isinstance(stations_payload, list):
+        payload_iter = enumerate(stations_payload)
+    elif isinstance(stations_payload, dict):
+        payload_iter = enumerate(stations_payload.values())
+    else:
+        logger.warning("Unexpected stations payload type: %s", type(stations_payload))
+        return SearchResponse(stations=[], warning="Unexpected data format from provider.")
+
     stations: list[Station] = []
-    for station_id, data in payload_iter:
+    for idx, data in payload_iter:
+        if not isinstance(data, dict):
+            logger.warning("Skipping non-dict station entry at index %s", idx)
+            continue
         try:
-            prezzo_raw = (data or {}).get("prezzo", 0.0)
-            fuel_price = float(prezzo_raw) if prezzo_raw is not None else 0.0
+            prezzo_raw = data.get("prezzo", 0.0)
+            price: float = float(prezzo_raw) if prezzo_raw is not None else 0.0
             station = Station(
-                id=str(station_id),
-                address=(data or {}).get("indirizzo", ""),
-                latitude=float((data or {}).get("latitudine") or 0.0),
-                longitude=float((data or {}).get("longitudine") or 0.0),
-                fuel_prices=[FuelPrice(type=request.fuel, price=fuel_price)],
+                id=str(idx),
+                address=data.get("indirizzo", "") or "",
+                latitude=float(data.get("latitudine") or 0.0),
+                longitude=float(data.get("longitudine") or 0.0),
+                fuel_prices=[FuelPrice(type=request.fuel, price=price)],
             )
             stations.append(station)
         except (ValueError, TypeError) as err:
-            logger.warning(f"Skipping station {station_id} due to data parsing error: {err}")
+            logger.warning("Skipping station %s due to parse error: %s", idx, err)
             continue
 
-    stations.sort(key=lambda s: s.fuel_prices[0].price if s.fuel_prices else float("inf"))
-    limited_stations = stations[: max(1, request.results)]
-    return SearchResponse(stations=limited_stations)
+    stations.sort(key=lambda s: (s.fuel_prices[0].price if s.fuel_prices else float("inf")))
+    return SearchResponse(stations=stations[: max(1, results)])
 
 
 @app.get("/", response_class=HTMLResponse)
