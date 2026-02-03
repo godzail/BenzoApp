@@ -1,25 +1,25 @@
 {
-    "translation": {
-        "title": "Ricerca Distributori Benzina",
-        "city": "Città",
-        "radius": "Raggio",
-        "fuel_type": "Tipo di Carburante",
-        "results": "Risultati",
-        "search": "Cerca",
-        "recent_searches": "Ricerche Recenti:",
-        "no_results": "Nessun distributore trovato per i criteri specificati.",
-        "loading": "Caricamento...",
-        "address": "Indirizzo",
-        "distance": "Distanza",
-        "price": "Prezzo",
-        "station": "Distributore",
-        "map_summary": "Mappa",
-        "search_form_title": "Cerca distributori di benzina",
-        "results_heading": "Risultati della ricerca",
-        "benzina": "Benzina",
-        "diesel": "Gasolio",
-        "gpl": "GPL",
-        "metano": "Metano",
-        "required": "è obbligatoria"
-    }
+  "translation": {
+    "title": "Ricerca Distributori Benzina",
+    "city": "Città",
+    "radius": "Raggio",
+    "fuel_type": "Tipo di Carburante",
+    "results": "Risultati",
+    "search": "Cerca",
+    "recent_searches": "Ricerche Recenti:",
+    "no_results": "Nessun distributore trovato per i criteri specificati.",
+    "loading": "Caricamento...",
+    "address": "Indirizzo",
+    "distance": "Distanza",
+    "price": "Prezzo",
+    "station": "Distributore",
+    "map_summary": "Mappa",
+    "search_form_title": "Cerca distributori di benzina",
+    "results_heading": "Risultati della ricerca",
+    "benzina": "Benzina",
+    "diesel": "Gasolio",
+    "gpl": "GPL",
+    "metano": "Metano",
+    "required": "è obbligatoria"
+  }
 }

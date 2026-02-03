@@ -20,20 +20,31 @@ from pathlib import Path
 from typing import Annotated
 
 import httpx
-from cachetools.func import lru_cache
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
-from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
+from tenacity import RetryError
 
-from src.models import FuelPrice, SearchRequest, SearchResponse, Settings, Station, StationSearchParams
+from src.models import (
+    DEFAULT_RESULTS_COUNT,
+    MAX_RESULTS_COUNT,
+    MAX_SEARCH_RADIUS_KM,
+    FuelPrice,
+    SearchRequest,
+    SearchResponse,
+    Settings,
+    Station,
+    StationSearchParams,
+)
+from src.services.fuel_api import fetch_gas_stations
+from src.services.fuel_type_utils import normalize_fuel_type
+from src.services.geocoding import geocode_city
 
 
-@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Returns a cached instance of the application settings."""
+    """Returns application settings instance."""
     return Settings()  # pyright: ignore[reportCallIssue]
 
 
@@ -41,8 +52,9 @@ def get_settings() -> Settings:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifespan context manager to handle startup and shutdown events."""
-    # Create a shared HTTP client for connection pooling
-    async with httpx.AsyncClient() as client:
+    # Create a shared HTTP client for connection pooling with timeout
+    timeout = httpx.Timeout(30.0, connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
         # Store the client in app state for use in endpoints
         _app.state.http_client = client
         try:
@@ -80,78 +92,12 @@ static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
-# --- API Service Functions ---
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)
-async def geocode_city(
-    city: str,
-    settings: Annotated[Settings, Depends(get_settings)],
-    http_client: Annotated[httpx.AsyncClient, Depends(lambda: app.state.http_client)],
-) -> dict[str, float]:
-    """Geocode a city name to latitude and longitude using OpenStreetMap Nominatim."""
-    try:
-        response = await http_client.get(
-            settings.nominatim_api_url,
-            params={"q": city, "format": "json", "limit": 1},
-            headers={"User-Agent": settings.user_agent},
-        )
-        response.raise_for_status()
-        data = response.json()
-        if not data:
-            raise HTTPException(status_code=404, detail="City not found")
-        location = data[0]
-        return {"latitude": float(location["lat"]), "longitude": float(location["lon"])}
-    except httpx.RequestError as err:
-        logger.warning(f"Geocoding request error: {err}")
-        raise HTTPException(status_code=503, detail=f"Geocoding service unavailable: {err}") from err
+# --- API Service Functions (now imported from services) ---
+# geocode_city and fetch_gas_stations are imported from src.services
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)
-async def fetch_gas_stations(
-    params: StationSearchParams,
-    settings: Annotated[Settings, Depends(get_settings)],
-    http_client: Annotated[httpx.AsyncClient, Depends(lambda: app.state.http_client)],
-) -> dict:
-    """Fetch gas stations from Prezzi Carburante API.
-
-    Parameters:
-    - params: StationSearchParams object containing latitude, longitude, distance, fuel, and results.
-    - settings: Application settings (injected).
-    - http_client: Shared HTTP client (injected).
-
-    Returns:
-    - dict: JSON response from the Prezzi Carburante API.
-    """
-    try:
-        logger.info(
-            "Making request to gas station API: URL={}, params={}",
-            settings.prezzi_carburante_api_url,
-            params.dict(),
-        )
-        response = await http_client.get(
-            settings.prezzi_carburante_api_url,
-            params=params.dict(),
-        )
-        logger.info(
-            "Received response from gas station API: status_code={}, response_text={}",
-            response.status_code,
-            response.text[:500] if response.text else "No response text",
-        )
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as err:
-        logger.error(
-            "Gas station API HTTP error: {} - {} - Response: {}",
-            err.response.status_code,
-            err.response.reason_phrase,
-            err.response.text[:500] if err.response.text else "No response text",
-        )
-        raise HTTPException(
-            status_code=err.response.status_code,
-            detail=f"Gas station API error: {err.response.reason_phrase}",
-        ) from err
-    except httpx.RequestError as err:
-        logger.error(f"Gas station API request error: {err}")
-        raise HTTPException(status_code=503, detail=f"Gas station API unavailable: {err}") from err
+# --- API Service Functions (now imported from services) ---
+# geocode_city and fetch_gas_stations are imported from src.services
 
 
 # --- API Endpoints ---
@@ -179,7 +125,7 @@ async def search_gas_stations(
     - SearchResponse: List of stations and an optional warning message.
     """
     logger.info(
-        "Received search request: city={}, radius={}km, fuel={}, results={}",
+        "Received search request: city=%s, radius=%skm, fuel=%s, results=%s",
         request.city,
         request.radius,
         request.fuel,
@@ -188,8 +134,11 @@ async def search_gas_stations(
 
     # Normalize inputs without mutating the incoming request object
     city: str = (request.city or "").strip()
-    results: int = request.results if request.results and request.results > 0 else 5
-    radius: int = min(max(request.radius or 1, 1), 200)
+    if not city:
+        raise HTTPException(status_code=400, detail="City name is required")
+
+    results: int = request.results if request.results and request.results > 0 else DEFAULT_RESULTS_COUNT
+    radius: int = min(max(request.radius or 1, 1), MAX_SEARCH_RADIUS_KM)
 
     # Geocode city
     try:
@@ -198,24 +147,27 @@ async def search_gas_stations(
         return SearchResponse(
             stations=[],
             warning="City geocoding service is temporarily unavailable. Please try again later.",
+            error=True,
         )
     except HTTPException:
         return SearchResponse(stations=[], warning="City not found. Please check the city name and try again.")
 
     # Fetch stations
     try:
+        normalized_fuel = normalize_fuel_type(request.fuel)
         params = StationSearchParams(
             latitude=location["latitude"],
             longitude=location["longitude"],
             distance=radius,
-            fuel=request.fuel,
-            results=results,
+            fuel=normalized_fuel,
+            results=min(results, MAX_RESULTS_COUNT),
         )
         stations_payload = await fetch_gas_stations(params, settings, app.state.http_client)
     except RetryError:
         return SearchResponse(
             stations=[],
             warning="Gas station data is temporarily unavailable. Please try again later.",
+            error=True,
         )
     except HTTPException:
         return SearchResponse(stations=[], warning="Failed to fetch gas station data. Please try again later.")
@@ -230,9 +182,11 @@ async def search_gas_stations(
         return SearchResponse(stations=[], warning="Unexpected data format from provider.")
 
     stations: list[Station] = []
+    skipped_count = 0
     for idx, data in payload_iter:
         if not isinstance(data, dict):
             logger.warning("Skipping non-dict station entry at index %s", idx)
+            skipped_count += 1
             continue
         try:
             prezzo_raw = data.get("prezzo", 0.0)
@@ -242,15 +196,19 @@ async def search_gas_stations(
                 address=data.get("indirizzo", "") or "",
                 latitude=float(data.get("latitudine") or 0.0),
                 longitude=float(data.get("longitudine") or 0.0),
-                fuel_prices=[FuelPrice(type=request.fuel, price=price)],
+                fuel_prices=[FuelPrice(type=normalized_fuel, price=price)],
             )
             stations.append(station)
         except (ValueError, TypeError) as err:
             logger.warning("Skipping station %s due to parse error: %s", idx, err)
+            skipped_count += 1
             continue
 
     stations.sort(key=lambda s: (s.fuel_prices[0].price if s.fuel_prices else float("inf")))
-    return SearchResponse(stations=stations[: max(1, results)])
+    return SearchResponse(
+        stations=stations[: max(1, min(results, MAX_RESULTS_COUNT))],
+        warning=f"{skipped_count} stations were excluded due to incomplete data." if skipped_count else None,
+    )
 
 
 @app.get("/", response_class=HTMLResponse)

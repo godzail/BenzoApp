@@ -1,63 +1,98 @@
 <div id="results" class="mdc-layout-grid__cell--span-12" aria-live="polite">
-    <template x-if="results.length > 0">
-        <section class="results-layout" aria-labelledby="results-heading">
-            <h2 id="results-heading" class="sr-only" data-i18n="results_heading"></h2>
-            <details open>
-                <summary class="map-summary">
-                    <span class="material-icons">map</span>
-                    <span id="map-summary-i18n"></span>
-                </summary>
-                <div class="map-view">
-                    <!-- Map will be initialized here -->
-                    <div id="map"></div>
-                </div>
-            </details>
-            <div class="results-list">
-                <template x-for="(station, index) in results" :key="index">
-                    <article class="station-card mdc-card">
-                        <div class="station-card-header">
-                            <div class="station-brand">
-                                <span class="material-icons station-icon">local_gas_station</span>
-                                <span
-                                    x-text="station.gestore || i18next.t('translation.station')"></span>
-                            </div>
-                            <div class="station-price">
-                                <template x-if="station.fuel_prices.length > 0">
-                                    <span class="price-badge">
-                                        <span
-                                            x-text="formatCurrency(station.fuel_prices[0].price)"></span>
-                                    </span>
-                                </template>
-                            </div>
-                        </div>
-                        <div class="station-card-body">
-                            <div class="station-address-row">
-                                <span class="material-icons address-icon">location_on</span>
-                                <span class="station-address" x-text="station.address"></span>
-                            </div>
-                            <div class="station-meta-row">
-                                <template x-if="station.fuel_prices.length > 0">
-                                    <span class="fuel-badge"
-                                        x-text="station.fuel_prices[0].type"></span>
-                                </template>
-                                <span class="distance-badge" x-show="station.distance">
-                                    <span class="material-icons distance-icon">map</span>
-                                    <span
-                                        x-text="station.distance ? station.distance + ' km' : ''"></span>
-                                </span>
-                            </div>
-                        </div>
-                    </article>
+  <!-- Skeleton loader -->
+  <template x-if="loading && results.length === 0">
+    <div class="skeleton-loader">
+      <template x-for="i in 3">
+        <div class="skeleton-card">
+          <div class="skeleton-header">
+            <div class="skeleton-avatar"></div>
+            <div class="skeleton-title"></div>
+          </div>
+          <div class="skeleton-body">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </template>
+
+  <!-- Empty state -->
+  <template x-if="!loading && results.length === 0 && searched && !error">
+    <div class="empty-state">
+      <span class="material-icons empty-icon">search_off</span>
+      <p class="empty-message" id="no-results-i18n" data-i18n="no_results"></p>
+      <p class="empty-suggestion">Try adjusting your search radius or fuel type</p>
+    </div>
+  </template>
+
+  <!-- Results -->
+  <template x-if="results.length > 0">
+    <section class="results-layout" aria-labelledby="results-heading">
+      <h2 id="results-heading" class="sr-only" data-i18n="results_heading"></h2>
+      <details open @toggle="onMapToggle" x-data="{ mapCollapsed: false }">
+        <summary class="map-summary" aria-expanded="true">
+          <span class="material-icons" x-text="mapCollapsed ? 'map' : 'keyboard_arrow_down'"></span>
+          <span id="map-summary-i18n"></span>
+          <span class="map-status" x-text="mapInitialized ? '' : ' (Loading...)'"></span>
+        </summary>
+        <div class="map-view">
+          <!-- Map will be initialized here -->
+          <div id="map"></div>
+        </div>
+      </details>
+      <div class="results-list">
+        <template x-for="(station, index) in results" :key="station.id || index">
+          <article
+            class="station-card mdc-card"
+            :class="{ 'best-price': isCheapestStation(index) }"
+            @keyup.enter="selectStation(index)"
+            tabindex="0"
+            :aria-label="station.gestore + ', ' + formatCurrency(station.fuel_prices[0].price)"
+          >
+            <div class="station-card-header">
+              <div class="station-brand">
+                <span class="material-icons station-icon">local_gas_station</span>
+                <span x-text="station.gestore || i18next.t('translation.station')"></span>
+              </div>
+              <div class="station-price" aria-label="Price">
+                <template x-if="station.fuel_prices.length > 0">
+                  <span class="price-badge price-large" x-text="formatCurrency(station.fuel_prices[0].price)"></span>
                 </template>
-                <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
-                    rel="stylesheet">
+                <template x-if="station.fuel_prices.length > 0">
+                  <span class="price-fuel" x-text="station.fuel_prices[0].type"></span>
+                </template>
+              </div>
             </div>
-        </section>
-    </template>
-    <template x-if="error">
-        <div class='error-message' x-text="error" role="alert"></div>
-    </template>
-    <template x-if="results.length === 0 && !loading && searched && !error">
-        <div class='error-message' id="no-results-i18n" role="alert" data-i18n="no_results"></div>
-    </template>
+            <div class="station-card-body">
+              <div class="station-address-row">
+                <span class="material-icons address-icon">location_on</span>
+                <span class="station-address" x-text="station.address"></span>
+              </div>
+              <div class="station-actions">
+                <button
+                  class="mdc-button mdc-button--outlined mdc-button--dense"
+                  @click="selectStationForMap(index)"
+                  :aria-label="'Show ' + (station.gestore || i18next.t('translation.station')) + ' on map'"
+                >
+                  <span class="mdc-button__label" data-i18n="show_on_map"></span>
+                </button>
+                <button
+                  class="mdc-button mdc-button--dense"
+                  @click="getDirections(station)"
+                  :aria-label="'Get directions to ' + (station.gestore || i18next.t('translation.station'))"
+                >
+                  <span class="material-icons">directions</span>
+                </button>
+              </div>
+            </div>
+          </article>
+        </template>
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+      </div>
+    </section>
+  </template>
+  <template x-if="error">
+    <div class="error-message" x-text="error" role="alert"></div>
+  </template>
 </div>
