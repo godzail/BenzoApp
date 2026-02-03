@@ -1,25 +1,25 @@
 {
-    "translation": {
-        "title": "Gas Station Finder",
-        "city": "City",
-        "radius": "Radius",
-        "fuel_type": "Fuel Type",
-        "results": "Results",
-        "search": "Search",
-        "recent_searches": "Recent Searches:",
-        "no_results": "No gas stations found for the specified criteria.",
-        "loading": "Loading...",
-        "address": "Address",
-        "distance": "Distance",
-        "price": "Price",
-        "station": "Gas Station",
-        "map_summary": "Map",
-        "search_form_title": "Search for gas stations",
-        "results_heading": "Search Results",
-        "benzina": "Gasoline",
-        "diesel": "Diesel",
-        "gpl": "LPG",
-        "metano": "Methane",
-        "required": "is required"
-    }
+  "translation": {
+    "title": "Gas Station Finder",
+    "city": "City",
+    "radius": "Radius",
+    "fuel_type": "Fuel Type",
+    "results": "Results",
+    "search": "Search",
+    "recent_searches": "Recent Searches:",
+    "no_results": "No gas stations found for the specified criteria.",
+    "loading": "Loading...",
+    "address": "Address",
+    "distance": "Distance",
+    "price": "Price",
+    "station": "Gas Station",
+    "map_summary": "Map",
+    "search_form_title": "Search for gas stations",
+    "results_heading": "Search Results",
+    "benzina": "Gasoline",
+    "diesel": "Diesel",
+    "gpl": "LPG",
+    "metano": "Methane",
+    "required": "is required"
+  }
 }

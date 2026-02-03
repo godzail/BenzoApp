@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Fuel service"
 requires-python = "==3.14.*"
 license = { text = "MIT" }
-authors = [{ name = "Nic", email = "nicola.sottani@gmail.com" }]
+authors = [{ name = "Nic" }]
 dependencies = [
   "cachetools",
   "fastapi[standard]",

@@ -93,7 +93,7 @@ function gasStationApp() {
         el.MDCSelect = select;
 
         select.listen("MDCSelect:change", () => {
-          // biome-ignore lint/nursery/noSecrets: True
+          // biome-ignore lint/security/noSecrets: True
           const hiddenInput = el.querySelector('input[type="hidden"]');
           if (hiddenInput) {
             hiddenInput.value = select.value;
@@ -102,7 +102,7 @@ function gasStationApp() {
         });
 
         // Set value and update text
-        // biome-ignore lint/nursery/noSecrets: Tru
+        // biome-ignore lint/security/noSecrets: True
         const inputName = el.querySelector('input[type="hidden"]')?.name;
         if (inputName && this.formData[inputName]) {
           select.value = this.formData[inputName];
@@ -238,7 +238,6 @@ function gasStationApp() {
           this.initializeComponents();
           if (window.updateI18nTexts) {
             window.updateI18nTexts();
-            // biome-ignore lint/nursery/noSecrets: Tru
             this.debug("updateI18nTexts called after templates loaded");
           }
         });
@@ -274,7 +273,6 @@ function gasStationApp() {
       // First, update i18n texts for all select options (if available)
       if (window.updateI18nTexts) {
         window.updateI18nTexts();
-        // biome-ignore lint/nursery/noSecrets: Tru
         this.debug("updateI18nTexts called before MDCSelect re-init");
       }
 
@@ -402,7 +400,7 @@ function gasStationApp() {
       );
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution:
-          // biome-ignore lint/nursery/noSecrets: Tru
+          // biome-ignore lint/security/noSecrets: True
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(this.map);
 
@@ -506,7 +504,6 @@ function gasStationApp() {
         // Update map and UI after DOM update
         this.$nextTick(() => {
           this.updateMap();
-          // biome-ignore lint/nursery/noSecrets: Tru
           this.debug("updateI18nTexts called after search results loaded");
           if (window.updateI18nTexts) {
             updateI18nTexts();
@@ -529,7 +526,6 @@ function gasStationApp() {
       // Build popup HTML using current i18n language (should be IT when selected)
       const title = station.gestore || i18next.t("translation.station");
       this.debug(
-        // biome-ignore lint/nursery/noSecrets: Tru
         "buildPopupContent using lang:",
         i18next.language,
         "title:",

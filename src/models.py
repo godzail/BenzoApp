@@ -8,8 +8,10 @@ This module defines data models and configuration settings for the Gas Station F
 - Search parameter grouping for API calls
 """
 
-from pydantic import BaseModel, Field, field_validator
-from pydantic_settings import BaseSettings
+import os
+
+from pydantic import BaseModel, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 # --- Search Parameters Model ---
@@ -35,6 +37,8 @@ class StationSearchParams(BaseModel):
 class Settings(BaseSettings):
     """Manages application configuration using environment variables."""
 
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
     nominatim_api_url: str = Field(
         "https://nominatim.openstreetmap.org/search",
         description="The base URL for the OpenStreetMap Nominatim API.",
@@ -44,16 +48,13 @@ class Settings(BaseSettings):
         description="The base URL for the Prezzi Carburante API.",
     )
     cors_allowed_origins: list[str] = Field(
-        ["http://127.0.0.1:8000"],
+        default_factory=lambda: os.getenv(
+            "CORS_ALLOWED_ORIGINS",
+            "http://localhost:3000,http://127.0.0.1:3000",  # Frontend dev server
+        ).split(","),
         description="A list of allowed origins for CORS.",
     )
     user_agent: str = Field("GasStationFinder/1.0", description="User-Agent header for external API requests.")
-
-    class Config:
-        """Pydantic settings configuration."""
-
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 class SearchRequest(BaseModel):
@@ -66,10 +67,12 @@ class SearchRequest(BaseModel):
 
     @staticmethod
     def _norm_city(v: str) -> str:
+        """Normalize city name by stripping whitespace."""
         return v.strip()
 
     @property
     def city_normalized(self) -> str:
+        """Return the normalized city name."""
         return self._norm_city(self.city)
 
     model_config = {
@@ -141,8 +144,18 @@ class Station(BaseModel):
         return f"{self.address} - {', '.join(str(fp) for fp in self.fuel_prices)}"
 
 
+# Configuration constants
+MAX_SEARCH_RADIUS_KM = 200
+MIN_SEARCH_RADIUS_KM = 1
+DEFAULT_RESULTS_COUNT = 5
+MAX_RESULTS_COUNT = 20
+MAX_ZOOM_LEVEL = 14
+MAP_PADDING_PX = 50
+
+
 class SearchResponse(BaseModel):
     """Represents the response of a gas station search."""
 
     stations: list[Station]
     warning: str | None = None
+    error: bool = False
