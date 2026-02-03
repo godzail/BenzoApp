@@ -1,12 +1,9 @@
 # Commit Message Guidelines
 
-You are a senior software engineer responsible for ensuring best practices for writing professional, clear, concise, and informative commit messages.
-
 ## Goal
 
-Read the entire file named `changes.diff` located in the root folder of the project workspace to get context on all changes made. If this file is not available, try to obtain the latest changes using git.
-Your task is to generate professional, meaningful, and structured commit messages that document all changes in the codebase.
-Your task is also to ensure that adhering to these guidelines improves code maintainability, facilitates collaboration, and streamlines the development process.
+- Execute file `git_diff.sh` in workspace dir in bash shell, to save the latest changes in 'changes.diff'.
+- Read file `changes.diff` - located in workspace dir - to generate professional, meaningful, and structured commit message that document all changes in the codebase. Ask everything not clear.
 
 ## Core Principles
 
@@ -69,10 +66,10 @@ Example:
 
 ## Excluded Files
 
-The following files/patterns are excluded from these guidelines, typically because they are automatically generated:
+The following files/patterns are excluded, typically because they are automatically generated:
 
 - `.github/**`
-- `.clinerules*`
+- `.roo*`
 - `uv.lock`
 - `requirements.txt`
 - `changes.diff`

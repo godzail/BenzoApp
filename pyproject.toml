@@ -1,50 +1,46 @@
 [project]
-  authors = [{ name = "Nic", email = "nicola.sottani@gmail.com" }]
-  dependencies = [
-    "cachetools",
-    "fastapi[standard]",
-    "httptools",
-    "humanize",
-    "loguru",
-    "orjson",
-    "pathvalidate",
-    "pydantic_settings",
-    "pydantic",
-    "python-dateutil",
-    "python-dotenv",
-    "python-multipart",
-    "tabulate",
-    "tzdata",
-    "uvicorn[standard]",
-    "wrapt",
-    "tenacity",
-  ]
-  description = "Fuel service"
-  license = { text = "MIT" }
-  name = "BenzoApp"
-  requires-python = "==3.13.*"
-  version = "0.1.0"
+name = "BenzoApp"
+version = "0.1.0"
+description = "Fuel service"
+requires-python = "==3.14.*"
+license = { text = "MIT" }
+authors = [{ name = "Nic", email = "nicola.sottani@gmail.com" }]
+dependencies = [
+  "cachetools",
+  "fastapi[standard]",
+  "httptools",
+  "humanize",
+  "loguru",
+  "orjson",
+  "pathvalidate",
+  "pydantic",
+  "pydantic_settings",
+  "python-dateutil",
+  "python-dotenv",
+  "python-multipart",
+  "tabulate",
+  "tenacity",
+  "tzdata",
+  "uvicorn[standard]",
+  "wrapt",
+]
+
+[dependency-groups]
+dev = [
+  "datamodel-code-generator",
+  "httpx",
+  "pipgrip",
+  "pytest",
+  "pytest-cov",
+  "pytest-env",
+  "pytest-randomly",
+  "pytest-sugar",
+  "pytest-xdist",
+  "types-cachetools",
+  "types-python-dateutil",
+  "types-tabulate",
+  "watchfiles",
+]
 
 [tool.uv]
-  cache-dir = "d:/.uv_cache"
-
-  dev-dependencies = [
-    "datamodel-code-generator",
-    "httpx",
-    "ipykernel",
-    "mypy",
-    "pip-audit",
-    "pip",
-    "pipgrip",
-    "pytest-cov",
-    "pytest-env",
-    "pytest-randomly",
-    "pytest-sugar",
-    "pytest-xdist",
-    "pytest",
-    "ruff",
-    "types-cachetools",
-    "types-python-dateutil",
-    "types-tabulate",
-    "watchfiles",
-  ]
+cache-dir = "d:/.uv_cache"

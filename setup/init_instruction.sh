@@ -1,4 +1,8 @@
 echo "Initializing instruction setup..."  # Added message
+
+# Save current directory
+ORIGINAL_DIR="$(pwd)"
+
 # Change to the root directory
 cd "$(dirname "$0")/.." || exit 1
 
@@ -13,18 +17,18 @@ cline_rules_dir=./.clinerules
 # list files to hardlink from copilot-instructions.md
 instructions_hardlink=(
     "$roo_rules_dir/instructions.md"
-    "$cline_rules_dir/instructions.md"
+    # "$cline_rules_dir/instructions.md"
     gemini.md
 )
 
 py_instructions_hardlink=(
     "$roo_rules_dir/py.instructions.md"
-    "$cline_rules_dir/py.instructions.md"
+    # "$cline_rules_dir/py.instructions.md"
 )
 
 ignore_hardlink=(
     .geminiignore
-    .clineignore
+    # .clineignore
 )
 
 # if hardlinks exists remove
@@ -33,7 +37,7 @@ for file in "${instructions_hardlink[@]}" "${py_instructions_hardlink[@]}" "${ig
 done
 
 mkdir -p "$roo_rules_dir"
-mkdir -p "$cline_rules_dir"
+# mkdir -p "$cline_rules_dir"
 
 # loop instructions to create hardlinks
 for file in "${instructions_hardlink[@]}"; do
@@ -54,5 +58,8 @@ fi
 for file in "${ignore_hardlink[@]}"; do
     ln "$source_ignore" "$file"
 done
+
+# Reset to original directory
+cd "$ORIGINAL_DIR"
 
 echo "Instruction setup complete."  # Added message

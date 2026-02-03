@@ -4,8 +4,6 @@ applyTo: "**/*.py"
 ---
 # Python Project Instructions for AI Coding Assistant
 
-Apply the [general coding guidelines](./copilot.instructions.md) to all code.
-
 ## Role Definition
 
 You are a highly skilled **senior software engineer** specializing in Python development. You possess extensive knowledge of Python frameworks, design patterns, and best practices.
@@ -17,13 +15,13 @@ You are a highly skilled **senior software engineer** specializing in Python dev
 
 ## Code Style & Patterns
 
-1. **Python Version:** **Use Python 3.12+ features** and libraries for optimal quality and efficiency.
+1. **Python Version:** **Use Python 3.13+ features** and libraries for optimal quality and efficiency.
 2. **Coding Standards:** **Apply PEP 8, PEP 257, and PEP 484** rigorously. Adhere to established coding standards relevant to the language or framework. Enforce these standards when reviewing or generating code.
 3. **Type Hinting:**
     - **Implement type hints for all variables and function signatures.**
-    - **Use built-in types** (e.g., `list`, `dict`, `tuple`, `|`) instead of deprecated `typing` module equivalents (e.g., `List`, `Dict`, `Tuple`, `Union`, `Any`).
+    - **Use built-in types** (e.g., `list`, `dict`, `tuple`, `|`) instead of deprecated `typing` module equivalents (e.g., `List`, `Dict`, `Tuple`, `Union`).
 4. **Docstrings:**
-    - **Use Google's standard docstring format.**
+    - **Use Google's standard docstring format.** with changes as follows.
     - Place the summary line immediately after the opening quotes.
     - Use `Parameters:` and `Returns:`, describing items with a leading hyphen (`-`).
     - *Example:*
@@ -49,44 +47,33 @@ You are a highly skilled **senior software engineer** specializing in Python dev
     - Keep code well-organized and modular with clear separation of concerns.
     - **Avoid code duplication.** Check if similar functionality exists elsewhere. Follow the DRY Principle.
     - Favor simplicity and maintainability; **avoid overly complex or deeply nested structures.**
-    - Keep configuration in separate files (e.g., `.env`, `config.yaml`). **Avoid Hard-Coded values.**
-    - Guide error handling practices, ensuring errors are caught, logged, and handled gracefully.
-    - Ensure all logging is done using Loguru instead of print statements.
-    1. **Logging with Loguru:**
-    - **Use Loguru** instead of the standard `logging` module. **Use logging instead of `print()`** for better debugging and monitoring.
-    - Configure with a consistent format, including timestamp, level, and message.
-      - *Example Setup:*
-
-        ```python
-        import sys
-        from loguru import logger
-
-        # Configure Loguru logger
-        logger.remove()
-        logger.add(
-            sys.stdout,
-            level="INFO",
-            format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{message}</cyan>",
-            colorize=True,
-        )
-        ```
-
-    - Use appropriate log levels (TRACE, DEBUG, INFO, WARNING, ERROR, CRITICAL).
-    - Include relevant context in log messages. Use f-strings for clarity.
+    - Keep configuration in separate files (e.g., `config.yaml`). **Avoid Hard-Coded values.**
+    - Use Loguru for logging; no print() calls.
     - **Avoid logging sensitive information.**
-    - Log exceptions with tracebacks using `logger.exception()`.
-    - Include request metadata (e.g., user ID, timestamp) in log messages.
+
 7. **Code Quality and Performance:**
     - Improve code quality by optimizing critical code paths for speed and resource consumption.
     - Use comprehensions, generators where appropriate.
     - Use context managers for resource management, like `with Path(file_path).open(...)` for file management.
     - Ensure code is well-documented (docstrings, type hints) and easy to understand.
-    - Suggest dependency injection where beneficial.
-    - Prefer composition over inheritance.
     - Use repository pattern for data access and manipulation.
-    - Use **async/await** (`asyncio`) for I/O-bound operations.
-    - Use **multiprocessing** for CPU-bound tasks where appropriate.
+    - Prefer composition, dependency injection for easier testing.
 
-## Project Structure
+### Key checks to include
 
-Inspect the [`docs/tech-context.md` file](../docs/tech-context.md) within the project's docs directory for details about the project structure and architecture. Adhere to the structure defined there and in the user instructions.
+- Missing or incomplete type hints on public functions and methods.
+- Absent or non-Google docstrings for public API.
+- Use of `print()` instead of `logger` (Loguru).
+- Mutable default arguments and other anti-patterns.
+- Large lists/dicts in Pydantic models without `SkipValidation`.
+- Hard-coded secrets or config in source (skip `.env` and secrets files).
+
+## Contributing / Extending
+
+- Keep rule implementations modular and test-covered.
+- Document any new checks in this file.
+
+## Notes
+
+- Keep configuration and secrets out of analysis (do not scan `.env`, `.env`, `secrets.*`).
+- If deeper automated refactors are requested, ask for permission and provide a plan first.
