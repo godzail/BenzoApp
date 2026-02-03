@@ -1,16 +1,20 @@
 """Tests for Gas Station Finder API using FastAPI TestClient."""
 
+from collections.abc import Generator
+
 import pytest
 from fastapi.testclient import TestClient
 from starlette import status
 
 from src.main import app
+from src.services.fuel_type_utils import normalize_fuel_type
 
 
 @pytest.fixture
-def client() -> TestClient:
-    """Fixture to provide a TestClient for the FastAPI app."""
-    return TestClient(app)
+def client() -> Generator[TestClient]:
+    """Fixture to provide a TestClient for the FastAPI app with lifespan handled."""
+    with TestClient(app) as client:
+        yield client
 
 
 def test_health_check(client: TestClient) -> None:
@@ -41,7 +45,18 @@ def test_search_gas_stations_invalid_city(client: TestClient) -> None:
     data = response.json()
     assert data["stations"] == []
     # message may vary; ensure warning present
-    assert "warning" in data and isinstance(data["warning"], str)
+    assert "warning" in data
+    assert isinstance(data["warning"], str)
+
+
+def test_normalize_fuel_type() -> None:
+    """Test fuel type normalization utility."""
+    assert normalize_fuel_type("diesel") == "gasolio"
+    assert normalize_fuel_type("Diesel") == "gasolio"
+    assert normalize_fuel_type("BENZINA") == "benzina"
+    assert normalize_fuel_type("gpl") == "GPL"
+    assert normalize_fuel_type("metano") == "metano"
+    assert normalize_fuel_type("unknown") == "unknown"
 
 
 def test_search_gas_stations_missing_field(client: TestClient) -> None:
@@ -56,10 +71,12 @@ def test_search_gas_stations_missing_field(client: TestClient) -> None:
 
 
 def test_search_gas_stations_radius_bounds(client: TestClient) -> None:
-    """Radius below 1 should be corrected to minimal behavior server-side and still respond 200 with warning or empty results."""
+    """Radius below 1 should be rejected by validation (Pydantic ge=1)."""
     payload = {"city": "Rome", "radius": 0, "fuel": "benzina", "results": 2}
     response = client.post("/search", json=payload)
-    assert response.status_code in (status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE)
+    # Pydantic validation should reject radius < 1 with 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
 
 # Note: For a successful /search test, you need a real city and working external APIs.
 # This test is skipped by default to avoid flakiness.

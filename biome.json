@@ -3,10 +3,13 @@
 	"vcs": {
 		"enabled": false,
 		"clientKind": "git",
-		"useIgnoreFile": false
+		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": true,
+		"includes": [
+			"src/static/**"
+		]
 	},
 	"formatter": {
 		"enabled": true,
@@ -23,7 +26,9 @@
 			"a11y": "on",
 			"correctness": "on",
 			"complexity": "on",
-			"nursery": "on"
+			"nursery": {
+				"recommended": false
+			}
 		}
 	},
 	"html": {
@@ -42,6 +47,7 @@
 			"mdc",
 			"L",
 			"i18next",
+			"i18nextHttpBackend",
 			"updateI18nTexts"
 		],
 		"formatter": {
