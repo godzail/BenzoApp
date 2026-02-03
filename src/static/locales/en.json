@@ -6,6 +6,10 @@
     "fuel_type": "Fuel Type",
     "results": "Results",
     "search": "Search",
+    "search_radius": "Search Radius",
+    "best_price": "Best Price!",
+    "navigate": "Navigate",
+    "show_on_map": "Show on Map",
     "recent_searches": "Recent Searches:",
     "no_results": "No gas stations found for the specified criteria.",
     "loading": "Loading...",
@@ -20,6 +24,11 @@
     "diesel": "Diesel",
     "gpl": "LPG",
     "metano": "Methane",
-    "required": "is required"
+    "required": "is required",
+    "search_placeholder": "Search city...",
+    "current_location": "Current Location",
+    "use_current_location": "Use current location",
+    "switch_to_light": "Switch to light mode",
+    "switch_to_dark": "Switch to dark mode"
   }
 }

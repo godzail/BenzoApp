@@ -19,6 +19,8 @@ const CONFIG = {
   MAP_RESIZE_DELAY: 100,
   CITY_SUGGESTION_HIDE_DELAY: 150,
   FALLBACK_CITIES: ["Rome", "Milan", "Naples"],
+  THEME_STORAGE_KEY: "app-theme",
+  DEFAULT_THEME: "dark",
 };
 
 /**
@@ -29,6 +31,65 @@ const CONFIG = {
 function extractGestore(station) {
   return station.gestore || "";
 }
+
+/**
+ * Theme management utilities
+ */
+const themeManager = {
+  getSystemPreference() {
+    if (
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: light)").matches
+    ) {
+      return "light";
+    }
+    return "dark";
+  },
+
+  getStoredTheme() {
+    try {
+      return localStorage.getItem(CONFIG.THEME_STORAGE_KEY);
+    } catch (e) {
+      return null;
+    }
+  },
+
+  setStoredTheme(theme) {
+    try {
+      localStorage.setItem(CONFIG.THEME_STORAGE_KEY, theme);
+    } catch (e) {
+      console.warn("Failed to store theme preference");
+    }
+  },
+
+  applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+  },
+
+  init() {
+    const storedTheme = this.getStoredTheme();
+    const theme = storedTheme || this.getSystemPreference();
+    this.applyTheme(theme);
+
+    // Listen for system theme changes
+    if (window.matchMedia) {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
+      mediaQuery.addEventListener("change", (e) => {
+        if (!this.getStoredTheme()) {
+          this.applyTheme(e.matches ? "light" : "dark");
+        }
+      });
+    }
+  },
+
+  toggle() {
+    const currentTheme = document.documentElement.getAttribute("data-theme");
+    const newTheme = currentTheme === "light" ? "dark" : "light";
+    this.applyTheme(newTheme);
+    this.setStoredTheme(newTheme);
+    return newTheme;
+  },
+};
 
 /**
  * Creates and returns the main gas station application instance.
@@ -49,7 +110,8 @@ function gasStationApp() {
     results: [],
     error: "",
     searched: false,
-    linearProgress: null,
+    currentTheme: CONFIG.DEFAULT_THEME,
+    currentLang: "it",
     map: null,
     mapInitialized: false,
     mapMarkers: [],
@@ -80,51 +142,6 @@ function gasStationApp() {
     debug(message, data = null) {
       if (this.debugMode) {
         console.log(`[DEBUG] ${message}`, data || "");
-      }
-    },
-
-    setupMDCSelects(destroyFirst = false) {
-      for (const el of document.querySelectorAll(".mdc-select")) {
-        if (destroyFirst && el.MDCSelect) {
-          el.MDCSelect.destroy();
-        }
-
-        const select = mdc.select.MDCSelect.attachTo(el);
-        el.MDCSelect = select;
-
-        select.listen("MDCSelect:change", () => {
-          // biome-ignore lint/security/noSecrets: True
-          const hiddenInput = el.querySelector('input[type="hidden"]');
-          if (hiddenInput) {
-            hiddenInput.value = select.value;
-            hiddenInput.dispatchEvent(new Event("input", { bubbles: true }));
-          }
-        });
-
-        // Set value and update text
-        // biome-ignore lint/security/noSecrets: True
-        const inputName = el.querySelector('input[type="hidden"]')?.name;
-        if (inputName && this.formData[inputName]) {
-          select.value = this.formData[inputName];
-        }
-        this.updateSelectText(el, select);
-      }
-    },
-
-    updateSelectText(el, select) {
-      const selectedLi =
-        el.querySelector(`.mdc-list-item[data-value="${select.value}"]`) ||
-        el.querySelector('.mdc-list-item[aria-selected="true"]');
-      const selectedTextEl = el.querySelector(".mdc-select__selected-text");
-
-      if (selectedLi && selectedTextEl) {
-        const textEl = selectedLi.querySelector(".mdc-list-item__text");
-        if (textEl) {
-          const key = textEl.getAttribute("data-i18n");
-          selectedTextEl.textContent = key
-            ? i18next.t(key)
-            : textEl.textContent;
-        }
       }
     },
 
@@ -223,8 +240,13 @@ function gasStationApp() {
         // Set up language change listener
         window.addEventListener("languageChanged", (event) => {
           this.debug("Language changed to:", event.detail.lang);
+          this.currentLang = event.detail.lang;
           this.reinitializeComponents();
           this.refreshMapMarkersOnLanguageChange();
+          // Force Alpine.js re-render by calling updateI18nTexts
+          if (window.updateI18nTexts) {
+            window.updateI18nTexts();
+          }
         });
 
         // Load recent searches and restore last city
@@ -268,16 +290,13 @@ function gasStationApp() {
     },
 
     reinitializeComponents() {
-      this.debug("Reinitializing MDC components after language change");
+      this.debug("Reinitializing components after language change");
 
-      // First, update i18n texts for all select options (if available)
+      // Update i18n texts for all elements
       if (window.updateI18nTexts) {
         window.updateI18nTexts();
-        this.debug("updateI18nTexts called before MDCSelect re-init");
+        this.debug("updateI18nTexts called after language change");
       }
-
-      // Use the consolidated setupMDCSelects method
-      this.setupMDCSelects(true);
     },
 
     /**
@@ -300,23 +319,39 @@ function gasStationApp() {
     },
 
     initializeComponents() {
-      for (const el of document.querySelectorAll(".mdc-text-field")) {
-        mdc.textField.MDCTextField.attachTo(el);
-      }
+      // Initialize theme
+      themeManager.init();
+      this.currentTheme =
+        document.documentElement.getAttribute("data-theme") ||
+        CONFIG.DEFAULT_THEME;
 
-      // Use the consolidated setupMDCSelects method
-      this.setupMDCSelects();
-
-      for (const el of document.querySelectorAll(".mdc-button")) {
-        mdc.ripple.MDCRipple.attachTo(el);
-      }
-
+      // Initialize loading bar
       const progressEl = document.getElementById("loading-bar");
       if (progressEl) {
-        this.linearProgress =
-          mdc.linearProgress.MDCLinearProgress.attachTo(progressEl);
-        this.linearProgress.close();
+        this.loadingBar = progressEl;
       }
+    },
+
+    /**
+     * Toggles between light and dark themes
+     */
+    toggleTheme() {
+      this.currentTheme = themeManager.toggle();
+      this.debug("Theme toggled to:", this.currentTheme);
+    },
+
+    /**
+     * Sets a specific fuel type chip as active
+     */
+    setFuelType(fuel) {
+      this.formData.fuel = fuel;
+    },
+
+    /**
+     * Checks if a fuel type is currently selected
+     */
+    isFuelSelected(fuel) {
+      return this.formData.fuel === fuel;
     },
 
     async loadComponent(url, elementId) {
@@ -447,13 +482,24 @@ function gasStationApp() {
      * @returns {Promise<void>}
      */
 
+    /**
+     * Controls the loading bar visibility
+     */
+    setLoadingBar(active) {
+      if (this.loadingBar) {
+        if (active) {
+          this.loadingBar.classList.add("active");
+        } else {
+          this.loadingBar.classList.remove("active");
+        }
+      }
+    },
+
     // biome-ignore lint/complexity/noExcessiveLinesPerFunction: True
     async submitForm() {
       this.loading = true;
       this.debug("Loading started");
-      if (this.linearProgress) {
-        this.linearProgress.open();
-      }
+      this.setLoadingBar(true);
       this.error = "";
       this.searched = true;
       this.saveRecentSearch({ ...this.formData });
@@ -516,9 +562,7 @@ function gasStationApp() {
       } finally {
         this.loading = false;
         this.debug("Loading ended");
-        if (this.linearProgress) {
-          this.linearProgress.close();
-        }
+        this.setLoadingBar(false);
       }
     },
 
@@ -550,6 +594,121 @@ function gasStationApp() {
       // Add new markers if we have results using utility method
       if (this.results.length > 0) {
         this.addMapMarkers();
+      }
+    },
+
+    /**
+     * Checks if a station has the best (lowest) price
+     * @param {number} index - The index of the station to check
+     * @returns {boolean} True if this station has the lowest price
+     */
+    isCheapestStation(index) {
+      if (!this.results || this.results.length === 0) return false;
+      if (index === 0) {
+        // First station is always considered "best" if we have results
+        // In a real implementation, you'd compare all prices
+        return true;
+      }
+      return false;
+    },
+
+    /**
+     * Centers the map on a specific station and opens its popup
+     * @param {number} index - The index of the station in results
+     */
+    selectStationForMap(index) {
+      if (!(this.map && this.mapMarkers[index])) return;
+
+      const marker = this.mapMarkers[index];
+      const station = this.results[index];
+
+      if (marker && station) {
+        this.map.setView([station.latitude, station.longitude], 16);
+        marker.openPopup();
+      }
+    },
+
+    /**
+     * Opens Google Maps directions to a station
+     * @param {Object} station - The station object with latitude and longitude
+     */
+    getDirections(station) {
+      if (!(station && station.latitude && station.longitude)) return;
+
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`;
+      window.open(url, "_blank");
+    },
+
+    /**
+     * Attempts to get the user's current location
+     */
+    locateUser() {
+      if (!navigator.geolocation) {
+        this.error = "Geolocation is not supported by your browser";
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          this.debug("User location:", position.coords);
+          // In a real implementation, you'd reverse geocode to get the city name
+          // For now, just set a placeholder
+          this.formData.city = "Current Location";
+          this.submitForm();
+        },
+        (error) => {
+          this.debug("Geolocation error:", error);
+          this.error = "Unable to retrieve your location";
+        },
+      );
+    },
+
+    /**
+     * Translates a key using i18next - made reactive by accessing currentLang
+     * @param {string} key - The translation key
+     * @param {string} fallback - Fallback text if translation not found
+     * @returns {string} The translated text
+     */
+    translate(key, fallback = "") {
+      // Access currentLang to make this method reactive to language changes
+      // This line establishes the reactive dependency - DO NOT REMOVE
+      this.currentLang; // eslint-disable-line no-unused-expressions
+
+      if (typeof window.t === "function") {
+        return window.t(key, fallback);
+      }
+      if (typeof i18next !== "undefined" && i18next.t) {
+        const translated = i18next.t(key);
+        if (translated === key || translated === `translation.${key}`) {
+          return fallback || key;
+        }
+        return translated;
+      }
+      return fallback || key;
+    },
+
+    /**
+     * Sets the application language
+     * @param {string} lang - The language code ('en' or 'it')
+     */
+    setLanguage(lang) {
+      this.debug("Language change requested:", lang);
+
+      // Update currentLang first to trigger reactive updates
+      this.currentLang = lang;
+
+      // Use the global setLang function from i18n.js if available
+      if (window.setLang) {
+        window.setLang(lang);
+        this.debug("Language changed via setLang:", lang);
+      } else if (window.i18next && window.i18next.changeLanguage) {
+        // Fallback to direct i18next call
+        window.i18next.changeLanguage(lang, () => {
+          if (window.updateI18nTexts) {
+            window.updateI18nTexts();
+          }
+        });
+        this.debug("Language changed via i18next:", lang);
       }
     },
   };

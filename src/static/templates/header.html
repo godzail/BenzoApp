@@ -1,19 +1,129 @@
-<div class="mdc-layout-grid__cell--span-12" style="display:flex;align-items:center;justify-content:space-between;">
-  <h1 id="title-i18n"></h1>
-  <div>
+<div class="header-content">
+  <!-- Logo/Title -->
+  <h1 id="title-i18n" class="app-title"></h1>
+
+  <!-- Floating Search Bar -->
+  <div class="search-container" x-data="{ highlightedIndex: -1 }" @keydown.escape="showCitySuggestions = false">
+    <div class="search-bar">
+      <span class="search-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+      </span>
+      <input
+        type="text"
+        id="city"
+        name="city"
+        class="search-input"
+        :placeholder="translate('translation.search_placeholder', 'Search city...')"
+        required
+        x-model="formData.city"
+        @input="onCityInput"
+        @focus="showCitySuggestions = true"
+        @blur="hideCitySuggestions"
+        @keydown.arrow-down.prevent="if (showCitySuggestions && filteredCities.length > 0) { highlightedIndex = Math.min(highlightedIndex + 1, filteredCities.length - 1); }"
+        @keydown.arrow-up.prevent="if (showCitySuggestions && filteredCities.length > 0) { highlightedIndex = Math.max(highlightedIndex - 1, 0); }"
+        @keydown.enter.prevent="if (showCitySuggestions && highlightedIndex >= 0 && filteredCities[highlightedIndex]) { selectCity(filteredCities[highlightedIndex]); highlightedIndex = -1; } else if (formData.city) { submitForm(); }"
+        autocomplete="off"
+        aria-labelledby="city-label-i18n"
+        aria-autocomplete="list"
+        aria-controls="city-suggestions"
+        :aria-expanded="showCitySuggestions && filteredCities.length > 0"
+      >
+
+      <!-- Location Pill Button -->
+      <button
+        class="location-pill"
+        type="button"
+        @click="locateUser()"
+        :aria-label="translate('translation.use_current_location', 'Use current location')"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+        </svg>
+        <span x-text="formData.city || translate('translation.current_location', 'Location')"></span>
+      </button>
+    </div>
+
+    <!-- Autocomplete Dropdown -->
+    <template x-if="showCitySuggestions && filteredCities.length > 0">
+      <ul class="autocomplete-list" id="city-suggestions" role="listbox" x-ref="suggestionsList">
+        <template x-for="(city, index) in filteredCities" :key="city">
+          <li
+            class="autocomplete-item"
+            :class="{ 'highlighted': highlightedIndex === index }"
+            role="option"
+            :aria-selected="highlightedIndex === index"
+            @mousedown.prevent="selectCity(city); highlightedIndex = -1"
+            @mouseover="highlightedIndex = index"
+            x-text="city"
+            tabindex="-1"
+          ></li>
+        </template>
+      </ul>
+    </template>
+  </div>
+
+  <!-- Theme & Language Controls -->
+  <div class="controls-row">
+    <!-- Theme Toggle -->
     <button
-      class="mdc-button mdc-button--outlined"
+      class="theme-toggle"
       type="button"
-      @click="setLanguage('en')"
-      :aria-label="i18next.t('translation.switch_to_english')"
-      x-text="i18next.t('translation.english')"
-    ></button>
-    <button
-      class="mdc-button mdc-button--outlined"
-      type="button"
-      @click="setLanguage('it')"
-      :aria-label="i18next.t('translation.switch_to_italian')"
-      x-text="i18next.t('translation.italian')"
-    ></button>
+      @click="toggleTheme()"
+      :aria-label="currentTheme === 'dark' ? translate('translation.switch_to_light', 'Switch to light mode') : translate('translation.switch_to_dark', 'Switch to dark mode')"
+    >
+      <!-- Sun Icon (Light Mode) -->
+      <svg
+        x-show="currentTheme === 'dark'"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <circle cx="12" cy="12" r="5"></circle>
+        <path
+          d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
+        ></path>
+      </svg>
+      <!-- Moon Icon (Dark Mode) -->
+      <svg
+        x-show="currentTheme === 'light'"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
+
+    <!-- Language Switcher -->
+    <div class="lang-switcher">
+      <button
+        class="lang-btn"
+        type="button"
+        @click="setLanguage('en')"
+        :class="{ 'active': i18next.language === 'en' }"
+        aria-label="Switch to English"
+      >
+        EN
+      </button>
+      <button
+        class="lang-btn"
+        type="button"
+        @click="setLanguage('it')"
+        :class="{ 'active': i18next.language === 'it' }"
+        aria-label="Switch to Italian"
+      >
+        IT
+      </button>
+    </div>
   </div>
 </div>

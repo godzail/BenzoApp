@@ -1,6 +1,29 @@
 // i18next initialization and language switcher
 const STATUS_MESSAGE_DURATION = 3000;
+const INITIALIZATION_RETRY_DELAY = 100;
 
+/**
+ * Safely get translation with fallback
+ * @param {string} key - The translation key
+ * @param {string} fallback - The fallback text if translation not found
+ * @returns {string} Translated text or fallback
+ */
+function t(key, fallback = "") {
+  if (typeof i18next !== "undefined" && i18next.t) {
+    const translated = i18next.t(key);
+    // If translation returns the key itself, it means translation not found
+    if (translated === key || translated === `translation.${key}`) {
+      return fallback || key;
+    }
+    return translated;
+  }
+  return fallback || key;
+}
+
+/**
+ * Set the application language
+ * @param {string} lang - The language code ('en' or 'it')
+ */
 window.setLang = (lang) => {
   console.log("[DEBUG] i18next.changeLanguage called with lang:", lang);
   i18next.changeLanguage(lang, () => {
@@ -23,98 +46,61 @@ window.setLang = (lang) => {
   localStorage.setItem("lang", lang);
 };
 
+/**
+ * Update i18n text content for all mapped elements
+ */
 function updateI18nTexts() {
+  // Map of element IDs to translation keys with fallbacks
   const i18nMap = {
-    "title-i18n": "translation.title",
-    "city-label-i18n": "translation.city",
-    "radius-label-i18n": "translation.radius",
-    "fuel-label-i18n": "translation.fuel_type",
-    "results-label-i18n": "translation.results",
-    "search-btn-i18n": "translation.search",
-    "recent-searches-i18n": "translation.recent_searches",
-    "no-results-i18n": "translation.no_results",
-    "map-summary-i18n": "translation.map_summary",
-    "results-heading": "translation.results_heading",
-    "search-form-title": "translation.search_form_title",
+    "title-i18n": { key: "translation.title", fallback: "Gas Station Finder" },
+    "recent-searches-i18n": {
+      key: "translation.recent_searches",
+      fallback: "Recent Searches:",
+    },
+    "no-results-i18n": {
+      key: "translation.no_results",
+      fallback: "No results found.",
+    },
+    "results-heading": {
+      key: "translation.results_heading",
+      fallback: "Search Results",
+    },
+    "search-form-title": {
+      key: "translation.search_form_title",
+      fallback: "Search for gas stations",
+    },
   };
 
-  for (const [id, key] of Object.entries(i18nMap)) {
-    console.log(
-      "[DEBUG] Updating element",
-      id,
-      "with key",
-      key,
-      "to value:",
-      i18next.t(key),
-    );
+  for (const [id, config] of Object.entries(i18nMap)) {
     const el = document.getElementById(id);
     if (el) {
-      el.innerText = i18next.t(key);
+      const translatedText = t(config.key, config.fallback);
+      el.innerText = translatedText;
     }
   }
 
   // Update elements with data-i18n attributes
   updateDataI18nElements();
-
-  // Update MDC select components
-  updateMdcSelects();
-
-  // Update page title
-  const pageTitle = document.getElementById("page-title");
-  if (pageTitle) {
-    pageTitle.innerText = i18next.t("translation.title");
-  }
 }
 
+/**
+ * Update all elements with data-i18n attributes
+ */
 function updateDataI18nElements() {
   const elements = document.querySelectorAll("[data-i18n]");
   for (const el of elements) {
     let key = el.getAttribute("data-i18n");
     if (key) {
+      // Get fallback from current text content or empty string
+      const fallback = el.textContent?.trim() || "";
+
       // Prepend 'translation.' if not already present
       if (!key.startsWith("translation.")) {
         key = `translation.${key}`;
       }
-      el.innerText = i18next.t(key);
-      console.log(
-        "[DEBUG] Updating element with data-i18n",
-        key,
-        "to value:",
-        i18next.t(key),
-      );
-    }
-  }
-}
 
-function updateMdcSelects() {
-  const selects = document.querySelectorAll(".mdc-select");
-  for (const selectEl of selects) {
-    mdc.select.MDCSelect.attachTo(selectEl);
-    const selectedTextEl = selectEl.querySelector(".mdc-select__selected-text");
-    if (selectedTextEl) {
-      // Find the currently selected option
-      const hiddenInput = selectEl.querySelector('input[type="hidden"]');
-      if (hiddenInput) {
-        const currentValue = hiddenInput.value;
-        const listItem = selectEl.querySelector(
-          `.mdc-list-item[data-value="${currentValue}"]`,
-        );
-        if (listItem) {
-          const textEl = listItem.querySelector(".mdc-list-item__text");
-          if (textEl) {
-            const key = textEl.getAttribute("data-i18n");
-            if (key) {
-              selectedTextEl.textContent = i18next.t(key);
-              console.log(
-                "[DEBUG] Updating MDC select selected text with key",
-                key,
-                "to value:",
-                i18next.t(key),
-              );
-            }
-          }
-        }
-      }
+      const translatedText = t(key, fallback);
+      el.innerText = translatedText;
     }
   }
 }
@@ -138,9 +124,17 @@ function initI18next() {
         loadPath: "/static/locales/{{lng}}.json",
       },
     },
-    () => {
-      // Update texts after initialization
+    (err) => {
+      if (err) {
+        console.error("i18next initialization error:", err);
+      }
+      // Update texts after initialization (even if there was an error)
       updateI18nTexts();
+
+      // Also update on next tick to catch Alpine.js rendered content
+      setTimeout(() => {
+        updateI18nTexts();
+      }, INITIALIZATION_RETRY_DELAY);
     },
   );
 }
@@ -152,3 +146,7 @@ if (document.readyState === "loading") {
   // DOM is already ready
   initI18next();
 }
+
+// Expose functions globally
+window.updateI18nTexts = updateI18nTexts;
+window.t = t;
