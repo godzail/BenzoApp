@@ -1,4 +1,3 @@
-# --- Search Parameters Model ---
 """Pydantic models for the Gas Station Finder API.
 
 This module defines data models and configuration settings for the Gas Station Finder API, including:
@@ -56,6 +55,12 @@ class Settings(BaseSettings):
     )
     user_agent: str = Field("GasStationFinder/1.0", description="User-Agent header for external API requests.")
 
+    # Server configuration
+    server_host: str = Field("127.0.0.1", description="Host address for the uvicorn server.")
+    server_port: int = Field(8000, description="Port number for the uvicorn server.")
+    server_reload: bool = Field(default=True, description="Enable auto-reload on code changes.")
+    server_workers: int = Field(1, description="Number of worker processes.")
+
 
 class SearchRequest(BaseModel):
     """Represents a search request for gas stations."""
@@ -64,16 +69,6 @@ class SearchRequest(BaseModel):
     radius: int = Field(ge=1, le=200)
     fuel: str = Field(min_length=3)
     results: int = Field(default=5, ge=1, le=20)
-
-    @staticmethod
-    def _norm_city(v: str) -> str:
-        """Normalize city name by stripping whitespace."""
-        return v.strip()
-
-    @property
-    def city_normalized(self) -> str:
-        """Return the normalized city name."""
-        return self._norm_city(self.city)
 
     model_config = {
         "json_schema_extra": {
