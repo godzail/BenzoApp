@@ -126,12 +126,11 @@
       </button>
     </div>
 
-    <!-- API Documentation Link -->
+    <!-- API Documentation Link (dynamic by language) -->
     <a
-      href="/docs"
-      target="_blank"
+      :href="'/help/user-' + currentLang"
       class="theme-toggle"
-      title="API Documentation"
+      :title="translate('translation.user_docs','User Documentation')"
       style="text-decoration: none;"
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

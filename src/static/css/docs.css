@@ -1,0 +1,180 @@
+/* Docs-specific styles for improved readability */
+
+.docs-container {
+  font-family: var(--font-family);
+  color: var(--text-primary);
+  background: transparent;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  line-height: 1.65;
+}
+
+.docs-container h1 {
+  font-size: 2rem;
+  margin-bottom: 0.25rem;
+}
+
+.docs-container h2 {
+  font-size: 1.5rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.docs-container p,
+.docs-container li {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+.docs-container a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.docs-container img {
+  max-width: 100%;
+  display: block;
+  margin: 12px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+/* Title row: put toggle on same line as H1 */
+.docs-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.docs-container h1 {
+  margin: 0;
+}
+
+.docs-container h1 + p {
+  margin-top: 6px;
+  margin-bottom: 12px;
+}
+
+/* Improved spacing for readability */
+.docs-container h2 {
+  margin-top: 2rem;
+  margin-bottom: 0.6rem;
+}
+
+.docs-container p {
+  margin-bottom: 0.9rem;
+}
+
+.docs-container ul,
+.docs-container ol {
+  margin: 0.5rem 0 1rem 1.25rem;
+  padding-left: 0;
+}
+
+.docs-container li {
+  margin-bottom: 0.45rem;
+}
+
+.table-wrapper {
+  margin: 18px 0;
+  padding: 12px;
+}
+
+.docs-container blockquote {
+  border-left: 4px solid var(--border-color);
+  padding: 8px 16px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  margin: 12px 0;
+  border-radius: 6px;
+}
+
+/* Table wrapper for responsive tables */
+.table-wrapper {
+  overflow-x: auto;
+  margin: 12px 0;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+}
+
+/* Code blocks */
+.docs-container pre {
+  background: #0b0b0fcc;
+  color: #e6edf3;
+  padding: 16px;
+  border-radius: 8px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.docs-container code {
+  background: rgba(255, 255, 255, 0.02);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
+/* Tables */
+.docs-container table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+
+.docs-container th,
+.docs-container td {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.docs-container th {
+  background: var(--bg-elevated);
+  font-weight: 700;
+}
+
+/* Light-theme overrides for docs */
+[data-theme="light"] .docs-container pre {
+  background: #f6f7fb;
+  color: #0f172a;
+  border: 1px solid #e6e9f2;
+}
+
+[data-theme="light"] .docs-container code {
+  background: rgba(0, 0, 0, 0.03);
+  color: #0f172a;
+}
+
+/* Docs UI button */
+.docs-ui .btn {
+  font-size: 0.875rem;
+}
+
+/* Theme toggle button for docs pages */
+#docs-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+}
+
+#docs-theme-toggle:focus {
+  outline: 3px solid rgba(59, 130, 246, 0.25);
+  outline-offset: 2px;
+}
+
+[data-theme="light"] #docs-theme-toggle {
+  background: var(--bg-elevated);
+}
