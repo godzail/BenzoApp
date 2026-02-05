@@ -110,7 +110,7 @@
         class="lang-btn"
         type="button"
         @click="setLanguage('en')"
-        :class="{ 'active': i18next.language === 'en' }"
+        :class="{ 'active': currentLang === 'en' }"
         aria-label="Switch to English"
       >
         EN
@@ -119,7 +119,7 @@
         class="lang-btn"
         type="button"
         @click="setLanguage('it')"
-        :class="{ 'active': i18next.language === 'it' }"
+        :class="{ 'active': currentLang === 'it' }"
         aria-label="Switch to Italian"
       >
         IT

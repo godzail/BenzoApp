@@ -189,11 +189,11 @@ p {
 
 /* Alpine.js Cloak */
 [x-cloak] {
-  display: none !important;
+  display: none;
 }
 
 /* ============================================
-   LAYOUT
+   LAYOUT - Restructured for Map Card
    ============================================ */
 
 #main-content {
@@ -208,13 +208,20 @@ p {
   gap: var(--space-xl);
 }
 
-/* Desktop Split View */
+/* Desktop: Search on left (40%), Results on right (60%) */
 @media (min-width: 1024px) {
   .main-layout {
     display: grid;
-    grid-template-columns: 60% 40%;
+    grid-template-columns: 40% 60%;
     gap: var(--space-lg);
     align-items: start;
+  }
+
+  .search-column {
+    position: sticky;
+    top: 100px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
   }
 }
 
@@ -459,7 +466,7 @@ p {
 }
 
 /* ============================================
-   MAP
+   MAP CARD & MAP
    ============================================ */
 
 .input-map-group {
@@ -468,12 +475,40 @@ p {
   gap: var(--space-lg);
 }
 
+/* Map Card - Styled container for map */
+.map-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-lg);
+  box-shadow: var(--shadow-md);
+}
+
+/* Map in search column - smaller for sticky layout */
+.search-column-map {
+  margin-top: var(--space-lg);
+}
+
+.search-column-map .map-view {
+  height: 300px;
+}
+
+.map-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .map-view {
   width: 100%;
-  height: 500px;
-  border-radius: var(--radius-lg);
+  height: 400px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
 }
 
@@ -499,7 +534,7 @@ p {
 
 .custom-marker:hover {
   transform: rotate(-45deg) scale(1.1);
-  z-index: 1000 !important;
+  z-index: 1000;
 }
 
 .marker-price {
@@ -660,6 +695,7 @@ p {
   align-items: flex-start;
   margin-bottom: var(--space-md);
   gap: var(--space-md);
+  min-width: 0;
 }
 
 .station-brand {
@@ -669,6 +705,14 @@ p {
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--text-primary);
+  min-width: 0;
+  flex: 1;
+}
+
+.station-brand span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .station-icon {
@@ -689,6 +733,7 @@ p {
   gap: var(--space-sm);
   flex-wrap: wrap;
   justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .price-large {
@@ -771,6 +816,13 @@ p {
   margin-top: var(--space-lg);
   padding-top: var(--space-md);
   border-top: 1px solid var(--border-color);
+  flex-wrap: nowrap;
+}
+
+.station-actions .btn {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .btn {
@@ -1037,9 +1089,23 @@ p {
     width: 100%;
   }
 
+  .search-column {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .map-card {
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+  }
+
   .map-view {
-    height: 350px;
-    order: -1;
+    height: 300px;
+  }
+
+  .search-column-map .map-view {
+    height: 250px;
   }
 
   .results-layout {
@@ -1062,8 +1128,9 @@ p {
     flex-direction: column;
   }
 
-  .btn {
+  .station-actions .btn {
     width: 100%;
+    flex: none;
   }
 
   .fuel-chips {
@@ -1083,8 +1150,12 @@ p {
     gap: var(--space-md);
   }
 
+  .map-card {
+    padding: var(--space-sm);
+  }
+
   .map-view {
-    height: 300px;
+    height: 250px;
   }
 
   .radius-control {
@@ -1118,9 +1189,9 @@ input:focus:not(:focus-visible) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
   }
 }
 

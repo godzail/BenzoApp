@@ -29,6 +29,9 @@
     "current_location": "Posizione Attuale",
     "use_current_location": "Usa posizione attuale",
     "switch_to_light": "Passa alla modalità chiara",
-    "switch_to_dark": "Passa alla modalità scura"
+    "switch_to_dark": "Passa alla modalità scura",
+    "location": "Posizione",
+    "search_city_label": "Campo di ricerca città",
+    "city_suggestions": "Suggerimenti città"
   }
 }
