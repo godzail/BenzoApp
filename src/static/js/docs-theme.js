@@ -18,9 +18,13 @@ const updateBtn = (btn) => {
 };
 
 const applyStoredTheme = () => {
-  const stored = localStorage.getItem("docs-theme");
-  if (stored === "light") {
-    document.documentElement.setAttribute("data-theme", "light");
+  try {
+    const stored = localStorage.getItem("docs-theme");
+    if (stored === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  } catch (_e) {
+    // ignore
   }
 };
 
@@ -58,10 +62,14 @@ const toggleTheme = (btn) => {
   const cur = document.documentElement.getAttribute("data-theme");
   if (cur === "light") {
     document.documentElement.removeAttribute("data-theme");
-    localStorage.removeItem("docs-theme");
+    try {
+      localStorage.removeItem("docs-theme");
+    } catch (_e) {}
   } else {
     document.documentElement.setAttribute("data-theme", "light");
-    localStorage.setItem("docs-theme", "light");
+    try {
+      localStorage.setItem("docs-theme", "light");
+    } catch (_e) {}
   }
   updateBtn(btn);
 };

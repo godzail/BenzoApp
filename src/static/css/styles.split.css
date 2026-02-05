@@ -1,0 +1,6 @@
+/* Aggregated stylesheet that imports split modules for the application UI. */
+@import url("/static/css/base.css");
+@import url("/static/css/layout.css");
+@import url("/static/css/map.css");
+@import url("/static/css/components.css");
+@import url("/static/css/ui-components.css");
