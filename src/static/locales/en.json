@@ -32,6 +32,8 @@
     "switch_to_dark": "Switch to dark mode",
     "location": "Location",
     "search_city_label": "Search city input",
-    "city_suggestions": "City suggestions"
+    "city_suggestions": "City suggestions",
+    "coords_missing": "Map data unavailable for this station",
+    "max_results": "Max Results"
   }
 }
