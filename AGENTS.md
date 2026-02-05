@@ -1,7 +1,7 @@
 # Project Overview
 
 - Name: BenzoApp
-- Description: A web application web designed for searching and analyzing gas stations.
+- Description: A web application designed for searching and analyzing gas stations.
 - Primary Language: Python
 
 ## Role Definition

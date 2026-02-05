@@ -131,9 +131,11 @@ p {
 .loading-bar-progress {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg,
-      var(--color-primary),
-      var(--color-primary-light));
+  background: linear-gradient(
+    90deg,
+    var(--color-primary),
+    var(--color-primary-light)
+  );
   transition: width 0.3s ease;
   box-shadow: 0 0 10px var(--color-primary);
 }
@@ -144,7 +146,6 @@ p {
 }
 
 @keyframes loading-pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -753,7 +754,6 @@ p {
 }
 
 @keyframes pulse-badge {
-
   0%,
   100% {
     box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7);
@@ -936,8 +936,8 @@ p {
   opacity: 0.5;
   cursor: not-allowed;
   filter: grayscale(1);
-  transform: none !important;
-  box-shadow: none !important;
+  transform: none;
+  box-shadow: none;
 }
 
 .btn:focus-visible {
@@ -1063,10 +1063,12 @@ p {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-md);
-  background: linear-gradient(90deg,
-      var(--bg-elevated) 25%,
-      var(--border-color) 50%,
-      var(--bg-elevated) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--border-color) 50%,
+    var(--bg-elevated) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -1075,10 +1077,12 @@ p {
   flex: 1;
   height: 16px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg,
-      var(--bg-elevated) 25%,
-      var(--border-color) 50%,
-      var(--bg-elevated) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--border-color) 50%,
+    var(--bg-elevated) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -1086,10 +1090,12 @@ p {
 .skeleton-line {
   height: 12px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg,
-      var(--bg-elevated) 25%,
-      var(--border-color) 50%,
-      var(--bg-elevated) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--border-color) 50%,
+    var(--bg-elevated) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   margin-bottom: var(--space-sm);
@@ -1305,7 +1311,6 @@ input:focus:not(:focus-visible) {
 
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {
@@ -1329,5 +1334,30 @@ input:focus:not(:focus-visible) {
   .chip,
   .btn-secondary {
     border-width: 2px;
+  }
+}
+
+/* Error Message */
+.error-message {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 82, 82, 0.1);
+  color: #ff5252;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 82, 82, 0.2);
+  margin: var(--space-md) 0;
+  font-weight: 500;
+  animation: slideIn var(--transition-normal);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

@@ -11,7 +11,6 @@ Features:
 
 Intended for use as the backend of a web application to help users find nearby gas stations and compare fuel prices.
 """
-# sourcery skip: avoid-global-variables, require-return-annotation
 
 import asyncio
 import sys
@@ -31,14 +30,12 @@ from src.models import (
     DEFAULT_RESULTS_COUNT,
     MAX_RESULTS_COUNT,
     MAX_SEARCH_RADIUS_KM,
-    FuelPrice,
     SearchRequest,
     SearchResponse,
     Settings,
-    Station,
     StationSearchParams,
 )
-from src.services.fuel_api import fetch_gas_stations
+from src.services.fuel_api import fetch_gas_stations, parse_and_normalize_stations
 from src.services.fuel_type_utils import normalize_fuel_type
 from src.services.geocoding import geocode_city
 
@@ -92,17 +89,9 @@ static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
-# --- API Service Functions (now imported from services) ---
-# geocode_city and fetch_gas_stations are imported from src.services
-
-
-# --- API Service Functions (now imported from services) ---
-# geocode_city and fetch_gas_stations are imported from src.services
-
-
 # --- API Endpoints ---
 @app.get("/favicon.png", include_in_schema=False)
-async def favicon():
+async def favicon() -> FileResponse:
     """Serve the favicon."""
     return FileResponse(
         static_dir / "favicon.png",
@@ -172,47 +161,17 @@ async def search_gas_stations(
     except HTTPException:
         return SearchResponse(stations=[], warning="Failed to fetch gas station data. Please try again later.")
 
-    # Normalize payload to an iterable of station data dicts
-    if isinstance(stations_payload, list):
-        payload_iter = enumerate(stations_payload)
-    elif isinstance(stations_payload, dict):
-        payload_iter = enumerate(stations_payload.values())
-    else:
-        logger.warning("Unexpected stations payload type: %s", type(stations_payload))
-        return SearchResponse(stations=[], warning="Unexpected data format from provider.")
+    # Parse and normalize stations
+    stations, skipped_count = parse_and_normalize_stations(stations_payload, normalized_fuel, results)
 
-    stations: list[Station] = []
-    skipped_count = 0
-    for idx, data in payload_iter:
-        if not isinstance(data, dict):
-            logger.warning("Skipping non-dict station entry at index %s", idx)
-            skipped_count += 1
-            continue
-        try:
-            prezzo_raw = data.get("prezzo", 0.0)
-            price: float = float(prezzo_raw) if prezzo_raw is not None else 0.0
-            station = Station(
-                id=str(idx),
-                address=data.get("indirizzo", "") or "",
-                latitude=float(data.get("latitudine") or 0.0),
-                longitude=float(data.get("longitudine") or 0.0),
-                fuel_prices=[FuelPrice(type=normalized_fuel, price=price)],
-            )
-            stations.append(station)
-        except (ValueError, TypeError) as err:
-            logger.warning("Skipping station %s due to parse error: %s", idx, err)
-            skipped_count += 1
-            continue
-
-    stations.sort(key=lambda s: (s.fuel_prices[0].price if s.fuel_prices else float("inf")))
     return SearchResponse(
-        stations=stations[: max(1, min(results, MAX_RESULTS_COUNT))],
+        stations=stations,
         warning=f"{skipped_count} stations were excluded due to incomplete data." if skipped_count else None,
     )
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root():
+async def read_root() -> FileResponse:
     """Serve the main HTML page."""
     index_path = static_dir / "index.html"
     return FileResponse(
