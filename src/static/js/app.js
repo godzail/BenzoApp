@@ -37,10 +37,7 @@ function extractGestore(station) {
  */
 const themeManager = {
   getSystemPreference() {
-    if (
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: light)").matches
-    ) {
+    if (window.matchMedia?.("(prefers-color-scheme: light)").matches) {
       return "light";
     }
     return "dark";
@@ -49,7 +46,7 @@ const themeManager = {
   getStoredTheme() {
     try {
       return localStorage.getItem(CONFIG.THEME_STORAGE_KEY);
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   },
@@ -57,7 +54,7 @@ const themeManager = {
   setStoredTheme(theme) {
     try {
       localStorage.setItem(CONFIG.THEME_STORAGE_KEY, theme);
-    } catch (e) {
+    } catch (_e) {
       console.warn("Failed to store theme preference");
     }
   },
@@ -111,7 +108,7 @@ function gasStationApp() {
     error: "",
     searched: false,
     currentTheme: CONFIG.DEFAULT_THEME,
-    currentLang: "it",
+    currentLang: localStorage.getItem("lang") || "it",
     map: null,
     mapInitialized: false,
     mapMarkers: [],
@@ -237,6 +234,12 @@ function gasStationApp() {
           this.loadCities(),
         ]);
 
+        // Sync currentLang with i18next after templates load
+        if (window.i18next?.language) {
+          this.currentLang = window.i18next.language;
+          this.debug("Synced currentLang with i18next:", this.currentLang);
+        }
+
         // Set up language change listener
         window.addEventListener("languageChanged", (event) => {
           this.debug("Language changed to:", event.detail.lang);
@@ -271,22 +274,27 @@ function gasStationApp() {
 
     /**
      * Refreshes map markers and popups when language changes.
-     * Separated for better modularity.
+     * Updates all marker popups with new translations.
      */
     refreshMapMarkersOnLanguageChange() {
-      if (this.mapInitialized && this.mapMarkers?.length > 0) {
-        this.debug(
-          "Refreshing map markers/popups after language change, current lng:",
-          i18next.language,
-        );
-        for (const marker of this.mapMarkers) {
-          if (marker.__station) {
-            const html = this.buildPopupContent(marker.__station);
-            marker.bindPopup(html);
-          }
-        }
-        this.updateMap();
+      this.debug("Refreshing map markers for language change");
+
+      if (!(this.mapInitialized && this.mapMarkers?.length > 0)) {
+        return;
       }
+
+      // Rebuild all marker popups with new language
+      for (const marker of this.mapMarkers) {
+        if (marker.__station) {
+          const html = this.buildPopupContent(marker.__station);
+          marker.setPopupContent(html);
+        }
+      }
+
+      // Force map update
+      this.$nextTick(() => {
+        this.updateMap();
+      });
     },
 
     reinitializeComponents() {
@@ -342,9 +350,16 @@ function gasStationApp() {
 
     /**
      * Sets a specific fuel type chip as active
+     * Forces Alpine.js reactivity by using $nextTick
      */
     setFuelType(fuel) {
+      this.debug("Setting fuel type:", fuel);
       this.formData.fuel = fuel;
+
+      // Force immediate reactivity update
+      this.$nextTick(() => {
+        this.debug("Fuel type updated to:", this.formData.fuel);
+      });
     },
 
     /**
@@ -567,15 +582,24 @@ function gasStationApp() {
     },
 
     buildPopupContent(station) {
-      // Build popup HTML using current i18n language (should be IT when selected)
-      const title = station.gestore || i18next.t("translation.station");
+      // Use the reactive translate method instead of direct i18next.t
+      const title =
+        station.gestore || this.translate("translation.station", "Gas Station");
+      const addressLabel = this.translate("translation.address", "Address");
+
       this.debug(
         "buildPopupContent using lang:",
-        i18next.language,
+        this.currentLang,
         "title:",
         title,
       );
-      return `<b>${title}</b><br>${station.address}`;
+
+      return `
+        <div class="map-popup">
+          <strong>${title}</strong><br>
+          <span style="color: var(--text-secondary);">${addressLabel}: ${station.address}</span>
+        </div>
+      `;
     },
 
     updateMap() {
@@ -603,7 +627,9 @@ function gasStationApp() {
      * @returns {boolean} True if this station has the lowest price
      */
     isCheapestStation(index) {
-      if (!this.results || this.results.length === 0) return false;
+      if (!this.results || this.results.length === 0) {
+        return false;
+      }
       if (index === 0) {
         // First station is always considered "best" if we have results
         // In a real implementation, you'd compare all prices
@@ -617,7 +643,9 @@ function gasStationApp() {
      * @param {number} index - The index of the station in results
      */
     selectStationForMap(index) {
-      if (!(this.map && this.mapMarkers[index])) return;
+      if (!(this.map && this.mapMarkers[index])) {
+        return;
+      }
 
       const marker = this.mapMarkers[index];
       const station = this.results[index];
@@ -633,7 +661,9 @@ function gasStationApp() {
      * @param {Object} station - The station object with latitude and longitude
      */
     getDirections(station) {
-      if (!(station && station.latitude && station.longitude)) return;
+      if (!(station?.latitude && station.longitude)) {
+        return;
+      }
 
       const url = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`;
       window.open(url, "_blank");
@@ -670,9 +700,10 @@ function gasStationApp() {
      * @returns {string} The translated text
      */
     translate(key, fallback = "") {
-      // Access currentLang to make this method reactive to language changes
-      // This line establishes the reactive dependency - DO NOT REMOVE
-      this.currentLang; // eslint-disable-line no-unused-expressions
+      // Access currentLang to establish reactive dependency
+      const currentLanguage = this.currentLang;
+
+      this.debug("translate called with lang:", currentLanguage, "key:", key);
 
       if (typeof window.t === "function") {
         return window.t(key, fallback);
@@ -688,28 +719,42 @@ function gasStationApp() {
     },
 
     /**
-     * Sets the application language
+     * Sets the application language with proper reactivity
      * @param {string} lang - The language code ('en' or 'it')
      */
     setLanguage(lang) {
       this.debug("Language change requested:", lang);
 
-      // Update currentLang first to trigger reactive updates
+      // Update currentLang first to trigger reactive updates immediately
       this.currentLang = lang;
+
+      // Store in localStorage
+      localStorage.setItem("lang", lang);
 
       // Use the global setLang function from i18n.js if available
       if (window.setLang) {
         window.setLang(lang);
         this.debug("Language changed via setLang:", lang);
-      } else if (window.i18next && window.i18next.changeLanguage) {
+      } else if (window.i18next?.changeLanguage) {
         // Fallback to direct i18next call
         window.i18next.changeLanguage(lang, () => {
           if (window.updateI18nTexts) {
             window.updateI18nTexts();
           }
+          // Dispatch event manually if setLang not available
+          window.dispatchEvent(
+            new CustomEvent("languageChanged", { detail: { lang } }),
+          );
         });
         this.debug("Language changed via i18next:", lang);
       }
+
+      // Force re-render of all translated elements
+      this.$nextTick(() => {
+        if (window.updateI18nTexts) {
+          window.updateI18nTexts();
+        }
+      });
     },
   };
 }

@@ -292,3 +292,4 @@ public/
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+.claude/settings.local.json

@@ -38,11 +38,6 @@
     <section class="results-layout" aria-labelledby="results-heading">
       <h2 id="results-heading" class="sr-only" data-i18n="results_heading"></h2>
 
-      <!-- Map View -->
-      <div class="map-view">
-        <div id="map"></div>
-      </div>
-
       <!-- Station Cards List -->
       <div id="results-container">
         <template x-for="(station, index) in results" :key="station.id || index">
