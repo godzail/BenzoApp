@@ -11,11 +11,11 @@ FUEL_TYPE_MAPPING = {
 def normalize_fuel_type(fuel_type: str) -> str:
     """Normalize user-facing fuel type to API expected format.
 
-    Args:
-        fuel_type: The fuel type provided by the user.
+    Parameters:
+    - fuel_type: The fuel type provided by the user.
 
     Returns:
-        The normalized fuel type string expected by the Prezzi Carburante API.
+    - The normalized fuel type string expected by the Prezzi Carburante API.
     """
     if not fuel_type:
         return fuel_type
