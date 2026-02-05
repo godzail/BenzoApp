@@ -29,6 +29,9 @@
     "current_location": "Current Location",
     "use_current_location": "Use current location",
     "switch_to_light": "Switch to light mode",
-    "switch_to_dark": "Switch to dark mode"
+    "switch_to_dark": "Switch to dark mode",
+    "location": "Location",
+    "search_city_label": "Search city input",
+    "city_suggestions": "City suggestions"
   }
 }

@@ -98,3 +98,19 @@
     </span>
   </button>
 </form>
+
+<!-- Map Card - Moved from results to search column -->
+<template x-if="results.length > 0">
+  <div class="map-card search-column-map">
+    <div class="map-card-header">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
+      </svg>
+      <span x-text="translate('translation.map_summary', 'Map')"></span>
+    </div>
+    <div class="map-view">
+      <div id="map"></div>
+    </div>
+  </div>
+</template>

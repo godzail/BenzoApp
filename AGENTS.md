@@ -1,7 +1,7 @@
 # Project Overview
 
 - Name: BenzoApp
-- Description: High-performance Excel file generation service with Oracle DB integration
+- Description: A web application web designed for searching and analyzing gas stations.
 - Primary Language: Python
 
 ## Role Definition
