@@ -11,18 +11,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Custom Design System -->
     <!-- i18next CDN -->
-    <script defer src="https://unpkg.com/i18next@25.8.0/dist/umd/i18next.min.js"></script>
-    <script defer src="https://unpkg.com/i18next-http-backend@3.0.2/i18nextHttpBackend.min.js"></script>
+    <script defer src="https://unpkg.com/i18next@latest/dist/umd/i18next.min.js"></script>
+    <script defer src="https://unpkg.com/i18next-http-backend@latest/i18nextHttpBackend.min.js"></script>
     <!-- App Scripts -->
     <script defer src="/static/js/i18n.js"></script>
     <script defer src="/static/js/app.js"></script>
     <!-- Alpine.js - Load last after app functions are defined -->
-    <script defer src="https://unpkg.com/alpinejs@3.15.8/dist/cdn.min.js"></script>
+    <script defer src="https://unpkg.com/alpinejs@latest/dist/cdn.min.js"></script>
     <!-- Styles -->
     <link rel="stylesheet" href="/static/css/styles.css">
     <!-- Leaflet -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@latest/dist/leaflet.css" crossorigin="">
+    <script defer src="https://unpkg.com/leaflet@latest/dist/leaflet.js" crossorigin=""></script>
   </head>
 
   <body x-data="window.gasStationApp()" x-init="init()" x-cloak>
@@ -41,9 +41,20 @@
       <h1 class="sr-only">Gas Station Finder Application</h1>
       <div class="main-layout">
         <!-- Left Column: Search + Map -->
-        <div class="search-column">
+        <div class="search-column" id="search-column">
           <div id="search-container" role="search" aria-label="Gas station search"></div>
         </div>
+        <!-- Resizer Handle -->
+        <div
+          class="resizer"
+          id="layout-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-valuenow="50"
+          aria-valuemin="10"
+          aria-valuemax="90"
+          tabindex="0"
+        ></div>
         <!-- Right Column: Results (includes map card) -->
         <div id="results-container" role="region" aria-label="Search results"></div>
       </div>

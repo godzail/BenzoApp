@@ -111,7 +111,7 @@ function gasStationApp() {
     currentLang: localStorage.getItem("lang") || "it",
     map: null,
     mapInitialized: false,
-    mapMarkers: [],
+    mapMarkers: {}, // Changed from array to object keyed by station.id
     showCitySuggestions: false,
     cityList: [],
     filteredCities: [],
@@ -147,12 +147,15 @@ function gasStationApp() {
      * Uses batch removal to improve performance.
      */
     clearMapMarkers() {
-      if (this.mapMarkers && this.mapMarkers.length > 0) {
-        // Batch remove markers for better performance
-        for (const marker of this.mapMarkers) {
-          marker.remove();
-        }
-        this.mapMarkers.length = 0; // Clear array efficiently
+      if (this.mapMarkers) {
+        // Remove all markers from map
+        Object.values(this.mapMarkers).forEach((marker) => {
+          if (marker && typeof marker.remove === "function") {
+            marker.remove();
+          }
+        });
+        // Clear the object
+        this.mapMarkers = {};
       }
     },
 
@@ -178,14 +181,16 @@ function gasStationApp() {
         station.longitude,
       ]);
 
-      // Create markers in batch
+      // Create markers and store them by station ID
       for (const station of validStations) {
+        if (!station.id) continue;
+
         const marker = L.marker([station.latitude, station.longitude]).addTo(
           this.map,
         );
         marker.__station = station;
         marker.bindPopup(this.buildPopupContent(station));
-        this.mapMarkers.push(marker);
+        this.mapMarkers[station.id] = marker;
       }
 
       // Update map view
@@ -194,7 +199,11 @@ function gasStationApp() {
         padding: CONFIG.MAP_PADDING,
         maxZoom: CONFIG.MAX_ZOOM,
       });
-      this.debug("Map updated with", this.mapMarkers.length, "markers");
+      this.debug(
+        "Map updated with",
+        Object.keys(this.mapMarkers).length,
+        "markers",
+      );
     },
 
     /**
@@ -202,8 +211,9 @@ function gasStationApp() {
      * Uses configuration constants for consistency.
      */
     fitMapBounds() {
-      if (this.mapMarkers && this.mapMarkers.length > 0) {
-        const bounds = this.mapMarkers.map((marker) => marker.getLatLng());
+      const markers = Object.values(this.mapMarkers);
+      if (markers && markers.length > 0) {
+        const bounds = markers.map((marker) => marker.getLatLng());
         this.map.fitBounds(bounds, {
           padding: CONFIG.MAP_PADDING,
           maxZoom: CONFIG.MAX_ZOOM,
@@ -279,17 +289,13 @@ function gasStationApp() {
     refreshMapMarkersOnLanguageChange() {
       this.debug("Refreshing map markers for language change");
 
-      if (!(this.mapInitialized && this.mapMarkers?.length > 0)) {
-        return;
-      }
-
       // Rebuild all marker popups with new language
-      for (const marker of this.mapMarkers) {
-        if (marker.__station) {
+      Object.values(this.mapMarkers).forEach((marker) => {
+        if (marker && marker.__station) {
           const html = this.buildPopupContent(marker.__station);
           marker.setPopupContent(html);
         }
-      }
+      });
 
       // Force map update
       this.$nextTick(() => {
@@ -338,6 +344,60 @@ function gasStationApp() {
       if (progressEl) {
         this.loadingBar = progressEl;
       }
+
+      // Initialize Resizer
+      this.initializeResizer();
+    },
+
+    /**
+     * Initializes the column resizing logic.
+     */
+    initializeResizer() {
+      const resizer = document.getElementById("layout-resizer");
+      const searchColumn = document.getElementById("search-column");
+      const mainLayout = document.querySelector(".main-layout");
+
+      if (!(resizer && searchColumn && mainLayout)) return;
+
+      let isResizing = false;
+
+      resizer.addEventListener("mousedown", (e) => {
+        isResizing = true;
+        document.body.style.cursor = "col-resize";
+        document.body.classList.add("is-resizing");
+      });
+
+      document.addEventListener("mousemove", (e) => {
+        if (!isResizing) return;
+
+        const containerRect = mainLayout.getBoundingClientRect();
+        const relativeX = e.clientX - containerRect.left;
+        const totalWidth = containerRect.width;
+
+        // Calculate percentage (clamped between 10% and 90%)
+        let percentage = (relativeX / totalWidth) * 100;
+        percentage = Math.max(10, Math.min(90, percentage));
+
+        mainLayout.style.gridTemplateColumns = `${percentage}% 4px 1fr`;
+        resizer.setAttribute("aria-valuenow", Math.round(percentage));
+
+        // Invalidate map size during resize for smoothness
+        if (this.map) {
+          this.map.invalidateSize();
+        }
+      });
+
+      document.addEventListener("mouseup", () => {
+        if (!isResizing) return;
+        isResizing = false;
+        document.body.style.cursor = "";
+        document.body.classList.remove("is-resizing");
+
+        // Final map update
+        if (this.map) {
+          setTimeout(() => this.map.invalidateSize(), CONFIG.MAP_RESIZE_DELAY);
+        }
+      });
     },
 
     /**
@@ -640,17 +700,21 @@ function gasStationApp() {
 
     /**
      * Centers the map on a specific station and opens its popup
-     * @param {number} index - The index of the station in results
+     * @param {string} stationId - The unique ID of the station
      */
-    selectStationForMap(index) {
-      if (!(this.map && this.mapMarkers[index])) {
+    selectStationForMap(stationId) {
+      if (!(this.map && this.mapMarkers && stationId)) {
         return;
       }
 
-      const marker = this.mapMarkers[index];
-      const station = this.results[index];
+      const marker = this.mapMarkers[stationId];
+      if (!marker) {
+        this.debug("Marker not found for station ID:", stationId);
+        return;
+      }
 
-      if (marker && station) {
+      const station = marker.__station;
+      if (station && station.latitude && station.longitude) {
         this.map.setView([station.latitude, station.longitude], 16);
         marker.openPopup();
       }

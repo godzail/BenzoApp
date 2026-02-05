@@ -32,6 +32,8 @@
     "switch_to_dark": "Passa alla modalità scura",
     "location": "Posizione",
     "search_city_label": "Campo di ricerca città",
-    "city_suggestions": "Suggerimenti città"
+    "city_suggestions": "Suggerimenti città",
+    "coords_missing": "Dati mappa non disponibili per questa stazione",
+    "max_results": "Limite risultati"
   }
 }
