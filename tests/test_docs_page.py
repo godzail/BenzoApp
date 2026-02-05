@@ -44,3 +44,11 @@ def test_favicon_routes(client: TestClient) -> None:
     assert r1.status_code == status.HTTP_200_OK
     assert r2.status_code == status.HTTP_200_OK
     assert r1.content == r2.content
+
+
+def test_styles_css_served(client: TestClient) -> None:
+    """Legacy `styles.css` should be served as a compatibility shim."""
+    r = client.get("/static/css/styles.css")
+    assert r.status_code == status.HTTP_200_OK
+    # Ensure the shim references the split stylesheet
+    assert '@import url("/static/css/styles.split.css")' in r.text

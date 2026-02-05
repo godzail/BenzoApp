@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gas Station App - Find Nearby Fuel Stations</title>
-    <link rel="icon" href="/favicon.png" type="image/x-icon" alt="Gas Station App Icon">
+    <link rel="icon" href="/favicon.png" type="image/x-icon">
     <!-- Google Fonts - Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,11 +15,15 @@
     <script defer src="https://unpkg.com/i18next-http-backend@latest/i18nextHttpBackend.min.js"></script>
     <!-- App Scripts -->
     <script defer src="/static/js/i18n.js"></script>
+    <script defer src="/static/js/app.config.js"></script>
+    <script defer src="/static/js/app.storage.js"></script>
+    <script defer src="/static/js/app.map.js"></script>
+    <script defer src="/static/js/app.ui.js"></script>
     <script defer src="/static/js/app.js"></script>
     <!-- Alpine.js - Load last after app functions are defined -->
     <script defer src="https://unpkg.com/alpinejs@latest/dist/cdn.min.js"></script>
     <!-- Styles -->
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/styles.split.css">
     <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@latest/dist/leaflet.css" crossorigin="">
     <script defer src="https://unpkg.com/leaflet@latest/dist/leaflet.js" crossorigin=""></script>

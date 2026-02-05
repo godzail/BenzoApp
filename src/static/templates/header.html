@@ -11,12 +11,13 @@
           <path d="m21 21-4.35-4.35"></path>
         </svg>
       </span>
+      <label id="city-label-i18n" class="sr-only" data-i18n="search_placeholder">Search city...</label>
       <input
         type="text"
         id="city"
         name="city"
         class="search-input"
-        :placeholder="translate('translation.search_placeholder', 'Search city...')"
+        :placeholder="translate('search_placeholder', 'Search city...') + (currentLang ? '' : '')"
         required
         x-model="formData.city"
         @input="onCityInput"
@@ -37,13 +38,13 @@
         class="location-pill"
         type="button"
         @click="locateUser()"
-        :aria-label="translate('translation.use_current_location', 'Use current location')"
+        :aria-label="translate('use_current_location', 'Use current location') + (currentLang ? '' : '')"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
         </svg>
-        <span x-text="formData.city || translate('translation.current_location', 'Location')"></span>
+        <span x-text="formData.city || translate('current_location', 'Location') + (currentLang ? '' : '')"></span>
       </button>
     </div>
 
@@ -73,7 +74,7 @@
       class="theme-toggle"
       type="button"
       @click="toggleTheme()"
-      :aria-label="currentTheme === 'dark' ? translate('translation.switch_to_light', 'Switch to light mode') : translate('translation.switch_to_dark', 'Switch to dark mode')"
+      :aria-label="currentTheme === 'dark' ? translate('switch_to_light', 'Switch to light mode') : translate('switch_to_dark', 'Switch to dark mode')"
     >
       <!-- Sun Icon (Light Mode) -->
       <svg
@@ -129,9 +130,8 @@
     <!-- API Documentation Link (dynamic by language) -->
     <a
       :href="'/help/user-' + currentLang"
-      class="theme-toggle"
-      :title="translate('translation.user_docs','User Documentation')"
-      style="text-decoration: none;"
+      class="theme-toggle docs-link"
+      :title="translate('user_docs','User Documentation') + (currentLang ? '' : '')"
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
