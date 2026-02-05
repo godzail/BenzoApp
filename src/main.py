@@ -80,7 +80,7 @@ logger.add(
 
 # Add CORS middleware using settings
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware,  # ty:ignore[invalid-argument-type]
     allow_origins=get_settings().cors_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],

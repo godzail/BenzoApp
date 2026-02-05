@@ -39,12 +39,13 @@
       <h2 id="results-heading" class="sr-only" data-i18n="results_heading"></h2>
 
       <!-- Station Cards List -->
-      <div id="results-container">
+      <div id="stations-list">
         <template x-for="(station, index) in results" :key="station.id || index">
           <article
             class="station-card"
             :class="{ 'best-price': isCheapestStation(index) }"
-            @keyup.enter="selectStationForMap(index)"
+            @click="selectStationForMap(station.id)"
+            @keyup.enter="selectStationForMap(station.id)"
             tabindex="0"
             :aria-label="(station.gestore || (typeof t !== 'undefined' ? t('translation.station', 'Gas Station') : 'Gas Station')) + ', ' + formatCurrency(station.fuel_prices?.[0]?.price || 0)"
           >
@@ -111,23 +112,26 @@
                 </span></template>
               </div>
 
-              <div class="station-actions">
+              <!-- Station Actions - Moved inside each card -->
+              <div class="station-actions-row">
                 <button
-                  class="btn btn-primary"
-                  @click="getDirections(station)"
-                  :aria-label="'Get directions to ' + (station.gestore || (typeof t !== 'undefined' ? t('translation.station', 'Gas Station') : 'Gas Station'))"
+                  class="btn btn-primary btn-sm"
+                  @click.stop="getDirections(station)"
+                  :disabled="!station.latitude || !station.longitude"
+                  :title="(!station.latitude || !station.longitude) ? translate('translation.coords_missing', 'Directions unavailable: coordinates missing') : ''"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 18l6-6-6-6"></path>
                   </svg>
                   <span x-text="translate('translation.navigate', 'Navigate')"></span>
                 </button>
                 <button
-                  class="btn btn-secondary"
-                  @click="selectStationForMap(index)"
-                  :aria-label="'Show ' + (station.gestore || (typeof t !== 'undefined' ? t('translation.station', 'Gas Station') : 'Gas Station')) + ' on map'"
+                  class="btn btn-secondary btn-sm"
+                  @click.stop="selectStationForMap(station.id)"
+                  :disabled="!station.latitude || !station.longitude"
+                  :title="(!station.latitude || !station.longitude) ? translate('translation.coords_missing', 'Map unavailable: coordinates missing') : ''"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                     <circle cx="12" cy="10" r="3"></circle>
                   </svg>
