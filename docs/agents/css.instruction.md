@@ -353,7 +353,7 @@ You are a highly skilled **senior software engineer** specializing in CSS and we
 9. **Code Organization:**
    - **Organize CSS files logically**:
 
-     ```
+     ```text
      styles/
        base/
          reset.css

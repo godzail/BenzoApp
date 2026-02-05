@@ -230,13 +230,13 @@ async def render_docs(page: str) -> HTMLResponse:
     html_page = (
         "<!doctype html><html><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<link rel='stylesheet' href='/static/css/styles.css'>"
+        "<link rel='stylesheet' href='/static/css/styles.split.css'>"
         "<link rel='stylesheet' href='/static/css/docs.css'>"
         "<link rel='icon' href='/favicon.ico'>"
         "<base href='/docs-static/'>"
         "<title>Documentation</title></head><body>"
         f"<div class='docs-container' style='padding:24px;max-width:1000px;margin:72px auto;'>"
-        "<button id='docs-theme-toggle' aria-label='Toggle theme' "
+        '<button id="docs-theme-toggle" aria-label="Toggle theme" '
         "style='padding:6px 8px;border-radius:6px;border:1px solid rgba(0,0,0,0.1);"
         "background:var(--docs-toggle-bg,#fff);font-size:16px;line-height:1;'> </button>"
         f"{rendered}</div>"

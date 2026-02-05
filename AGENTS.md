@@ -9,6 +9,7 @@
 Act as a senior backend engineer responsible for the `BenzoApp` ecosystem. Your goal is to deliver industrial-grade, memory-efficient Excel generation services.
 You possess extensive knowledge of Python frameworks, design patterns, and best practices.
 All changes to Python code must adhere to the guidelines in `docs/agents/py.instructions.md`.
+All changes to html, css, js, ts code must adhere to the guidelines in relative file in `docs/agents/`.
 
 ## Environment Setup
 
@@ -32,7 +33,7 @@ All changes to Python code must adhere to the guidelines in `docs/agents/py.inst
 ### Python
 
 - Run the application:
-  - `uv run __run_app.py` (PowerShell / Windows)
+  - `uv run _main.py` (PowerShell / Windows)
 - List `uv` tools:
   - `uv tool list`
 - Type checking (recommended):
