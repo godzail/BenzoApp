@@ -149,11 +149,11 @@ function gasStationApp() {
     clearMapMarkers() {
       if (this.mapMarkers) {
         // Remove all markers from map
-        Object.values(this.mapMarkers).forEach((marker) => {
+        for (const marker of Object.values(this.mapMarkers)) {
           if (marker && typeof marker.remove === "function") {
             marker.remove();
           }
-        });
+        }
         // Clear the object
         this.mapMarkers = {};
       }
@@ -183,7 +183,9 @@ function gasStationApp() {
 
       // Create markers and store them by station ID
       for (const station of validStations) {
-        if (!station.id) continue;
+        if (!station.id) {
+          continue;
+        }
 
         const marker = L.marker([station.latitude, station.longitude]).addTo(
           this.map,
@@ -290,12 +292,12 @@ function gasStationApp() {
       this.debug("Refreshing map markers for language change");
 
       // Rebuild all marker popups with new language
-      Object.values(this.mapMarkers).forEach((marker) => {
-        if (marker && marker.__station) {
+      for (const marker of Object.values(this.mapMarkers)) {
+        if (marker?.__station) {
           const html = this.buildPopupContent(marker.__station);
           marker.setPopupContent(html);
         }
-      });
+      }
 
       // Force map update
       this.$nextTick(() => {
@@ -357,18 +359,22 @@ function gasStationApp() {
       const searchColumn = document.getElementById("search-column");
       const mainLayout = document.querySelector(".main-layout");
 
-      if (!(resizer && searchColumn && mainLayout)) return;
+      if (!(resizer && searchColumn && mainLayout)) {
+        return;
+      }
 
       let isResizing = false;
 
-      resizer.addEventListener("mousedown", (e) => {
+      resizer.addEventListener("mousedown", (_e) => {
         isResizing = true;
         document.body.style.cursor = "col-resize";
         document.body.classList.add("is-resizing");
       });
 
       document.addEventListener("mousemove", (e) => {
-        if (!isResizing) return;
+        if (!isResizing) {
+          return;
+        }
 
         const containerRect = mainLayout.getBoundingClientRect();
         const relativeX = e.clientX - containerRect.left;
@@ -388,7 +394,9 @@ function gasStationApp() {
       });
 
       document.addEventListener("mouseup", () => {
-        if (!isResizing) return;
+        if (!isResizing) {
+          return;
+        }
         isResizing = false;
         document.body.style.cursor = "";
         document.body.classList.remove("is-resizing");
@@ -714,7 +722,7 @@ function gasStationApp() {
       }
 
       const station = marker.__station;
-      if (station && station.latitude && station.longitude) {
+      if (station?.latitude && station?.longitude) {
         this.map.setView([station.latitude, station.longitude], 16);
         marker.openPopup();
       }

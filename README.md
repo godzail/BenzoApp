@@ -2,10 +2,19 @@
 
 > A modern web application for finding and comparing gas station fuel prices in Italy
 
-[![Python](https://img.shields.io/badge/Python-3.14+-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Latest-009688.svg)](https://fastapi.tiangolo.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Python](https://img.shields.io/badge/Python-3.14+-blue.svg)](https://www.python.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-Latest-009688.svg)](https://fastapi.tiangolo.com/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+
+---
+
+<p align="center">
+  <img src="docs/screenshots/main.png" alt="Main Interface" />
+  <br />
+  <em>Figure 1: The main interface of BenzoApp showing the search input, filters, and interactive map</em>
+</p>
+
+---
+
+BenzoApp is a fast, user-friendly web application that helps users find and compare fuel prices at gas stations across Italy. Leveraging real-time data from the Prezzi Carburante API and geocoding services from OpenStreetMap, BenzoApp provides an intuitive interface with interactive maps and smart filtering options.
 
 ## ✨ Features
 
@@ -65,7 +74,7 @@ BenzoApp is built with a modern, scalable architecture:
    ```bash
    # On Windows (PowerShell)
    powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-   
+
    # On macOS/Linux
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
@@ -81,7 +90,7 @@ BenzoApp is built with a modern, scalable architecture:
    ```bash
    # Copy example environment file
    cp .env.example .env
-   
+
    # Edit .env with your settings (optional - defaults work for development)
    ```
 
@@ -93,7 +102,7 @@ BenzoApp is built with a modern, scalable architecture:
 
 6. **Open your browser**
 
-   ```
+   ```text
    Navigate to http://127.0.0.1:8000
    ```
 
@@ -101,12 +110,12 @@ BenzoApp is built with a modern, scalable architecture:
 
 The application uses environment variables for configuration. See [.env.example](.env.example) for all available options:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NOMINATIM_API_URL` | OpenStreetMap geocoding API endpoint | `https://nominatim.openstreetmap.org/search` |
-| `PREZZI_CARBURANTE_API_URL` | Fuel price API endpoint | `https://prezzi-carburante.onrender.com/api/distributori` |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins | `http://127.0.0.1:8000` |
-| `USER_AGENT` | Custom user agent for external API requests | `BenzoApp/1.0 (+https://example.com)` |
+| Variable                    | Description                                  | Default                                                   |
+|-----------------------------|----------------------------------------------|-----------------------------------------------------------|
+| `NOMINATIM_API_URL`         | OpenStreetMap geocoding API endpoint         | `https://nominatim.openstreetmap.org/search`              |
+| `PREZZI_CARBURANTE_API_URL` | Fuel price API endpoint                      | `https://prezzi-carburante.onrender.com/api/distributori` |
+| `CORS_ALLOWED_ORIGINS`      | Comma-separated list of allowed CORS origins | `http://127.0.0.1:8000`                                   |
+| `USER_AGENT`                | Custom user agent for external API requests  | `BenzoApp/1.0 (+https://example.com)`                     |
 
 ## 📚 API Documentation
 
@@ -208,24 +217,24 @@ ty check .
 
 ## 📁 Project Structure
 
-```
+```text
 BenzoApp/
 ├── src/
-│   ├── main.py              # FastAPI application
-│   ├── models.py            # Pydantic models
-│   ├── services/            # Business logic
-│   │   ├── fuel_api.py      # Fuel price API integration
+│   ├── main.py                 # FastAPI application
+│   ├── models.py               # Pydantic models
+│   ├── services/               # Business logic
+│   │   ├── fuel_api.py         # Fuel price API integration
 │   │   ├── fuel_type_utils.py
-│   │   └── geocoding.py     # Geocoding service
-│   └── static/              # Frontend assets
+│   │   └── geocoding.py        # Geocoding service
+│   └── static/                 # Frontend assets
 │       ├── css/
 │       ├── js/
-│       ├── locales/         # i18n translations
-│       └── templates/       # HTML templates
-├── tests/                   # Test suite
-├── docs/                    # Documentation
-├── pyproject.toml           # Project metadata & dependencies
-├── .env.example             # Environment variables template
+│       ├── locales/            # i18n translations
+│       └── templates/          # HTML templates
+├── tests/                      # Test suite
+├── docs/                       # Documentation
+├── pyproject.toml              # Project metadata & dependencies
+├── .env.example                # Environment variables template
 └── README.md
 ```
 

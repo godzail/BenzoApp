@@ -13,6 +13,7 @@ Intended for use as the backend of a web application to help users find nearby g
 """
 
 import asyncio
+import html as _html
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -24,6 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
+from markdown import markdown as py_markdown
 from tenacity import RetryError
 
 from src.models import (
@@ -88,11 +90,24 @@ app.add_middleware(
 static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+# Serve docs assets (images, included files) under a static route
+docs_dir = Path(__file__).parent.parent / "docs"
+app.mount("/docs-static", StaticFiles(directory=docs_dir), name="docs_static")
+
 
 # --- API Endpoints ---
 @app.get("/favicon.png", include_in_schema=False)
 async def favicon() -> FileResponse:
-    """Serve the favicon."""
+    """Serve the favicon PNG."""
+    return FileResponse(
+        static_dir / "favicon.png",
+        headers={"Cache-Control": "public, max-age=3600"},  # Cache for 1 hour
+    )
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon_ico() -> FileResponse:
+    """Serve a favicon.ico by returning the PNG (browsers will accept it)."""
     return FileResponse(
         static_dir / "favicon.png",
         headers={"Cache-Control": "public, max-age=3600"},  # Cache for 1 hour
@@ -178,6 +193,58 @@ async def read_root() -> FileResponse:
         index_path,
         headers={"Cache-Control": "public, max-age=3600"},  # Cache for 1 hour
     )
+
+
+@app.get("/help/{page}", response_class=HTMLResponse)
+async def render_docs(page: str) -> HTMLResponse:
+    """Render Markdown docs pages from the `docs` directory (safe filename)."""
+    # Basic filename validation to prevent path traversal
+    if ".." in page or "/" in page or "\\" in page:
+        raise HTTPException(status_code=400, detail="Invalid page")
+
+    docs_dir = Path(__file__).parent.parent / "docs"
+    md_path = docs_dir / f"{page}.md"
+
+    # If the exact page filename is missing, try language-specific fallbacks
+    if not md_path.exists():
+        for alt in (f"{page}-en.md", f"{page}-it.md"):
+            alt_path = docs_dir / alt
+            if alt_path.exists():
+                md_path = alt_path
+                break
+
+    if not md_path.exists():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    md_text = md_path.read_text(encoding="utf-8")
+
+    # Preferred renderers: MarkdownIt
+    rendered = None
+
+    try:
+        rendered = py_markdown(md_text, extensions=["tables", "fenced_code", "attr_list"])
+    except Exception:
+        logger.exception("Python-Markdown fallback failed; rendering raw markdown as escaped text")
+        rendered = f"<pre>{_html.escape(md_text)}</pre>"
+
+    html_page = (
+        "<!doctype html><html><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+        "<link rel='stylesheet' href='/static/css/styles.css'>"
+        "<link rel='stylesheet' href='/static/css/docs.css'>"
+        "<link rel='icon' href='/favicon.ico'>"
+        "<base href='/docs-static/'>"
+        "<title>Documentation</title></head><body>"
+        f"<div class='docs-container' style='padding:24px;max-width:1000px;margin:72px auto;'>"
+        "<button id='docs-theme-toggle' aria-label='Toggle theme' "
+        "style='padding:6px 8px;border-radius:6px;border:1px solid rgba(0,0,0,0.1);"
+        "background:var(--docs-toggle-bg,#fff);font-size:16px;line-height:1;'> </button>"
+        f"{rendered}</div>"
+        "<script src='/static/js/docs-theme.js' defer></script>"
+        "</body></html>"
+    )
+
+    return HTMLResponse(content=html_page, headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/health")

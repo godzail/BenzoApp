@@ -3,7 +3,7 @@ name = "BenzoApp"
 version = "0.1.0"
 description = "Fuel service"
 requires-python = "==3.14.*"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "Nic" }]
 dependencies = [
   "cachetools",
@@ -11,6 +11,7 @@ dependencies = [
   "httptools",
   "humanize",
   "loguru",
+  "markdown",
   "orjson",
   "pathvalidate",
   "pydantic",
