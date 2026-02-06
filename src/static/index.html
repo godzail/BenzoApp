@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Find nearby gas stations and compare fuel prices in Italy. Search by city, radius, and fuel type.">
     <title>Gas Station App - Find Nearby Fuel Stations</title>
     <link rel="icon" href="/favicon.png" type="image/x-icon">
     <!-- Google Fonts - Inter -->
@@ -27,6 +28,24 @@
     <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@latest/dist/leaflet.css" crossorigin="">
     <script defer src="https://unpkg.com/leaflet@latest/dist/leaflet.js" crossorigin=""></script>
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://yourdomain.com/">
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Gas Station Finder",
+      "description": "Find nearby gas stations and compare fuel prices in Italy",
+      "applicationCategory": "Utilities",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "EUR"
+      }
+    }
+    </script>
   </head>
 
   <body x-data="window.gasStationApp()" x-init="init()" x-cloak>

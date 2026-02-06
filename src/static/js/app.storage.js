@@ -1,5 +1,12 @@
-// Storage related helpers (split from app.js)
+/**
+ * Storage-related helper methods for the gas station application.
+ * @namespace appStorageMixin
+ */
 window.appStorageMixin = {
+  /**
+   * Loads the list of cities from the JSON file.
+   * On failure, falls back to a hardcoded list.
+   */
   async loadCities() {
     try {
       const response = await fetch(window.CONFIG.CITIES_JSON_PATH);
@@ -11,6 +18,9 @@ window.appStorageMixin = {
     }
   },
 
+  /**
+   * Loads recent searches from localStorage into this.recentSearches.
+   */
   loadRecentSearches() {
     try {
       const stored = this.safeGetItem("recentSearches");
@@ -20,6 +30,14 @@ window.appStorageMixin = {
     }
   },
 
+  /**
+   * Saves a search to recent searches, maintaining limit and avoiding duplicates.
+   * @param {Object} search - The search object to save.
+   * @param {string} search.city - City name.
+   * @param {number} search.radius - Search radius.
+   * @param {string} search.fuel - Fuel type.
+   * @param {number} [search.results] - Number of results.
+   */
   saveRecentSearch(search) {
     this.recentSearches = this.recentSearches.filter(
       (s) =>
@@ -36,6 +54,10 @@ window.appStorageMixin = {
     this.safeSetItem("recentSearches", JSON.stringify(this.recentSearches));
   },
 
+  /**
+   * Populates form data from a recent search and submits the form.
+   * @param {Object} search - The recent search object.
+   */
   selectRecentSearch(search) {
     this.formData.city = search.city;
     this.formData.radius = search.radius;

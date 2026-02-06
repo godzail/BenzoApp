@@ -50,23 +50,35 @@
   --font-family:
     "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* Fuel Type Colors (Dark Theme Default) */
+  --fuel-benzina-color: #e65100;
+  --fuel-gasolio-color: #455a64;
+  --fuel-gpl-color: #d84315;
+  --fuel-metano-color: #0d47a1;
 }
 
 /* Light Theme */
 [data-theme="light"] {
-  --bg-primary: #f8fafc;
-  --bg-surface: #ffffff;
-  --bg-elevated: #f1f5f9;
-  --border-color: #e2e8f0;
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(0, 0, 0, 0.1);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
-  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+   --bg-primary: #f8fafc;
+   --bg-surface: #ffffff;
+   --bg-elevated: #f1f5f9;
+   --border-color: #e2e8f0;
+   --text-primary: #0f172a;
+   --text-secondary: #64748b;
+   --text-muted: #94a3b8;
+   --glass-bg: rgba(255, 255, 255, 0.85);
+   --glass-border: rgba(0, 0, 0, 0.1);
+   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+
+   /* Fuel Type Colors (Light Theme) */
+   --fuel-benzina-color: #ffb74d;
+   --fuel-gasolio-color: #cfd8dc;
+   --fuel-gpl-color: #ffab91;
+   --fuel-metano-color: #90caf9;
 }
 
 /* Base Styles */

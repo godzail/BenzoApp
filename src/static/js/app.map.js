@@ -1,5 +1,11 @@
-// Map-related helpers (split from app.js)
+/**
+ * Map-related helper methods for the gas station application.
+ * @namespace appMapMixin
+ */
 window.appMapMixin = {
+  /**
+   * Removes all markers from the map and clears the markers registry.
+   */
   clearMapMarkers() {
     if (this.mapMarkers) {
       for (const marker of Object.values(this.mapMarkers)) {
@@ -11,6 +17,10 @@ window.appMapMixin = {
     }
   },
 
+  /**
+   * Adds markers for all stations in the results to the map.
+   * Adjusts map view to fit all markers.
+   */
   addMapMarkers() {
     if (!this.results || this.results.length === 0) return;
     const validStations = this.results.filter((s) => s.latitude && s.longitude);
@@ -35,6 +45,9 @@ window.appMapMixin = {
     });
   },
 
+  /**
+   * Adjusts the map view to fit all current markers.
+   */
   fitMapBounds() {
     const markers = Object.values(this.mapMarkers || {});
     if (markers.length > 0) {
@@ -46,6 +59,10 @@ window.appMapMixin = {
     }
   },
 
+  /**
+   * Initializes the Leaflet map if not already done.
+   * Sets up tile layer and default view.
+   */
   initMap() {
     if (this.mapInitialized) return;
     const mapContainer = document.getElementById("map");
@@ -64,6 +81,9 @@ window.appMapMixin = {
     }, window.CONFIG.MAP_RESIZE_DELAY);
   },
 
+  /**
+   * Refreshes all map marker popups after language change.
+   */
   refreshMapMarkersOnLanguageChange() {
     for (const marker of Object.values(this.mapMarkers || {})) {
       if (marker?.__station)
@@ -74,6 +94,10 @@ window.appMapMixin = {
     });
   },
 
+  /**
+   * Selects a station on the map by its ID (centers and opens popup).
+   * @param {string|number} stationId - The ID of the station to select.
+   */
   selectStationForMap(stationId) {
     if (!(this.map && this.mapMarkers && stationId)) return;
     const marker = this.mapMarkers[stationId];
@@ -85,12 +109,23 @@ window.appMapMixin = {
     }
   },
 
+  /**
+   * Opens Google Maps directions to the station's location.
+   * Uses `noopener,noreferrer` for security when opening external link.
+   * @param {Object} station - The station object with latitude and longitude.
+   * @param {number} station.latitude - Latitude of the station.
+   * @param {number} station.longitude - Longitude of the station.
+   */
   getDirections(station) {
     if (!(station?.latitude && station.longitude)) return;
     const url = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`;
-    window.open(url, "_blank");
+    const newWindow = window.open(url, "_blank", "noopener,noreferrer");
+    if (newWindow) newWindow.opener = null;
   },
 
+  /**
+   * Uses browser geolocation to set the user's current location and submit the form.
+   */
   locateUser() {
     if (!navigator.geolocation) {
       this.error = "Geolocation is not supported by your browser";
