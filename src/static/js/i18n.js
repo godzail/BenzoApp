@@ -26,7 +26,9 @@ function t(key, fallback = "") {
  * @param {string} lang - The language code ('en' or 'it')
  */
 window.setLang = (lang) => {
-  console.log("[DEBUG] i18next.changeLanguage called with lang:", lang);
+  if (window.gasStationApp?.debugMode) {
+    console.log("[DEBUG] i18next.changeLanguage called with lang:", lang);
+  }
 
   // Reset and clear translation cache
   if (typeof i18next !== "undefined") {

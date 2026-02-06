@@ -140,12 +140,15 @@ class Station(BaseModel):
 
 
 # Configuration constants
+# Search radius limits (kilometers)
 MAX_SEARCH_RADIUS_KM = 200
 MIN_SEARCH_RADIUS_KM = 1
+# Results pagination
 DEFAULT_RESULTS_COUNT = 5
 MAX_RESULTS_COUNT = 20
-MAX_ZOOM_LEVEL = 14
-MAP_PADDING_PX = 50
+# Map configuration
+MAX_ZOOM_LEVEL = 14  # Maximum zoom level for map tiles
+MAP_PADDING_PX = 50  # Padding around map bounds when fitting stations
 
 
 class SearchResponse(BaseModel):

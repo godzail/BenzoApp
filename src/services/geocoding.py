@@ -51,10 +51,6 @@ async def geocode_city(
 
         location = data[0]
         result = {"latitude": float(location["lat"]), "longitude": float(location["lon"])}
-
-        # Update cache
-        geocoding_cache[city] = result
-        return result
     except httpx.HTTPStatusError as err:
         logger.error(
             "Geocoding API returned error: %s - %s",
@@ -66,6 +62,12 @@ async def geocode_city(
             detail=f"Geocoding service error: {err.response.reason_phrase}",
         ) from err
     except httpx.RequestError as err:
-        # Log with structured format, don't expose internal details to user
         logger.warning("Geocoding request error: %s", err)
-        raise
+        raise HTTPException(
+            status_code=503,
+            detail="Geocoding service is temporarily unavailable. Please try again later.",
+        ) from err
+    else:
+        # Update cache only if request succeeded
+        geocoding_cache[city] = result
+        return result
