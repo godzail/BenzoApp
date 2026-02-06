@@ -192,7 +192,7 @@ You are a highly skilled **senior software engineer** specializing in JavaScript
     - **Avoid circular dependencies.**
     - Example structure:
 
-      ```
+      ```text
       src/
         utils/
           validation.js

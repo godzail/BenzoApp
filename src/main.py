@@ -43,8 +43,15 @@ from src.services.geocoding import geocode_city
 
 
 def get_settings() -> Settings:
-    """Returns application settings instance."""
-    return Settings()  # pyright: ignore[reportCallIssue]
+    """Returns application settings instance.
+
+    This function is used as a FastAPI dependency to provide configuration
+    settings loaded from environment variables.
+
+    Returns:
+        Settings: The application settings object.
+    """
+    return Settings()
 
 
 # --- Lifespan Management ---
@@ -65,6 +72,7 @@ async def lifespan(_app: FastAPI):
 
 
 # --- FastAPI App Initialization ---
+# HTTP status code for service unavailable responses
 HTTP_503_SERVICE_UNAVAILABLE = 503
 app = FastAPI(title="Gas Station Finder API", lifespan=lifespan)
 

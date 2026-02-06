@@ -1,6 +1,7 @@
 """Fuel station API service."""
 
 import httpx
+from fastapi import HTTPException
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -59,7 +60,10 @@ async def fetch_gas_stations(
         raise
     except httpx.RequestError as err:
         logger.error("Gas station API request error: %s", err)
-        raise
+        raise HTTPException(
+            status_code=503,
+            detail="Fuel station service is temporarily unavailable. Please try again later.",
+        ) from err
 
 
 def parse_and_normalize_stations(

@@ -98,7 +98,7 @@
 <!-- Map Card - Moved from results to search column -->
 <template x-if="results.length > 0">
   <details class="map-card search-column-map" open
-    @toggle="if ($event.target.open) { $nextTick(() => { map.invalidateSize() }) }">
+    @toggle="$nextTick(() => { if (map && $event.target.open) { map.invalidateSize(); } })">
     <summary>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>

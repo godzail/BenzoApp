@@ -1,8 +1,13 @@
-/* Docs theme toggle behavior and placement
+/**
+ * Docs theme toggle behavior and placement.
  * Moves the toggle into the first document H1 so it sits on the same line
  * and persists theme choice in localStorage.
  */
 
+/**
+ * Updates the theme toggle button appearance based on current theme.
+ * @param {HTMLElement} btn - The toggle button element.
+ */
 const updateBtn = (btn) => {
   if (!btn) {
     return;
@@ -17,6 +22,9 @@ const updateBtn = (btn) => {
   }
 };
 
+/**
+ * Applies the stored theme from localStorage on page load.
+ */
 const applyStoredTheme = () => {
   try {
     const stored = localStorage.getItem("docs-theme");
@@ -28,6 +36,10 @@ const applyStoredTheme = () => {
   }
 };
 
+/**
+ * Places the theme toggle button in the document, preferably next to the main heading.
+ * @param {HTMLElement} btn - The toggle button element.
+ */
 const placeButton = (btn) => {
   if (!btn) {
     return;
@@ -58,6 +70,10 @@ const placeButton = (btn) => {
   }
 };
 
+/**
+ * Toggles the theme between light and dark and updates storage.
+ * @param {HTMLElement} btn - The toggle button element.
+ */
 const toggleTheme = (btn) => {
   const cur = document.documentElement.getAttribute("data-theme");
   if (cur === "light") {

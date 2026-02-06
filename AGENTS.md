@@ -1,84 +1,120 @@
 # Project Overview
 
 - Name: BenzoApp
-- Description: A web application designed for searching and analyzing gas stations.
+- Description: A web application designed for searching and analyzing gas stations built with FastAPI and Python.
 - Primary Language: Python
 
 ## Role Definition
 
-Act as a senior backend engineer responsible for the `BenzoApp` ecosystem. Your goal is to deliver industrial-grade, memory-efficient Excel generation services.
-You possess extensive knowledge of Python frameworks, design patterns, and best practices.
-All changes to Python code must adhere to the guidelines in `docs/agents/py.instructions.md`.
-All changes to html, css, js, ts code must adhere to the guidelines in relative file in `docs/agents/`.
+Act as a senior fullstack engineer responsible for the `BenzoApp` ecosystem. Your goal is to deliver industrial-grade, memory-efficient web applications.
+Act as you possess extensive knowledge of Python frameworks, design patterns, and best practices and proficient in frontend technologies with a strong understanding of system architecture, performance optimization, and security principles.
+
+### Code Modification Guidelines
+
+- **Python files**: Follow `docs/agents/py.instructions.md`
+- **Frontend files** (HTML/CSS/JS/TS): Follow corresponding guidelines in `docs/agents/`
+- Adhere to project-specific linting and formatting standards
 
 ## Environment Setup
 
-- OS: Windows
-- Shell: PowerShell (pwsh)
-- Python Version: 3.13+
-- Virtual Environment: `.venv`
-- Package Manager / Tooling: `uv` for environment and dependency management
-- Global Tools:
-  - `ripgrep` (`rg`) — used for fast repository-wide searching
-  - `ruff` — used for python linting and formatting
-  - `ty` — used for python type checking
-  - `biome` — used for js,ts,html,css linting and formatting
+- OS: Windows with PowerShell (pwsh)
+- Python Version: 3.13+ with `.venv` virtual environment
+- Package Management:
+  - `uv` for Python dependencies and tooling
+  - `bun` for JavaScript/TypeScript dependencies
+- Code Quality Global Tools:
+  - `rg` (ripgrep) — fast codebase searching
+  - `ruff` — Python linting and formatting
+  - `ty` — Python type checking
+  - `biome` — frontend linting and formatting
 
-## Common Commands
+## Essential Commands
 
-### Search codebase
+### Codebase Navigation
 
-- `rg <search_term>` (search codebase for `<search_term>`)
+```powershell
+rg <search_term>       # Search entire codebase
+```
 
-### Python
+### Python Workflow
 
-- Run the application:
-  - `uv run _main.py` (PowerShell / Windows)
-- List `uv` tools:
-  - `uv tool list`
-- Type checking (recommended):
-  - `ty check .` (project uses `ty` via `uv`; type diagnostics present)
-- Linting / formatting:
-  - `ruff check .`
-  - `ruff check . --fix` to auto-fix simple issues
-- Testing:
-  - `uv run pytest tests/` (run all tests)
-  - `uv run pytest tests/test_specific_file.py` (run specific test file)
+```powershell
+uv run _main.py        # Run application
+uv tool list           # List available tools
+ty check .             # Type checking
+ruff check .           # Lint codebase
+ruff check . --fix     # Auto-fix issues
+uv run pytest tests/   # Run all tests
+```
 
-### Frontend
+### Frontend Workflow
 
-- Linting / formatting:
-  - `biome check src/static`
-  - `biome check src/static --write` to auto-fix simple issues
+```powershell
+bun install                      # Install dependencies
+bun run <script>                 # Run package.json scripts
+biome check apiservice/resources           # Lint frontend
+biome check apiservice/resources --write   # Auto-fix issues
+```
 
-## Project Structure
+## Project Layout
 
-- Source Code: `src/`
-- documentation: `docs/`
+- Source Code: `apiservice/`
+- Documentation: `docs/`
 - Tests: `tests/`
-- Project Metadata & Dependencies: `pyproject.toml`
+- Python Project Configuration: `pyproject.toml`
 
-## Reasoning Strategy
+## Problem-Solving Approach
 
-1. Problem Understanding
-   - **Query analysis** — clarify intent if ambiguous
-   - **Context selection** — refer to this document first.
-   - Briefly restate the problem in your own words.
-   - Identify the key requirements and constraints.
+### 1. Problem Analysis
 
-2. Multi‑Perspective Analysis
-   - Consider the problem from three internal roles:
-     a) Senior Software Engineer: propose a clear solution strategy.
-     b) Code Reviewer: identify potential bugs, edge cases, and pitfalls.
-     c) System Architect: evaluate performance, scalability, and maintainability.
+- Clarify ambiguous requirements upfront
+- Reference this document and relevant guidelines first
+- Restate the problem to confirm understanding
+- Identify constraints and success criteria
+
+### 2. Multi-Perspective Review
+
+Evaluate solutions through three lenses:
+
+**Senior Engineer**:
+
+- Propose clear, implementable solutions
+- Consider trade-offs between approaches
+- Break complex problems into manageable subproblems
+
+**Code Reviewer**:
+
+- Identify edge cases and potential bugs
+- Ensure error handling and input validation
+- Check for code smells and anti-patterns
+
+**System Architect**:
+
+- Assess performance and scalability implications
+- Evaluate maintainability and future extensibility
+- Consider memory efficiency and resource utilization
 
 ## Security & Restrictions
 
-- **Forbidden Files**: DO NOT read or modify `*.env` files, `*/config/secrets.*`, or private keys.
-- **Secrets**: Never commit or log API keys, passwords, or tokens.
+### Protected Files
+
+**NEVER** read, modify, or expose:
+
+- `*.env` files
+- `*/config/secrets.*`
+- Private keys or credentials
+
+### Secret Management
+
+- No hardcoded API keys, passwords, or tokens
+- Never log or commit sensitive information
+- Use environment variables for configuration
 
 ## Response Structure
 
-- Provide professional markdown.
-- Keep responses brief by default.
-- Include a **Probabilistic Correctness Ratio**: Estimated a qualitative statement of confidence (e.g., 93%). In this section, you can also include a description (e.g., "I am confident in this approach because...").
+- Use professional markdown formatting
+- Default to concise, actionable responses, expand detail when complexity requires it
+- Include a **Probabilistic Correctness Ratio**, with each significant recommendation:
+  - Estimated a qualitative statement of confidence (e.g., "High confidence — 90%+").
+  - Justify the assessment (e.g., "Based on established patterns in the codebase and Python best practices")
+  - Flag uncertainties or areas requiring validation

@@ -1,0 +1,91 @@
+{
+  "functions": [
+    {
+      "complexity": 0,
+      "file_name": "main.py",
+      "function_name": "favicon",
+      "path": "src/main.py"
+    },
+    {
+      "complexity": 0,
+      "file_name": "main.py",
+      "function_name": "favicon_ico",
+      "path": "src/main.py"
+    },
+    {
+      "complexity": 0,
+      "file_name": "main.py",
+      "function_name": "get_settings",
+      "path": "src/main.py"
+    },
+    {
+      "complexity": 0,
+      "file_name": "main.py",
+      "function_name": "health_check",
+      "path": "src/main.py"
+    },
+    {
+      "complexity": 0,
+      "file_name": "main.py",
+      "function_name": "read_root",
+      "path": "src/main.py"
+    },
+    {
+      "complexity": 2,
+      "file_name": "main.py",
+      "function_name": "lifespan",
+      "path": "src/main.py"
+    },
+    {
+      "complexity": 8,
+      "file_name": "main.py",
+      "function_name": "search_gas_stations",
+      "path": "src/main.py"
+    },
+    {
+      "complexity": 10,
+      "file_name": "main.py",
+      "function_name": "render_docs",
+      "path": "src/main.py"
+    },
+    {
+      "complexity": 0,
+      "file_name": "models.py",
+      "function_name": "FuelPrice::__str__",
+      "path": "src/models.py"
+    },
+    {
+      "complexity": 0,
+      "file_name": "models.py",
+      "function_name": "Station::__str__",
+      "path": "src/models.py"
+    },
+    {
+      "complexity": 2,
+      "file_name": "fuel_api.py",
+      "function_name": "fetch_gas_stations",
+      "path": "src/services\\fuel_api.py"
+    },
+    {
+      "complexity": 10,
+      "file_name": "fuel_api.py",
+      "function_name": "parse_and_normalize_stations",
+      "path": "src/services\\fuel_api.py"
+    },
+    {
+      "complexity": 1,
+      "file_name": "fuel_type_utils.py",
+      "function_name": "normalize_fuel_type",
+      "path": "src/services\\fuel_type_utils.py"
+    },
+    {
+      "complexity": 5,
+      "file_name": "geocoding.py",
+      "function_name": "geocode_city",
+      "path": "src/services\\geocoding.py"
+    }
+  ],
+  "targets": [
+    "D:/Workspace/BenzoApp/src"
+  ]
+}

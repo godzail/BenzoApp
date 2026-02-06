@@ -1,5 +1,13 @@
-// UI helpers, init and search flow (split from app.js)
+/**
+ * UI helper methods and initialization logic for the gas station application.
+ * @namespace appUiMixin
+ */
 window.appUiMixin = {
+  /**
+   * Formats a numeric value as currency using the application's locale.
+   * @param {number} value - The numeric value to format.
+   * @returns {string} The formatted currency string (e.g., "€ 1.850").
+   */
   formatCurrency(value) {
     return new Intl.NumberFormat(window.CONFIG.CURRENCY_LOCALE, {
       style: "currency",
@@ -9,10 +17,20 @@ window.appUiMixin = {
     }).format(value);
   },
 
+  /**
+   * Debug logging helper - logs only if debugMode is enabled.
+   * @param {string} message - Debug message.
+   * @param {*} [data] - Optional data to log.
+   */
   debug(message, data = null) {
     if (this.debugMode) console.log("[DEBUG]", message, data || "");
   },
 
+  /**
+   * Safely retrieves an item from localStorage.
+   * @param {string} key - The storage key.
+   * @returns {string|null} The stored value or null if not available.
+   */
   safeGetItem(key) {
     try {
       return localStorage.getItem(key);
@@ -21,6 +39,11 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Safely stores an item in localStorage.
+   * @param {string} key - The storage key.
+   * @param {string} value - The value to store.
+   */
   safeSetItem(key, value) {
     try {
       localStorage.setItem(key, value);
@@ -29,6 +52,10 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Sets the loading bar state (active/inactive).
+   * @param {boolean} active - Whether the loading bar should be active.
+   */
   setLoadingBar(active) {
     if (!this.loadingBar) return;
     const statusEl = document.getElementById("status-messages");
@@ -52,6 +79,9 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Initializes UI components: theme, loading bar, and resizer.
+   */
   initializeComponents() {
     window.themeManager.init();
     this.currentTheme =
@@ -62,6 +92,10 @@ window.appUiMixin = {
     this.initializeResizer();
   },
 
+  /**
+   * Sets up the column resizer for the main layout.
+   * Handles mouse events to adjust grid column sizes.
+   */
   initializeResizer() {
     const resizer = document.getElementById("layout-resizer");
     const searchColumn = document.getElementById("search-column");
@@ -100,11 +134,19 @@ window.appUiMixin = {
     });
   },
 
+  /**
+   * Toggles the application theme between light and dark.
+   */
   toggleTheme() {
     this.currentTheme = window.themeManager.toggle();
     this.debug("Theme toggled to:", this.currentTheme);
   },
 
+  /**
+   * Sets the selected fuel type and optionally auto-submits if a city is entered.
+   * Uses debouncing to avoid rapid repeated submissions.
+   * @param {string} fuel - The fuel type to set.
+   */
   setFuelType(fuel) {
     this.formData.fuel = fuel;
     this.$nextTick?.(() => {
@@ -116,15 +158,23 @@ window.appUiMixin = {
         }
         this._fuelChangeTimeout = setTimeout(() => {
           this.submitForm();
-        }, 100);
+        }, window.CONFIG.DEBOUNCE_DELAY_MS);
       }
     });
   },
 
+  /**
+   * Checks if a given fuel type is currently selected.
+   * @param {string} fuel - The fuel type to check.
+   * @returns {boolean} True if the fuel type matches the current selection.
+   */
   isFuelSelected(fuel) {
     return this.formData.fuel === fuel;
   },
 
+  /**
+   * Handles city input: filters the city list and shows/hides suggestions.
+   */
   onCityInput() {
     const value = (this.formData.city || "").trim().toLowerCase();
     if (value.length === 0) {
@@ -138,18 +188,30 @@ window.appUiMixin = {
     this.showCitySuggestions = this.filteredCities.length > 0;
   },
 
+  /**
+   * Selects a city from suggestions and populates the form.
+   * @param {string} city - The city name to select.
+   */
   selectCity(city) {
     this.formData.city = city;
     this.filteredCities = [];
     this.showCitySuggestions = false;
   },
 
+  /**
+   * Hides city suggestions after a short delay.
+   */
   hideCitySuggestions() {
     setTimeout(() => {
       this.showCitySuggestions = false;
     }, window.CONFIG.CITY_SUGGESTION_HIDE_DELAY);
   },
 
+  /**
+   * Determines if the station at the given index is the cheapest among results.
+   * @param {number} index - Index of the station in the results array.
+   * @returns {boolean} True if this station has the lowest price.
+   */
   isCheapestStation(index) {
     if (!this.results || this.results.length === 0) {
       return false;
@@ -165,6 +227,13 @@ window.appUiMixin = {
     return Number.isFinite(stationPrice) && stationPrice === minPrice;
   },
 
+  /**
+   * Builds the HTML content for a map marker popup.
+   * @param {Object} station - The station object.
+   * @param {string} [station.gestore] - The station operator name.
+   * @param {string} station.address - The station address.
+   * @returns {string} HTML string for the popup.
+   */
   buildPopupContent(station) {
     const title =
       station.gestore || this.translate("translation.station", "Gas Station");
@@ -172,6 +241,12 @@ window.appUiMixin = {
     return `\n        <div class="map-popup">\n          <strong>${title}</strong><br>\n          <span class="map-popup-address">${addressLabel}: ${station.address}</span>\n        </div>\n      `;
   },
 
+  /**
+   * Translation helper with fallback.
+   * @param {string} key - Translation key.
+   * @param {string} [fallback=""] - Fallback text if translation not found.
+   * @returns {string} Translated text or fallback.
+   */
   translate(key, fallback = "") {
     if (typeof window.t === "function") {
       return window.t(key, fallback);
@@ -186,9 +261,10 @@ window.appUiMixin = {
     return fallback || key;
   },
 
-  // Global helper to normalize internal fuel codes and return translated label
-  // Exposed on window as `translateFuel` for templates to use.
-  // Maps internal codes like 'gasolio' to canonical translation keys such as 'diesel'.
+  /**
+   * Initializes the global translateFuel helper for template usage.
+   * Normalizes fuel type codes to translation keys.
+   */
   initTranslateFuelHelper() {
     window.translateFuel = (type) => {
       try {
@@ -218,6 +294,10 @@ window.appUiMixin = {
     };
   },
 
+  /**
+   * Sets the application language and persists the choice.
+   * @param {string} lang - Language code ('en' or 'it').
+   */
   setLanguage(lang) {
     this.safeSetItem("lang", lang);
     // Don't set this.currentLang immediately to avoid partial translations
@@ -231,6 +311,12 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Loads an HTML component from a URL and injects it into a container element.
+   * Note: This uses innerHTML; ensure templates are trusted.
+   * @param {string} url - The URL to fetch the HTML from.
+   * @param {string} elementId - The ID of the element to inject into.
+   */
   async loadComponent(url, elementId) {
     try {
       const response = await fetch(url);
@@ -247,6 +333,10 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Initializes the application: loads components, sets up language,
+   * event listeners, and prepares the UI.
+   */
   async init() {
     try {
       await Promise.all([
@@ -304,6 +394,10 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Submits the search form to the backend API and updates results.
+   * Handles loading states, errors, and map updates.
+   */
   async submitForm() {
     this.loading = true;
     this.setLoadingBar(true);
@@ -364,6 +458,10 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Updates the map with current markers and bounds.
+   * Initializes map if needed.
+   */
   updateMap() {
     if (!this.mapInitialized) {
       this.initMap?.();

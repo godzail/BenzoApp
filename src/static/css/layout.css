@@ -1,4 +1,11 @@
 /* Layout and header/search styles */
+
+/* Breakpoints:
+ * - Desktop (grid layout): min-width: 1024px
+ * - Tablet/Mobile (stacked layout): max-width: 1023px
+ * - Mobile (compact layout): max-width: 600px
+ */
+
 #main-content {
   max-width: 1600px;
   margin: 0 auto;
