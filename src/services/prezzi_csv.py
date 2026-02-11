@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from src.models import Settings, StationSearchParams
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
-LOCAL_DATA_DIR = PROJECT_ROOT / "data"
+LOCAL_DATA_DIR = Path(__file__).parent / "static" / "data"
 
 PREZZI_MIN_COLS = 5
 PRICE_IDX = 2
@@ -421,9 +421,19 @@ async def _fetch_csvs(http_client: httpx.AsyncClient, settings: Settings) -> tup
 
 
 async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
-    """Load CSV data from candidate local directories (configurable via settings)."""
+    """Load CSV data from candidate local directories (configurable via settings).
+
+    If CSVs are found in a fallback directory (e.g., project-level `data/` or service `static/data`),
+    migrate them to the preferred project `src/static/data` directory (best-effort) so future loads
+    prefer the project-level static data location.
+    """
     candidates = _candidate_local_csv_dirs(settings)
     missing = []
+
+    # Preferred migration target: explicit setting if provided, otherwise project-level src/static/data
+    local_dir = getattr(settings, "prezzi_local_data_dir", None)
+    preferred_dir = Path(local_dir) if local_dir else PROJECT_ROOT / "src" / "static" / "data"
+
     for d in candidates:
         anag_path = d / "anagrafica_impianti_attivi.csv"
         prezzi_path = d / "prezzo_alle_8.csv"
@@ -435,7 +445,32 @@ async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
                 logger.error("Failed to read local CSV files in {}: {}", d, err)
                 raise
             else:
-                logger.info("Loaded CSV data from local files: anag='{}', prezzi='{}'", anag_path, prezzi_path)
+                logger.info("Loaded CSV data from local files in {}: anag='{}', prezzi='{}'", d, anag_path, prezzi_path)
+
+                # Best-effort migration: if files were found in a fallback dir and preferred doesn't already have them,
+                # copy them into the preferred project src static dir so future reads will find them there.
+                try:
+                    preferred = Path(preferred_dir)
+                    is_different = await asyncio.to_thread(lambda a, b: a.resolve() != b.resolve(), preferred, d)
+                    if is_different:
+                        await asyncio.to_thread(preferred.mkdir, parents=True, exist_ok=True)
+                        target_anag = preferred / "anagrafica_impianti_attivi.csv"
+                        target_prezzi = preferred / "prezzo_alle_8.csv"
+                        target_anag_exists = await asyncio.to_thread(Path.exists, target_anag)
+                        target_prezzi_exists = await asyncio.to_thread(Path.exists, target_prezzi)
+                        if not (target_anag_exists and target_prezzi_exists):
+                            await asyncio.to_thread(target_anag.write_text, anag_text, "iso-8859-1")
+                            await asyncio.to_thread(target_prezzi.write_text, prezzi_text, "iso-8859-1")
+                            logger.info(
+                                "Migrated local CSVs from {} to {}: anag='{}', prezzi='{}'",
+                                d,
+                                preferred,
+                                target_anag,
+                                target_prezzi,
+                            )
+                except Exception as err:
+                    logger.warning("Failed to migrate CSVs from {} to preferred dir {}: {}", d, preferred_dir, err)
+
                 return anag_text, prezzi_text
         else:
             missing.append(str(d))
@@ -445,12 +480,25 @@ async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
 
 
 def _candidate_local_csv_dirs(settings: Settings) -> list[Path]:
-    """Return ordered list of directories to look for local CSV files."""
+    """Return ordered list of directories to look for local CSV files.
+
+    Preference order when `prezzi_local_data_dir` is None:
+      1. `src/static/data` (project-level)
+      2. `src/services/static/data` (service-local)
+      3. project `data/` (fallback)
+    """
     candidates: list[Path] = []
     local_dir = getattr(settings, "prezzi_local_data_dir", None)
     if local_dir:
         candidates.append(Path(local_dir))
-    candidates.extend((PROJECT_ROOT / "data", Path(__file__).parent / "static" / "data"))
+    # Prefer project-level `src/static/data`, then service-local, then project-level `data/`
+    candidates.extend(
+        (
+            PROJECT_ROOT / "src" / "static" / "data",
+            Path(__file__).parent / "static" / "data",
+            PROJECT_ROOT / "data",
+        )
+    )
     return candidates
 
 
@@ -489,7 +537,13 @@ async def _save_csv_files(anag_text: str, prezzi_text: str, settings: Settings) 
         await asyncio.to_thread(prezzi_part.write_text, prezzi_text, "iso-8859-1")
         await asyncio.to_thread(anag_part.replace, anag_final)
         await asyncio.to_thread(prezzi_part.replace, prezzi_final)
-        logger.info("Saved fetched CSVs to {}", target_dir)
+        # Log exact filenames saved for easier verification
+        logger.info(
+            "Saved fetched CSVs to {}: anag='{}', prezzi='{}'",
+            target_dir,
+            anag_final,
+            prezzi_final,
+        )
 
         _cleanup_old_csvs(target_dir, "anagrafica_impianti_attivi_", settings.prezzi_keep_versions)
         _cleanup_old_csvs(target_dir, "prezzo_alle_8_", settings.prezzi_keep_versions)
@@ -528,6 +582,77 @@ async def preload_local_csv_cache(settings: Settings) -> None:
     except Exception as err:
         logger.warning("Preload local CSV cache failed: {}", err)
         logger.exception(err)
+
+
+def check_preferred_local_dir_writable(settings: Settings) -> bool:
+    """Check whether the preferred service-level CSV directory is writable.
+
+    If `settings.prezzi_local_data_dir` is set, this check is skipped (returns True).
+    Returns True if writable, False otherwise (and logs a warning).
+    """
+    if getattr(settings, "prezzi_local_data_dir", None):
+        return True
+
+    preferred = PROJECT_ROOT / "src" / "static" / "data"
+    try:
+        # Ensure directory exists
+        preferred.mkdir(parents=True, exist_ok=True)
+        # Try writing a temporary file
+        test_file = preferred / ".write_test"
+        test_file.write_text("test")
+        test_file.unlink()
+    except Exception as err:
+        logger.warning(
+            "Preferred CSV dir %s is not writable; set PREZZI_LOCAL_DATA_DIR to a writable path. Error: %s",
+            preferred,
+            err,
+        )
+        return False
+    else:
+        return True
+
+
+def get_latest_csv_timestamp(settings: Settings) -> str | None:
+    """Extract timestamp from the most recent CSV filename.
+
+    Looks for timestamped CSV files in candidate directories and extracts
+    the datetime from filenames matching the pattern:
+    - anagrafica_impianti_attivi_YYYYMMDD_HHMMSS.csv
+    - prezzo_alle_8_YYYYMMDD_HHMMSS.csv
+
+    Returns:
+        ISO timestamp string (YYYY-MM-DDTHH:MM:SS) or None if no files found.
+    """
+    try:
+        candidates = _candidate_local_csv_dirs(settings)
+        latest_ts: datetime | None = None
+        ts_format_length = 14
+
+        for d in candidates:
+            if not d.exists():
+                continue
+
+            patterns = ["anagrafica_impianti_attivi_*.csv", "prezzo_alle_8_*.csv"]
+            for pattern in patterns:
+                for csv_file in d.glob(pattern):
+                    filename = csv_file.name
+                    if len(filename) < len("YYYYMMDD_HHMMSS.csv"):
+                        continue
+                    ts_str = filename.replace("anagrafica_impianti_attivi_", "").replace("prezzo_alle_8_", "")
+                    ts_str = ts_str.replace(".csv", "")
+                    if len(ts_str) >= ts_format_length:
+                        try:
+                            ts = datetime.strptime(ts_str[:ts_format_length], "%Y%m%d_%H%M%S").replace(tzinfo=UTC)
+                            if latest_ts is None or ts > latest_ts:
+                                latest_ts = ts
+                        except ValueError:
+                            logger.debug("Could not parse timestamp from CSV filename: {}", filename)
+                            continue
+
+        return latest_ts.isoformat() if latest_ts else None
+    except Exception as err:
+        logger.warning("Failed to get latest CSV timestamp: {}", err)
+        return None
 
 
 def _filter_and_transform_combined(

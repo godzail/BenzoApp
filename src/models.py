@@ -77,7 +77,7 @@ class Settings(BaseSettings):
         None,
         description=(
             "Optional directory to read/write Prezzi CSV files. "
-            "If None, falls back to project 'data' and 'src/static/data'."
+            "If None, falls back first to 'src/static/data' (project-level), then to 'src/services/static/data' (service-local), and finally to project 'data'."
         ),
     )
     prezzi_keep_versions: int = Field(

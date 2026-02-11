@@ -1,32 +1,125 @@
 /**
  * UI helper methods and initialization logic for the gas station application.
- * @namespace appUiMixin
  */
+
+interface CsvStatus {
+  last_updated: string | null;
+  source: string;
+  is_stale: boolean;
+}
+
+interface ReloadResponse {
+  status: string;
+  message?: string;
+  last_updated?: string;
+}
+
+interface Station {
+  id?: string | number;
+  gestore?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  fuel_prices?: Array<{ price?: number }>;
+  distance?: string | number;
+}
+
+interface FormDataType {
+  city: string;
+  radius: string;
+  fuel: string;
+  results: string;
+}
+
+interface AppUiMixin {
+  debugMode: boolean;
+  currentLang: string;
+  loadingBar: HTMLElement | null;
+  map: unknown;
+  formData: FormDataType;
+  results: Station[];
+  filteredCities: string[];
+  showCitySuggestions: boolean;
+  cityList: string[];
+  recentSearches: Array<FormDataType & { timestamp?: number }>;
+  error: string;
+  loading: boolean;
+  searched: boolean;
+  csvLastUpdated: string | null;
+  csvReloading: boolean;
+  csvStatusInterval: ReturnType<typeof setInterval> | null;
+  currentTheme: string;
+  $nextTick?: (callback: () => void) => void;
+  _fuelChangeTimeout?: ReturnType<typeof setTimeout>;
+  [key: string]: unknown;
+
+  fetchCsvStatus(): Promise<CsvStatus>;
+  reloadCsv(): Promise<ReloadResponse | { status: string; message: string }>;
+  formatTimestamp(isoTimestamp: string): string;
+  formatCurrency(value: number): string;
+  debug(message: string, data?: unknown): void;
+  safeGetItem(key: string): string | null;
+  safeSetItem(key: string, value: string): void;
+  setLoadingBar(active: boolean): void;
+  initializeComponents(): void;
+  initializeResizer(): void;
+  toggleTheme(): void;
+  setFuelType(fuel: string): void;
+  isFuelSelected(fuel: string): boolean;
+  onCityInput(): void;
+  selectCity(city: string): void;
+  hideCitySuggestions(): void;
+  isCheapestStation(index: number): boolean;
+  getPriceDifference(index: string): string;
+  formatDistance(distance: number | string): string;
+  buildPopupContent(station: Station): string;
+  translate(key: string, fallback?: string): string;
+  initTranslateFuelHelper(): void;
+  setLanguage(lang: string): void;
+  loadComponent(url: string, elementId: string): Promise<void>;
+  init(): Promise<void>;
+  submitForm(): Promise<void>;
+  updateMap(): void;
+  loadCities(): Promise<void>;
+  loadRecentSearches(): void;
+  saveRecentSearch(search: FormDataType): void;
+  selectRecentSearch(search: FormDataType): void;
+  clearMapMarkers(): void;
+  addMapMarkers(): void;
+  initMap(): void;
+  refreshMapMarkersOnLanguageChange(): void;
+  selectStationForMap(stationId: string | number): void;
+  getDirections(station: Station): void;
+  locateUser(): void;
+  reinitializeComponents?: () => void;
+  updateMap?: () => void;
+}
+
 window.appUiMixin = {
-  /**
-   * Fetches CSV status from the server.
-   * @returns {Promise<Object>} The CSV status object with last_updated, source, and is_stale.
-   */
-  async fetchCsvStatus() {
+  async fetchCsvStatus(): Promise<CsvStatus> {
     try {
       const response = await fetch(window.CONFIG.CSV_STATUS_ENDPOINT);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      return await response.json();
-    } catch (err) {
-      this.debug("Failed to fetch CSV status:", err.message);
+      return (await response.json()) as CsvStatus;
+    } catch {
+      this.debug(
+        "Failed to fetch CSV status:",
+        (window.appUiMixin as AppUiMixin & { error?: string }).error,
+      );
       return { last_updated: null, source: "unknown", is_stale: false };
     }
   },
 
-  /**
-   * Triggers a CSV reload on the server.
-   * @returns {Promise<Object>} The reload response.
-   */
-  async reloadCsv() {
+  async reloadCsv(): Promise<
+    ReloadResponse | { status: string; message: string }
+  > {
     if (this.csvReloading) {
-      return;
+      return {
+        status: "already_reloading",
+        message: "CSV reload already in progress",
+      };
     }
     this.csvReloading = true;
     this.debug("CSV reload triggered");
@@ -38,7 +131,7 @@ window.appUiMixin = {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const result = await response.json();
+      const result = (await response.json()) as ReloadResponse;
       this.debug("CSV reload response:", result);
       if (result.last_updated) {
         this.csvLastUpdated = result.last_updated;
@@ -50,19 +143,15 @@ window.appUiMixin = {
       }, 2000);
       return result;
     } catch (err) {
-      this.debug("CSV reload failed:", err.message);
-      return { status: "error", message: err.message };
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      this.debug("CSV reload failed:", errorMessage);
+      return { status: "error", message: errorMessage };
     } finally {
       this.csvReloading = false;
     }
   },
 
-  /**
-   * Formats an ISO timestamp for display.
-   * @param {string} isoTimestamp - ISO timestamp string.
-   * @returns {string} Formatted date string (e.g., "11 Feb 2026, 08:30").
-   */
-  formatTimestamp(isoTimestamp) {
+  formatTimestamp(isoTimestamp: string): string {
     if (!isoTimestamp) return "";
     try {
       const date = new Date(isoTimestamp);
@@ -75,17 +164,15 @@ window.appUiMixin = {
         minute: "2-digit",
       });
     } catch (err) {
-      this.debug("Failed to format timestamp:", err.message);
+      this.debug(
+        "Failed to format timestamp:",
+        err instanceof Error ? err.message : "Unknown error",
+      );
       return isoTimestamp;
     }
   },
 
-  /**
-   * Formats a numeric value as currency using the application's locale.
-   * @param {number} value - The numeric value to format.
-   * @returns {string} The formatted currency string (e.g., "€ 1.850").
-   */
-  formatCurrency(value) {
+  formatCurrency(value: number): string {
     return new Intl.NumberFormat(window.CONFIG.CURRENCY_LOCALE, {
       style: "currency",
       currency: window.CONFIG.CURRENCY_CODE,
@@ -94,72 +181,49 @@ window.appUiMixin = {
     }).format(value);
   },
 
-  /**
-   * Debug logging helper - logs only if debugMode is enabled.
-   * @param {string} message - Debug message.
-   * @param {*} [data] - Optional data to log.
-   */
-  debug(message, data = null) {
-    if (this.debugMode) console.log("[DEBUG]", message, data || "");
+  debug(message: string, data: unknown = null): void {
+    if (this.debugMode) console.log("[DEBUG]", message, data ?? "");
   },
 
-  /**
-   * Safely retrieves an item from localStorage.
-   * @param {string} key - The storage key.
-   * @returns {string|null} The stored value or null if not available.
-   */
-  safeGetItem(key) {
+  safeGetItem(key: string): string | null {
     try {
       return localStorage.getItem(key);
-    } catch (_e) {
+    } catch {
       return null;
     }
   },
 
-  /**
-   * Safely stores an item in localStorage.
-   * @param {string} key - The storage key.
-   * @param {string} value - The value to store.
-   */
-  safeSetItem(key, value) {
+  safeSetItem(key: string, value: string): void {
     try {
       localStorage.setItem(key, value);
-    } catch (_e) {
+    } catch {
       // ignore storage errors
     }
   },
 
-  /**
-   * Sets the loading bar state (active/inactive).
-   * @param {boolean} active - Whether the loading bar should be active.
-   */
-  setLoadingBar(active) {
+  setLoadingBar(active: boolean): void {
     if (!this.loadingBar) return;
     const statusEl = document.getElementById("status-messages");
     if (active) {
       this.loadingBar.classList.add("active");
       this.loadingBar.setAttribute("aria-hidden", "false");
       this.loadingBar.setAttribute("aria-valuenow", "50");
-      if (statusEl)
-        statusEl.textContent = this.translate(
-          "translation.loading",
-          "Loading...",
-        );
+      if (statusEl && typeof window.t === "function") {
+        statusEl.textContent = window.t("translation.loading", "Loading...");
+      }
     } else {
       this.loadingBar.classList.remove("active");
       this.loadingBar.setAttribute("aria-hidden", "true");
       this.loadingBar.setAttribute("aria-valuenow", "0");
-      if (statusEl)
+      if (statusEl) {
         setTimeout(() => {
           statusEl.textContent = "";
         }, 500);
+      }
     }
   },
 
-  /**
-   * Initializes UI components: theme, loading bar, and resizer.
-   */
-  initializeComponents() {
+  initializeComponents(): void {
     window.themeManager.init();
     this.currentTheme =
       document.documentElement.getAttribute("data-theme") ||
@@ -169,11 +233,7 @@ window.appUiMixin = {
     this.initializeResizer();
   },
 
-  /**
-   * Sets up the column resizer for the main layout.
-   * Handles mouse events to adjust grid column sizes.
-   */
-  initializeResizer() {
+  initializeResizer(): void {
     const resizer = document.getElementById("layout-resizer");
     const searchColumn = document.getElementById("search-column");
     const mainLayout = document.querySelector(".main-layout");
@@ -195,7 +255,13 @@ window.appUiMixin = {
       percentage = Math.max(10, Math.min(90, percentage));
       mainLayout.style.gridTemplateColumns = `${percentage}% 4px 1fr`;
       resizer.setAttribute("aria-valuenow", Math.round(percentage));
-      if (this.map) this.map.invalidateSize();
+      if (
+        this.map &&
+        typeof (this.map as { invalidateSize?: () => void }).invalidateSize ===
+          "function"
+      ) {
+        (this.map as { invalidateSize: () => void }).invalidateSize();
+      }
     });
 
     document.addEventListener("mouseup", () => {
@@ -203,32 +269,28 @@ window.appUiMixin = {
       isResizing = false;
       document.body.style.cursor = "";
       document.body.classList.remove("is-resizing");
-      if (this.map)
-        setTimeout(
-          () => this.map.invalidateSize(),
-          window.CONFIG.MAP_RESIZE_DELAY,
-        );
+      if (this.map) {
+        setTimeout(() => {
+          if (
+            typeof (this.map as { invalidateSize?: () => void })
+              .invalidateSize === "function"
+          ) {
+            (this.map as { invalidateSize: () => void }).invalidateSize();
+          }
+        }, window.CONFIG.MAP_RESIZE_DELAY);
+      }
     });
   },
 
-  /**
-   * Toggles the application theme between light and dark.
-   */
-  toggleTheme() {
+  toggleTheme(): void {
     this.currentTheme = window.themeManager.toggle();
     this.debug("Theme toggled to:", this.currentTheme);
   },
 
-  /**
-   * Sets the selected fuel type and optionally auto-submits if a city is entered.
-   * Uses debouncing to avoid rapid repeated submissions.
-   * @param {string} fuel - The fuel type to set.
-   */
-  setFuelType(fuel) {
+  setFuelType(fuel: string): void {
     this.formData.fuel = fuel;
     this.$nextTick?.(() => {
       this.debug("Fuel type updated to:", this.formData.fuel);
-      // Auto-submit when a city is present (debounced to avoid rapid repeated requests)
       if (this.formData.city) {
         if (this._fuelChangeTimeout) {
           clearTimeout(this._fuelChangeTimeout);
@@ -240,19 +302,11 @@ window.appUiMixin = {
     });
   },
 
-  /**
-   * Checks if a given fuel type is currently selected.
-   * @param {string} fuel - The fuel type to check.
-   * @returns {boolean} True if the fuel type matches the current selection.
-   */
-  isFuelSelected(fuel) {
+  isFuelSelected(fuel: string): boolean {
     return this.formData.fuel === fuel;
   },
 
-  /**
-   * Handles city input: filters the city list and shows/hides suggestions.
-   */
-  onCityInput() {
+  onCityInput(): void {
     const value = (this.formData.city || "").trim().toLowerCase();
     if (value.length === 0) {
       this.filteredCities = [];
@@ -265,37 +319,25 @@ window.appUiMixin = {
     this.showCitySuggestions = this.filteredCities.length > 0;
   },
 
-  /**
-   * Selects a city from suggestions and populates the form.
-   * @param {string} city - The city name to select.
-   */
-  selectCity(city) {
+  selectCity(city: string): void {
     this.formData.city = city;
     this.filteredCities = [];
     this.showCitySuggestions = false;
   },
 
-  /**
-   * Hides city suggestions after a short delay.
-   */
-  hideCitySuggestions() {
+  hideCitySuggestions(): void {
     setTimeout(() => {
       this.showCitySuggestions = false;
     }, window.CONFIG.CITY_SUGGESTION_HIDE_DELAY);
   },
 
-  /**
-   * Determines if the station at the given index is the cheapest among results.
-   * @param {number} index - Index of the station in the results array.
-   * @returns {boolean} True if this station has the lowest price.
-   */
-  isCheapestStation(index) {
+  isCheapestStation(index: number): boolean {
     if (!this.results || this.results.length === 0) {
       return false;
     }
     const prices = this.results
       .map((s) => Number(s.fuel_prices?.[0]?.price))
-      .filter((p) => Number.isFinite(p));
+      .filter((p): p is number => Number.isFinite(p));
     if (prices.length === 0) {
       return false;
     }
@@ -304,67 +346,50 @@ window.appUiMixin = {
     return Number.isFinite(stationPrice) && stationPrice === minPrice;
   },
 
-  /**
-   * Calculates the price difference from the cheapest station.
-   * @param {number} index - Index of the station in the results array.
-   * @returns {string} Formatted price difference (e.g., "+0.002 €" or "Best").
-   */
-  getPriceDifference(index) {
-    if (!this.results || this.results.length === 0) return '';
+  getPriceDifference(index: string): string {
+    const idx = Number.parseInt(index, 10);
+    if (!this.results || this.results.length === 0) return "";
 
     const prices = this.results
-      .map(s => Number(s.fuel_prices?.[0]?.price))
-      .filter(p => Number.isFinite(p));
+      .map((s) => Number(s.fuel_prices?.[0]?.price))
+      .filter((p): p is number => Number.isFinite(p));
 
-    if (prices.length === 0) return '';
+    if (prices.length === 0) return "";
 
     const minPrice = Math.min(...prices);
-    const stationPrice = Number(this.results[index]?.fuel_prices?.[0]?.price);
+    const stationPrice = Number(this.results[idx]?.fuel_prices?.[0]?.price);
 
-    if (!Number.isFinite(stationPrice)) return '';
+    if (!Number.isFinite(stationPrice)) return "";
 
     const diff = stationPrice - minPrice;
 
     if (diff === 0) {
-      return this.translate('best_price_short', 'Best');
+      return this.translate("best_price_short", "Best");
     }
 
-    const sign = diff > 0 ? '+' : '';
+    const sign = diff > 0 ? "+" : "";
     return `${sign}${diff.toFixed(3)} €`;
   },
 
-  /**
-   * Formats distance value with unit.
-   * @param {number|string} distance - The distance value.
-   * @returns {string} Formatted distance (e.g., "2.5 km").
-   */
-  formatDistance(distance) {
-    const num = parseFloat(distance);
-    if (isNaN(num)) return distance;
+  formatDistance(distance: number | string): string {
+    const num = Number.parseFloat(distance as string);
+    if (isNaN(num)) return distance as string;
     return `${num.toFixed(1)} km`;
   },
 
-  /**
-   * Builds the HTML content for a map marker popup.
-   * @param {Object} station - The station object.
-   * @param {string} [station.gestore] - The station operator name.
-   * @param {string} station.address - The station address.
-   * @returns {string} HTML string for the popup.
-   */
-  buildPopupContent(station) {
+  buildPopupContent(station: Station): string {
     const title =
       station.gestore || this.translate("translation.station", "Gas Station");
     const addressLabel = this.translate("translation.address", "Address");
-    return `\n        <div class="map-popup">\n          <strong>${title}</strong><br>\n          <span class="map-popup-address">${addressLabel}: ${station.address}</span>\n        </div>\n      `;
+    return `
+        <div class="map-popup">
+          <strong>${title}</strong><br>
+          <span class="map-popup-address">${addressLabel}: ${station.address}</span>
+        </div>
+      `;
   },
 
-  /**
-   * Translation helper with fallback.
-   * @param {string} key - Translation key.
-   * @param {string} [fallback=""] - Fallback text if translation not found.
-   * @returns {string} Translated text or fallback.
-   */
-  translate(key, fallback = "") {
+  translate(key: string, fallback = ""): string {
     if (typeof window.t === "function") {
       return window.t(key, fallback);
     }
@@ -378,15 +403,11 @@ window.appUiMixin = {
     return fallback || key;
   },
 
-  /**
-   * Initializes the global translateFuel helper for template usage.
-   * Normalizes fuel type codes to translation keys.
-   */
-  initTranslateFuelHelper() {
-    window.translateFuel = (type) => {
+  initTranslateFuelHelper(): void {
+    window.translateFuel = (type: string): string => {
       try {
         const normalized = (type || "").toString();
-        const map = {
+        const map: Record<string, string> = {
           gasolio: "diesel",
           diesel: "diesel",
           benzina: "benzina",
@@ -405,36 +426,27 @@ window.appUiMixin = {
           }
         }
         return key;
-      } catch (_e) {
+      } catch {
         return type || "";
       }
     };
   },
 
-  /**
-   * Sets the application language and persists the choice.
-   * @param {string} lang - Language code ('en' or 'it').
-   */
-  setLanguage(lang) {
+  setLanguage(lang: string): void {
     this.safeSetItem("lang", lang);
-    // Don't set this.currentLang immediately to avoid partial translations
     if (window.setLang) {
-      window.setLang(lang);
+      window.setLang(lang as "it" | "en");
     } else if (window.i18next?.changeLanguage) {
       window.i18next.changeLanguage(lang, () => {
         if (window.updateI18nTexts) window.updateI18nTexts();
-        window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
+        window.dispatchEvent(
+          new CustomEvent("languageChanged", { detail: { lang } }),
+        );
       });
     }
   },
 
-  /**
-   * Loads an HTML component from a URL and injects it into a container element.
-   * Note: This uses innerHTML; ensure templates are trusted.
-   * @param {string} url - The URL to fetch the HTML from.
-   * @param {string} elementId - The ID of the element to inject into.
-   */
-  async loadComponent(url, elementId) {
+  async loadComponent(url: string, elementId: string): Promise<void> {
     try {
       const response = await fetch(url);
       if (!response.ok) {
@@ -450,16 +462,15 @@ window.appUiMixin = {
     }
   },
 
-  /**
-   * Initializes the application: loads components, sets up language,
-   * event listeners, and prepares the UI.
-   */
-  async init() {
+  async init(): Promise<void> {
     try {
       await Promise.all([
         this.loadComponent("/static/templates/header.html", "header-container"),
         this.loadComponent("/static/templates/search.html", "search-container"),
-        this.loadComponent("/static/templates/results.html", "results-container"),
+        this.loadComponent(
+          "/static/templates/results.html",
+          "results-container",
+        ),
         this.loadComponent("/static/templates/map.html", "map-container"),
         this.loadCities(),
       ]);
@@ -481,7 +492,6 @@ window.appUiMixin = {
         if (window.updateI18nTexts) {
           window.updateI18nTexts();
         }
-        // Force a small reactive refresh so dynamic x-text translations are re-evaluated
         this.$nextTick?.(() => {
           this.formData = { ...this.formData };
           this.results = (this.results || []).map((r) => ({ ...r }));
@@ -522,11 +532,7 @@ window.appUiMixin = {
     }
   },
 
-  /**
-   * Submits the search form to the backend API and updates results.
-   * Handles loading states, errors, and map updates.
-   */
-  async submitForm() {
+  async submitForm(): Promise<void> {
     this.loading = true;
     this.setLoadingBar(true);
     this.error = "";
@@ -563,7 +569,7 @@ window.appUiMixin = {
         this.results = [];
       } else {
         this.results =
-          data.stations?.map((station) => ({
+          data.stations?.map((station: Station) => ({
             ...station,
             gestore: window.extractGestore(station),
             distance: station.distance || "",
@@ -577,29 +583,25 @@ window.appUiMixin = {
         }
       });
     } catch (err) {
-      this.error = err.message;
+      this.error = err instanceof Error ? err.message : "Unknown error";
       this.results = [];
-      this.debug("Search failed:", err.message);
+      this.debug("Search failed:", this.error);
     } finally {
       this.loading = false;
       this.setLoadingBar(false);
     }
   },
 
-  /**
-   * Updates the map with current markers and bounds.
-   * Initializes map if needed.
-   */
-  updateMap() {
-    if (!this.mapInitialized) {
-      this.initMap?.();
-    } else {
+  updateMap(): void {
+    if (this.mapInitialized) {
       const mapContainer = document.getElementById("map");
       if (!mapContainer) {
         this.mapInitialized = false;
         this.map = null;
         this.initMap?.();
       }
+    } else {
+      this.initMap?.();
     }
     if (!this.map) {
       return;
@@ -609,4 +611,4 @@ window.appUiMixin = {
       this.addMapMarkers?.();
     }
   },
-};
+} as AppUiMixin;

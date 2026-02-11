@@ -16,10 +16,13 @@ import asyncio
 import html as _html
 import sys
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from textwrap import dedent
+from typing import Annotated, Any
 
 import httpx
+from dateutil.parser import parse as dateutil_parse
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -40,7 +43,17 @@ from src.models import (
 from src.services.fuel_api import fetch_gas_stations, parse_and_normalize_stations
 from src.services.fuel_type_utils import normalize_fuel_type
 from src.services.geocoding import geocode_city
-from src.services.prezzi_csv import preload_local_csv_cache
+from src.services.prezzi_csv import (
+    _fetch_csvs,
+    _is_cache_fresh,
+    _load_cached_combined,
+    _parse_and_combine_sync,
+    _save_csv_files,
+    _write_json_file,
+    check_preferred_local_dir_writable,
+    get_latest_csv_timestamp,
+    preload_local_csv_cache,
+)
 
 
 def get_settings() -> Settings:
@@ -69,6 +82,15 @@ async def lifespan(_app: FastAPI):
     async with httpx.AsyncClient(timeout=timeout, headers=headers, follow_redirects=True) as client:
         # Store the client in app state for use in endpoints
         _app.state.http_client = client
+
+        # Startup check: warn if the preferred service-level CSV directory is not writable
+        if settings.prezzi_local_data_dir is None:
+            try:
+                # Run the preferred-dir writability check in a thread to avoid blocking the event loop
+                _ = await asyncio.to_thread(check_preferred_local_dir_writable, settings)
+            except Exception as err:
+                logger.warning("Preferred CSV directory check failed: {}", err)
+
         # Optionally preload local CSV data into cache (non-blocking)
         if settings.prezzi_preload_on_startup:
             try:
@@ -255,71 +277,51 @@ async def render_docs(page: str) -> HTMLResponse:
         logger.exception("Python-Markdown fallback failed; rendering raw markdown as escaped text")
         rendered = f"<pre>{_html.escape(md_text)}</pre>"
 
-    html_page = (
-        "<!doctype html><html>"
-        "<head>"
-        "<meta charset='utf-8'>"
-        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<link rel='stylesheet' href='/static/css/styles.split.css'>"
-        "<link rel='icon' href='/favicon.ico'>"
-        "<base href='/docs-static/'>"
-        "<title>Documentation</title>"
-        "<script src='https://cdn.tailwindcss.com'></script>"
-        "<script>tailwind.config={darkMode:'class',theme:{extend:{colors:"
-        "{primary:{'DEFAULT':'#00c853'}},fontFamily:{sans:['Inter','system-ui']}}}}"
-        "</script>"
-        "<style>"
-        ".docs-content h1{font-size:1.875rem;font-weight:700;margin-bottom:1rem;"
-        "color:var(--text-primary);}"
-        ".docs-content h2{font-size:1.5rem;font-weight:600;margin-top:1.5rem;"
-        "margin-bottom:0.75rem;color:var(--text-primary);}"
-        ".docs-content h3{font-size:1.25rem;font-weight:600;margin-top:1.25rem;"
-        "margin-bottom:0.5rem;color:var(--text-primary);}"
-        ".docs-content p{margin-bottom:1rem;line-height:1.625;"
-        "color:var(--text-secondary);}"
-        ".docs-content code{background:var(--bg-elevated);padding:0.125rem 0.375rem;"
-        "border-radius:0.25rem;font-size:0.875rem;}"
-        ".docs-content pre{background:var(--bg-elevated);padding:1rem;border-radius:0.5rem;"
-        "overflow-x:auto;margin-bottom:1rem;}"
-        ".docs-content pre code{background:none;padding:0;}"
-        ".docs-content table{width:100%;border-collapse:collapse;margin-bottom:1rem;}"
-        ".docs-content th,.docs-content td{border:1px solid var(--border-color);"
-        "padding:0.5rem 0.75rem;text-align:left;}"
-        ".docs-content th{background:var(--bg-elevated);font-weight:600;}"
-        ".docs-content ul,.docs-content ol{margin-bottom:1rem;padding-left:1.5rem;}"
-        ".docs-content li{margin-bottom:0.25rem;line-height:1.625;}"
-        ".docs-content a{color:var(--color-primary);text-decoration:none;}"
-        ".docs-content a:hover{text-decoration:underline;}"
-        ".docs-content img{max-width:100%;height:auto;border-radius:0.5rem;margin:1rem 0;}"
-        ".docs-content hr{border-color:var(--border-color);margin:2rem 0;}"
-        "</style>"
-        "</head>"
-        "<body class='bg-[var(--bg-primary)] text-[var(--text-primary)] "
-        "min-h-screen font-sans transition-colors duration-250'>"
-        "<div class='max-w-3xl mx-auto px-6 py-12 relative'>"
-        f"<div class='docs-content'>{rendered}</div>"
-        "<button id='docs-theme-toggle' aria-label='Toggle theme' "
-        "class='absolute top-6 right-6 p-2 rounded-lg border border-[var(--border-color)] "
-        "bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-colors "
-        "cursor-pointer text-[var(--text-primary)] shadow-sm'>"
-        "<svg id='theme-icon-sun' class='w-5 h-5' fill='none' stroke='currentColor' "
-        "viewBox='0 0 24 24'>"
-        "<path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' "
-        "d='M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707"
-        "M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"
-        "M16 12a4 4 0 11-8 0 4 4 0 018 0z'/>"
-        "</svg>"
-        "<svg id='theme-icon-moon' class='w-5 h-5 hidden' fill='none' stroke='currentColor' "
-        "viewBox='0 0 24 24'>"
-        "<path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' "
-        "d='M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21"
-        "a9.003 9.003 0 008.354-5.646z'/>"
-        "</svg>"
-        "</button>"
-        "</div>"
-        "<script src='/static/js/docs-theme.js' defer></script>"
-        "</body></html>"
-    )
+    # Read docs CSS for inlining
+    docs_css_path = static_dir / "css" / "docs.css"
+    docs_css = docs_css_path.read_text(encoding="utf-8")
+
+    html_page = dedent(f"""<!doctype html>
+        <html>
+        <head>
+            <meta charset='utf-8'>
+            <meta name='viewport' content='width=device-width,initial-scale=1'>
+            <link rel='stylesheet' href='/static/css/styles.split.css'>
+            <style>{docs_css}</style>
+            <link rel='icon' href='/favicon.ico'>
+            <base href='/docs-static/'>
+            <title>Documentation</title>
+            <script src='https://cdn.tailwindcss.com'></script>
+            <script>tailwind.config={{darkMode:'class',theme:{{extend:{{colors:
+            {{primary:{{'DEFAULT':'#00c853'}}}},fontFamily:{{sans:['Inter','system-ui']}}}}}}
+            </script>
+        </head>
+        <body class='bg-[var(--bg-primary)] text-[var(--text-primary)]
+        min-h-screen font-sans transition-colors duration-250'>
+            <div class='max-w-3xl mx-auto px-6 py-12 relative'>
+                <div class='docs-content'>{rendered}</div>
+                <button id='docs-theme-toggle' aria-label='Toggle theme'
+                class='absolute top-6 right-6 p-2 rounded-lg border border-[var(--border-color)]
+                bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-colors
+                cursor-pointer text-[var(--text-primary)] shadow-sm'>
+                    <svg id='theme-icon-sun' class='w-5 h-5' fill='none' stroke='currentColor'
+                    viewBox='0 0 24 24'>
+                        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2'
+                        d='M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707
+                        M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707
+                        M16 12a4 4 0 11-8 0 4 4 0 018 0z'/>
+                    </svg>
+                    <svg id='theme-icon-moon' class='w-5 h-5 hidden' fill='none' stroke='currentColor'
+                    viewBox='0 0 24 24'>
+                        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2'
+                        d='M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21
+                        a9.003 9.003 0 008.354-5.646z'/>
+                    </svg>
+                </button>
+            </div>
+            <script src='/static/js/docs-theme.js' defer></script>
+        </body>
+        </html>""")
 
     return HTMLResponse(content=html_page, headers={"Cache-Control": "public, max-age=3600"})
 
@@ -328,3 +330,102 @@ async def render_docs(page: str) -> HTMLResponse:
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+@app.get("/api/csv-status")
+async def get_csv_status(settings: Annotated[Settings, Depends(get_settings)]) -> dict[str, Any]:
+    """Get the current status of CSV data.
+
+    Returns:
+        dict with:
+        - last_updated: ISO timestamp string or null
+        - source: "local" | "remote" | "cache" | "unknown"
+        - is_stale: boolean indicating if cache is older than cache_hours
+    """
+    last_updated = get_latest_csv_timestamp(settings)
+
+    is_stale = False
+    if last_updated:
+        try:
+            dt = dateutil_parse(last_updated)
+            now = datetime.now(tz=dt.tzinfo)
+            hours_old = (now - dt).total_seconds() / 3600.0
+            is_stale = hours_old > settings.prezzi_cache_hours
+        except Exception:
+            is_stale = False
+
+    source = "unknown"
+    if last_updated:
+        source = "local"
+
+    try:
+        cache_fresh = await _is_cache_fresh(settings.prezzi_cache_path, settings.prezzi_cache_hours)
+        if cache_fresh:
+            cached = await _load_cached_combined(settings.prezzi_cache_path)
+            if cached and len(cached) > 0:
+                source = "cache"
+    except Exception as err:
+        logger.debug("Failed to check cache status: {}", err)
+
+    return {
+        "last_updated": last_updated,
+        "source": source,
+        "is_stale": is_stale,
+    }
+
+
+@app.post("/api/reload-csv")
+async def reload_csv(settings: Annotated[Settings, Depends(get_settings)]) -> dict[str, Any]:
+    """Force reload of CSV data by clearing cache and triggering async fetch.
+
+    Returns:
+        dict with status message and new CSV status.
+    """
+    logger.info("Manual CSV reload requested via API")
+
+    try:
+        cache_path = Path(settings.prezzi_cache_path)
+        cache_exists = await asyncio.to_thread(cache_path.exists)
+        if cache_exists:
+            await asyncio.to_thread(cache_path.unlink)
+            logger.info("Cleared cache file: {}", settings.prezzi_cache_path)
+
+        async def trigger_fetch():
+            try:
+                async with httpx.AsyncClient(
+                    timeout=httpx.Timeout(60.0, connect=15.0),
+                    headers={"User-Agent": settings.user_agent, "Accept": "text/csv"},
+                    follow_redirects=True,
+                ) as client:
+                    anag_text, prezzi_text = await _fetch_csvs(client, settings)
+                    force_delimiter = None if settings.prezzi_csv_delimiter == "auto" else settings.prezzi_csv_delimiter
+                    combined = await asyncio.to_thread(
+                        lambda: _parse_and_combine_sync(anag_text, prezzi_text, force_delimiter),
+                    )
+                    await _write_json_file(settings.prezzi_cache_path, combined)
+                    saved_dir = await _save_csv_files(anag_text, prezzi_text, settings)
+                    if saved_dir:
+                        logger.info("CSV reload completed successfully, saved to: {}", saved_dir)
+                    else:
+                        logger.warning("CSV reload completed but failed to save local copies")
+            except Exception as err:
+                logger.error("Async CSV reload failed: {}", err)
+                logger.exception(err)
+
+        task = asyncio.create_task(trigger_fetch())
+        app.state._reload_task = task  # store reference to avoid GC
+        task.add_done_callback(lambda _: logger.debug("Async CSV reload task finished"))
+
+        last_updated = get_latest_csv_timestamp(settings)
+        return {
+            "status": "reload_started",
+            "message": "CSV reload has been triggered. Data will be available shortly.",
+            "last_updated": last_updated,
+        }
+    except Exception as err:
+        logger.error("Failed to trigger CSV reload: {}", err)
+        logger.exception(err)
+        return {
+            "status": "error",
+            "message": "Failed to trigger CSV reload",
+        }

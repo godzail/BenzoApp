@@ -34,5 +34,7 @@
   "city_suggestions": "City suggestions",
   "coords_missing": "Map data unavailable for this station",
   "max_results": "Max Results",
-  "user_docs": "User Documentation"
+  "user_docs": "User Documentation",
+  "data_loading": "Loading data...",
+  "reload_data": "Reload data"
 }

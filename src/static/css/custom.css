@@ -1,10 +1,12 @@
-/* Custom CSS - Animations, Third-party overrides, and Theme variables */
+/* Custom CSS - Animations, Third-party overrides, and Layout styles */
+
 :root {
   --color-primary: #00c853;
-  --color-primary-light: #b9f6ca;
-  --glass-bg: rgba(20, 20, 25, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-blur: 20px;
+  --color-primary-hover: #00b14a;
+}
+
+[data-theme="light"] {
+  --color-primary-hover: #00a63f;
 }
 
 /* Header content for desktop */
@@ -114,11 +116,6 @@
   }
 }
 
-[data-theme="light"] {
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(0, 0, 0, 0.1);
-}
-
 /* Resizer handle color */
 .resizer {
   background: var(--border-color);
@@ -140,8 +137,12 @@
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 @keyframes pulse-ring {
@@ -167,17 +168,29 @@
 }
 
 @keyframes loading-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 @keyframes pulse-badge {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7); }
-  50% { box-shadow: 0 0 0 8px rgba(0, 200, 83, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 200, 83, 0);
+  }
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Range slider styling */
@@ -324,14 +337,18 @@ summary::after {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.3);
   transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
+  transition:
+    width 0.6s,
+    height 0.6s;
   pointer-events: none;
 }
 
 .chip.active:active::after {
   width: 200px;
   height: 200px;
-  transition: width 0s, height 0s;
+  transition:
+    width 0s,
+    height 0s;
 }
 
 /* Remove default disclosure triangle */
@@ -421,7 +438,10 @@ details[open] .recent-searches-title::before {
 
 .chip.active:focus-visible {
   outline-color: var(--chip-color);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 3px var(--chip-color);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px var(--chip-color);
 }
 
 /* Fuel chip active gradient backgrounds */

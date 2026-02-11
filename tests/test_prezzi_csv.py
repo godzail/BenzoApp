@@ -4,7 +4,9 @@ import asyncio
 import json
 import os
 import time
+from contextlib import suppress
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import pytest
@@ -500,3 +502,322 @@ def test_load_local_csvs_uses_custom_dir(tmp_path):
     anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))  # noqa: SLF001
     assert "GestoreX" in anag_text
     assert "benzina" in prezzi_text
+
+
+def test_candidate_dir_order_preference():
+    """Verify that the preferred candidate directory is 'src/static/data' (project-level) when no custom dir is set."""
+    settings = Settings()
+    settings.prezzi_local_data_dir = None
+    candidates = prezzi_csv._candidate_local_csv_dirs(settings)
+    expected_first = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    assert candidates[0] == expected_first
+
+
+def test_save_uses_preferred_candidate_when_unset(tmp_path, monkeypatch):
+    """When prezzi_local_data_dir is not set, _save_csv_files should write to the preferred candidate dir."""
+    preferred = tmp_path / "preferred"
+    other = tmp_path / "other"
+
+    def fake_candidates(settings):
+        return [preferred, other]
+
+    monkeypatch.setattr(prezzi_csv, "_candidate_local_csv_dirs", fake_candidates)
+
+    now = datetime.now(tz=UTC)
+    date_str = now.strftime("%d/%m/%Y %H:%M:%S")
+
+    anag_header = "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9"
+    anag_row = _make_anagrafica_row("777", "43,7696", "11,2558")
+
+    prezzi_header = "col0|col1|col2|col3|col4"
+    prezzi_row = _make_prezzi_row("777", "benzina", "1,65", "1", date_str)
+
+    anag_text = f"{anag_header}\n{anag_row}\n"
+    prezzi_text = f"{prezzi_header}\n{prezzi_row}\n"
+
+    client = DummyClient(anag_text.encode("iso-8859-1"), prezzi_text.encode("iso-8859-1"))
+
+    settings = Settings()
+    settings.prezzi_cache_path = str(tmp_path / "prezzi_cache_pref.json")
+    settings.prezzi_local_data_dir = None
+    settings.prezzi_keep_versions = 2
+
+    params = StationSearchParams(latitude=LAT, longitude=LON, distance=10, fuel="benzina", results=5)
+
+    result = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
+
+    anag_files = list(preferred.glob("anagrafica_impianti_attivi_*.csv"))
+    prezzi_files = list(preferred.glob("prezzo_alle_8_*.csv"))
+    assert len(anag_files) == 1
+    assert len(prezzi_files) == 1
+
+
+def test_load_prefers_static_candidate(tmp_path, monkeypatch):
+    """If a preferred candidate contains CSVs, _load_local_csvs should load from it."""
+    preferred = tmp_path / "preferred"
+    other = tmp_path / "other"
+    preferred.mkdir()
+    other.mkdir()
+
+    (preferred / "anagrafica_impianti_attivi.csv").write_text(
+        "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9\n"
+        + _make_anagrafica_row("999", "43,7696", "11,2558")
+        + "\n",
+        encoding="iso-8859-1",
+    )
+    (preferred / "prezzo_alle_8.csv").write_text(
+        "col0|col1|col2|col3|col4\n"
+        + _make_prezzi_row(
+            "999",
+            "benzina",
+            "1.99",
+            "1",
+            datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M:%S"),
+        )
+        + "\n",
+        encoding="iso-8859-1",
+    )
+
+    def fake_candidates(settings):
+        return [preferred, other]
+
+    monkeypatch.setattr(prezzi_csv, "_candidate_local_csv_dirs", fake_candidates)
+
+    settings = Settings()
+    settings.prezzi_local_data_dir = None
+
+    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+    assert "GestoreX" in anag_text
+    assert "benzina" in prezzi_text
+
+
+def test_load_from_project_src_static_data_dir():
+    """When project-level src/static/data contains CSVs, _load_local_csvs should load them."""
+    project_dir = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    anag = project_dir / "anagrafica_impianti_attivi.csv"
+    pre = project_dir / "prezzo_alle_8.csv"
+    try:
+        anag.write_text(
+            "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9\n"
+            + _make_anagrafica_row("1234", "43,7696", "11,2558")
+            + "\n",
+            encoding="iso-8859-1",
+        )
+        pre.write_text(
+            "col0|col1|col2|col3|col4\n"
+            + _make_prezzi_row(
+                "1234",
+                "benzina",
+                "1.49",
+                "1",
+                datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M:%S"),
+            )
+            + "\n",
+            encoding="iso-8859-1",
+        )
+
+        settings = Settings()
+        settings.prezzi_local_data_dir = None
+
+        anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+        assert "GestoreX" in anag_text
+        assert "benzina" in prezzi_text
+    finally:
+        with suppress(Exception):
+            anag.unlink()
+            pre.unlink()
+
+
+def test_load_migrates_from_service_to_project_dir():
+    """If CSVs exist in service-local dir but not in project src/static/data, they should be copied over and loaded."""
+    service_dir = Path(prezzi_csv.__file__).parent / "static" / "data"
+    project_dir = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    service_dir.mkdir(parents=True, exist_ok=True)
+    # Ensure project dir is empty for the test
+    if project_dir.exists():
+        for p in project_dir.glob("*"):
+            try:
+                p.unlink()
+            except Exception:
+                pass
+
+    anag = service_dir / "anagrafica_impianti_attivi.csv"
+    pre = service_dir / "prezzo_alle_8.csv"
+    try:
+        anag.write_text(
+            "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9\n"
+            + _make_anagrafica_row("4242", "43,7696", "11,2558")
+            + "\n",
+            encoding="iso-8859-1",
+        )
+        pre.write_text(
+            "col0|col1|col2|col3|col4\n"
+            + _make_prezzi_row(
+                "4242",
+                "benzina",
+                "1.29",
+                "1",
+                datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M:%S"),
+            )
+            + "\n",
+            encoding="iso-8859-1",
+        )
+
+        settings = Settings()
+        settings.prezzi_local_data_dir = None
+
+        anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+        assert "GestoreX" in anag_text
+        assert "benzina" in prezzi_text
+
+        # Assert files were migrated to project-level src/static/data
+        assert (project_dir / "anagrafica_impianti_attivi.csv").exists()
+        assert (project_dir / "prezzo_alle_8.csv").exists()
+    finally:
+        with suppress(Exception):
+            anag.unlink()
+            pre.unlink()
+            # cleanup migrated copies
+            with suppress(Exception):
+                (project_dir / "anagrafica_impianti_attivi.csv").unlink()
+                (project_dir / "prezzo_alle_8.csv").unlink()
+
+
+def test_load_migrates_from_project_data_to_src_static():
+    """If CSVs exist in project-level `data/` they should be migrated to `src/static/data` and loaded."""
+    project_data = prezzi_csv.PROJECT_ROOT / "data"
+    project_src = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    project_data.mkdir(parents=True, exist_ok=True)
+
+    # ensure project src dir is empty
+    if project_src.exists():
+        for p in project_src.glob("*"):
+            try:
+                p.unlink()
+            except Exception:
+                pass
+
+    anag = project_data / "anagrafica_impianti_attivi.csv"
+    pre = project_data / "prezzo_alle_8.csv"
+    try:
+        anag.write_text(
+            "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9\n"
+            + _make_anagrafica_row("5555", "43,7696", "11,2558")
+            + "\n",
+            encoding="iso-8859-1",
+        )
+        pre.write_text(
+            "col0|col1|col2|col3|col4\n"
+            + _make_prezzi_row(
+                "5555",
+                "benzina",
+                "1.35",
+                "1",
+                datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M:%S"),
+            )
+            + "\n",
+            encoding="iso-8859-1",
+        )
+
+        settings = Settings()
+        settings.prezzi_local_data_dir = None
+
+        anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+        assert "GestoreX" in anag_text
+        assert "benzina" in prezzi_text
+
+        # Assert files were migrated to project-level src/static/data
+        assert (project_src / "anagrafica_impianti_attivi.csv").exists()
+        assert (project_src / "prezzo_alle_8.csv").exists()
+    finally:
+        with suppress(Exception):
+            anag.unlink()
+            pre.unlink()
+            # cleanup migrated copies
+            with suppress(Exception):
+                (project_src / "anagrafica_impianti_attivi.csv").unlink()
+                (project_src / "prezzo_alle_8.csv").unlink()
+
+
+def test_get_latest_csv_timestamp_prefers_project_src_static():
+    """get_latest_csv_timestamp should pick up timestamped CSVs from project src/static/data."""
+    project_dir = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
+    anag_name = project_dir / f"anagrafica_impianti_attivi_{ts}.csv"
+    pre_name = project_dir / f"prezzo_alle_8_{ts}.csv"
+    try:
+        anag_name.write_text("col0|col1\n1|2\n", encoding="iso-8859-1")
+        pre_name.write_text("col0|col1\n1|2\n", encoding="iso-8859-1")
+        settings = Settings()
+        settings.prezzi_local_data_dir = None
+        latest = prezzi_csv.get_latest_csv_timestamp(settings)
+        assert latest is not None
+    finally:
+        with suppress(Exception):
+            anag_name.unlink()
+            pre_name.unlink()
+
+
+def test_save_logs_filenames(tmp_path, monkeypatch, caplog):
+    """Verify that saving CSVs logs the exact filenames saved."""
+    preferred = tmp_path / "preferred"
+
+    def fake_candidates(settings):
+        return [preferred]
+
+    monkeypatch.setattr(prezzi_csv, "_candidate_local_csv_dirs", fake_candidates)
+
+    now = datetime.now(tz=UTC)
+    date_str = now.strftime("%d/%m/%Y %H:%M:%S")
+
+    anag_header = "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9"
+    anag_row = _make_anagrafica_row("321", "43,7696", "11,2558")
+
+    prezzi_header = "col0|col1|col2|col3|col4"
+    prezzi_row = _make_prezzi_row("321", "benzina", "1,60", "1", date_str)
+
+    anag_text = f"{anag_header}\n{anag_row}\n"
+    prezzi_text = f"{prezzi_header}\n{prezzi_row}\n"
+
+    client = DummyClient(anag_text.encode("iso-8859-1"), prezzi_text.encode("iso-8859-1"))
+
+    settings = Settings()
+    settings.prezzi_cache_path = str(tmp_path / "prezzi_cache_log.json")
+    settings.prezzi_local_data_dir = None
+    settings.prezzi_keep_versions = 2
+
+    params = StationSearchParams(latitude=LAT, longitude=LON, distance=10, fuel="benzina", results=5)
+
+    caplog.set_level("INFO")
+
+    result = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
+
+    # Check that logger recorded saved filenames
+    found = False
+    for rec in caplog.records:
+        if (
+            rec.message.startswith("Saved fetched CSVs to")
+            and "anagrafica_impianti_attivi_" in rec.message
+            and "prezzo_alle_8_" in rec.message
+        ):
+            found = True
+            break
+    assert found, f"Expected saved CSVs log not found. Logs:\n{caplog.text}"
+
+
+def test_check_preferred_local_dir_writable_warns(monkeypatch, caplog):
+    """If writing to the preferred dir fails, a warning should be logged and False returned."""
+    settings = Settings()
+    settings.prezzi_local_data_dir = None
+
+    def fake_write_text(self, *args, **kwargs):
+        raise PermissionError("no write")
+
+    monkeypatch.setattr(Path, "write_text", fake_write_text)
+
+    caplog.set_level("WARNING")
+    ok = prezzi_csv.check_preferred_local_dir_writable(settings)
+    assert ok is False
+    assert "not writable" in caplog.text

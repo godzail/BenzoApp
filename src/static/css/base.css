@@ -3,6 +3,7 @@
   /* Primary Accent */
   --color-primary: #00c853;
   --color-primary-light: #b9f6ca;
+  --color-primary-hover: #00b14a;
 
   /* Dark Theme (Default) */
   --bg-primary: #0a0a0f;
@@ -23,6 +24,7 @@
   --text-primary: #0f172a;
   --text-secondary: #64748b;
   --text-muted: #94a3b8;
+  --color-primary-hover: #00a63f;
 }
 
 /* Fuel Type Colors - Used for dynamic inline styles */
