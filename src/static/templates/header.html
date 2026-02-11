@@ -1,11 +1,11 @@
 <div class="header-content">
   <!-- Logo/Title -->
-  <h1 id="title-i18n" class="app-title"></h1>
+  <h1 id="title-i18n" class="app-title text-xl font-semibold text-[var(--text-primary)]"></h1>
 
   <!-- Floating Search Bar -->
-  <div class="search-container" x-data="{ highlightedIndex: -1 }" @keydown.escape="showCitySuggestions = false">
-    <div class="search-bar">
-      <span class="search-icon">
+  <div class="search-container flex-1 max-w-xl" x-data="{ highlightedIndex: -1 }" @keydown.escape="showCitySuggestions = false">
+    <div class="search-bar flex items-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-full p-1 shadow-md transition-all duration-150">
+      <span class="search-icon text-[var(--text-muted)]">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"></circle>
           <path d="m21 21-4.35-4.35"></path>
@@ -16,7 +16,7 @@
         type="text"
         id="city"
         name="city"
-        class="search-input"
+        class="search-input flex-1 bg-transparent border-none text-[var(--text-primary)] text-base outline-none p-2 placeholder:text-[var(--text-muted)]"
         :placeholder="translate('search_placeholder', 'Search city...') + (currentLang ? '' : '')"
         required
         x-model="formData.city"
@@ -35,7 +35,7 @@
 
       <!-- Location Pill Button -->
       <button
-        class="location-pill"
+        class="location-pill flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-full px-3 py-1 text-sm text-[var(--text-secondary)] cursor-pointer transition-all duration-150 hover:bg-[var(--color-primary-light)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary-dark)]"
         type="button"
         @click="locateUser()"
         :aria-label="translate('use_current_location', 'Use current location') + (currentLang ? '' : '')"
@@ -50,11 +50,11 @@
 
     <!-- Autocomplete Dropdown -->
     <template x-if="showCitySuggestions && filteredCities.length > 0">
-      <ul class="autocomplete-list" id="city-suggestions" role="listbox" x-ref="suggestionsList">
+      <ul class="autocomplete-list absolute left-0 right-0 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl z-50" id="city-suggestions" role="listbox" x-ref="suggestionsList">
         <template x-for="(city, index) in filteredCities" :key="city">
           <li
-            class="autocomplete-item"
-            :class="{ 'highlighted': highlightedIndex === index }"
+            class="autocomplete-item px-4 py-2 cursor-pointer transition-colors duration-150 text-[var(--text-primary)]"
+            :class="{ 'bg-[var(--bg-elevated)]': highlightedIndex === index }"
             role="option"
             :aria-selected="highlightedIndex === index"
             @mousedown.prevent="selectCity(city); highlightedIndex = -1"
@@ -68,10 +68,10 @@
   </div>
 
   <!-- Theme & Language Controls -->
-  <div class="controls-row">
+  <div class="controls-row flex items-center gap-4">
     <!-- Theme Toggle -->
     <button
-      class="theme-toggle"
+      class="theme-toggle inline-flex items-center justify-center w-10 h-9 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] cursor-pointer p-0 transition-all duration-150 hover:bg-[var(--bg-elevated)] hover:border-[var(--color-primary)]"
       type="button"
       @click="toggleTheme()"
       :aria-label="currentTheme === 'dark' ? translate('switch_to_light', 'Switch to light mode') : translate('switch_to_dark', 'Switch to dark mode')"
@@ -79,58 +79,46 @@
       <!-- Sun Icon (Light Mode) -->
       <svg
         x-show="currentTheme === 'dark'"
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
+        width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
       >
         <circle cx="12" cy="12" r="5"></circle>
-        <path
-          d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-        ></path>
+        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
       </svg>
       <!-- Moon Icon (Dark Mode) -->
       <svg
         x-show="currentTheme === 'light'"
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
+        width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
       >
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
       </svg>
     </button>
 
     <!-- Language Switcher -->
-    <div class="lang-switcher">
+    <div class="lang-switcher flex gap-1">
       <button
-        class="lang-btn"
+        class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)]"
         type="button"
         @click="setLanguage('en')"
-        :class="{ 'active': currentLang === 'en' }"
+        :class="{ 'bg-[var(--color-primary)] text-white border-[var(--color-primary)] font-bold': currentLang === 'en' }"
         aria-label="Switch to English"
       >
         EN
       </button>
       <button
-        class="lang-btn"
+        class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)]"
         type="button"
         @click="setLanguage('it')"
-        :class="{ 'active': currentLang === 'it' }"
+        :class="{ 'bg-[var(--color-primary)] text-white border-[var(--color-primary)] font-bold': currentLang === 'it' }"
         aria-label="Switch to Italian"
       >
         IT
       </button>
     </div>
 
-    <!-- API Documentation Link (dynamic by language) -->
+    <!-- API Documentation Link -->
     <a
       :href="'/help/user-' + currentLang"
-      class="theme-toggle docs-link"
+      class="theme-toggle inline-flex items-center justify-center w-10 h-9 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] cursor-pointer p-0 hover:bg-[var(--bg-elevated)] hover:border-[var(--color-primary)]"
       :title="translate('user_docs','User Documentation') + (currentLang ? '' : '')"
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
