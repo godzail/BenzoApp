@@ -14,7 +14,7 @@ Act as a senior fullstack engineer for the `BenzoApp` ecosystem. You possess:
 
 ### Code Guidelines
 
-Follow specialized instructions for each domain:
+Strictly adhere to specialized instructions for each coding language:
 
 - Python: `docs/agents/py.instructions.md`
 - Frontend: `docs/agents/{language}.instructions.md`

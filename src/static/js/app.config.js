@@ -21,6 +21,9 @@
  * @property {string} THEME_STORAGE_KEY - localStorage key for theme.
  * @property {string} DEFAULT_THEME - Default theme ('dark' or 'light').
  * @property {number} DEBOUNCE_DELAY_MS - Debounce delay for form submissions (ms).
+ * @property {string} CSV_STATUS_ENDPOINT - API endpoint for CSV status.
+ * @property {string} CSV_RELOAD_ENDPOINT - API endpoint for CSV reload.
+ * @property {number} CSV_AUTO_REFRESH_INTERVAL_MS - Auto-refresh interval for CSV status (ms).
  */
 window.CONFIG = {
   DEFAULT_MAP_CENTER: [41.9028, 12.4964],
@@ -43,6 +46,9 @@ window.CONFIG = {
   THEME_STORAGE_KEY: "app-theme",
   DEFAULT_THEME: "dark",
   DEBOUNCE_DELAY_MS: 100, // Debounce delay for fuel type change form submission
+  CSV_STATUS_ENDPOINT: "/api/csv-status",
+  CSV_RELOAD_ENDPOINT: "/api/reload-csv",
+  CSV_AUTO_REFRESH_INTERVAL_MS: 24 * 60 * 60 * 1000, // 24 hours
 };
 
 /**

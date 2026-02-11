@@ -1,32 +1,32 @@
 // i18next initialization and language switcher
+
 const STATUS_MESSAGE_DURATION = 3000;
 const INITIALIZATION_RETRY_DELAY = 100;
 
-// Determine language: use localStorage only if user has explicitly set it
-let userLang = "it"; // Default to Italian
+type SupportedLang = "it" | "en";
+
+let userLang: SupportedLang = "it";
+
 try {
   const storedLang = localStorage.getItem("lang");
   if (storedLang && (storedLang === "it" || storedLang === "en")) {
-    userLang = storedLang;
+    userLang = storedLang as SupportedLang;
   }
-} catch (_e) {
+} catch {
   // ignore
 }
 
-// Expose userLang globally for other scripts
 window.APP_USER_LANG = userLang;
 
 /**
  * Safely get translation with fallback
- * @param {string} key - The translation key
- * @param {string} fallback - The fallback text if translation not found
- * @returns {string} Translated text or fallback
+ * @param key - The translation key
+ * @param fallback - The fallback text if translation not found
+ * @returns Translated text or fallback
  */
-function t(key, fallback = "") {
+function t(key: string, fallback = ""): string {
   if (typeof i18next !== "undefined" && i18next.t) {
-    // Keys no longer have 'translation.' prefix
     const translated = i18next.t(key);
-    // If translation returns the key itself, it means translation not found
     if (translated === key) {
       return fallback || key;
     }
@@ -37,38 +37,39 @@ function t(key, fallback = "") {
 
 /**
  * Set the application language
- * @param {string} lang - The language code ('en' or 'it')
+ * @param lang - The language code ('en' or 'it')
  */
-window.setLang = (lang) => {
-  if (window.gasStationApp?.debugMode) {
+window.setLang = (lang: SupportedLang): void => {
+  const app =
+    typeof window.gasStationApp === "function" ? window.gasStationApp() : null;
+  if (app?.debugMode) {
     console.log("[DEBUG] i18next.changeLanguage called with lang:", lang);
   }
 
-  // Reset and clear translation cache
-  if (typeof i18next !== "undefined") {
+  if (typeof i18next !== "undefined" && i18next.reloadResources) {
     i18next.reloadResources(lang, "translation", () => {
-      i18next.changeLanguage(lang, () => {
-        updateI18nTexts();
-        // Announce language change to screen readers
-        const statusEl = document.getElementById("status-messages");
-        if (statusEl) {
-          const langName = lang === "it" ? "Italian" : "English";
-          statusEl.textContent = `Language reset and changed to ${langName}`;
-          setTimeout(() => {
-            statusEl.textContent = "";
-          }, STATUS_MESSAGE_DURATION);
-        }
-        // Dispatch event to notify app of language change
-        window.dispatchEvent(
-          new CustomEvent("languageChanged", { detail: { lang } }),
-        );
-      });
+      if (i18next.changeLanguage) {
+        i18next.changeLanguage(lang, () => {
+          updateI18nTexts();
+          const statusEl = document.getElementById("status-messages");
+          if (statusEl) {
+            const langName = lang === "it" ? "Italian" : "English";
+            statusEl.textContent = `Language reset and changed to ${langName}`;
+            setTimeout(() => {
+              statusEl.textContent = "";
+            }, STATUS_MESSAGE_DURATION);
+          }
+          window.dispatchEvent(
+            new CustomEvent("languageChanged", { detail: { lang } }),
+          );
+        });
+      }
     });
   }
   try {
     localStorage.setItem("lang", lang);
     window.APP_USER_LANG = lang;
-  } catch (_e) {
+  } catch {
     // ignore storage errors
   }
 };
@@ -76,9 +77,8 @@ window.setLang = (lang) => {
 /**
  * Update i18n text content for all mapped elements
  */
-function updateI18nTexts() {
-  // Map of element IDs to translation keys with fallbacks
-  const i18nMap = {
+function updateI18nTexts(): void {
+  const i18nMap: Record<string, { key: string; fallback: string }> = {
     "title-i18n": { key: "title", fallback: "Gas Station Finder" },
     "recent-searches-i18n": {
       key: "recent_searches",
@@ -102,51 +102,51 @@ function updateI18nTexts() {
     const el = document.getElementById(id);
     if (el) {
       const translatedText = t(config.key, config.fallback);
-      el.innerText = translatedText;
+      (el as HTMLElement).innerText = translatedText;
     }
   }
 
-  // Update elements with data-i18n attributes
   updateDataI18nElements();
 }
 
 /**
  * Update all elements with data-i18n attributes
  */
-function updateDataI18nElements() {
+function updateDataI18nElements(): void {
   const elements = document.querySelectorAll("[data-i18n]");
-  for (const el of elements) {
-    let key = el.getAttribute("data-i18n");
+  for (const el of Array.from(elements)) {
+    const key = el.getAttribute("data-i18n");
     if (key) {
-      // Get fallback from current text content or empty string
       const fallback = el.textContent?.trim() || "";
-
       const translatedText = t(key, fallback);
-      el.innerText = translatedText;
+      (el as HTMLElement).innerText = translatedText;
     }
   }
 }
 
-// Function to initialize i18next
-function initI18next() {
-  i18next.use(i18nextHttpBackend).init(
+/**
+ * Function to initialize i18next
+ */
+function initI18next(): void {
+  const backendModule = {
+    init: () => backendModule,
+  };
+  const returned = i18next.use(backendModule);
+  (returned as { init: (opts: unknown, cb?: unknown) => void }).init(
     {
       lng: window.APP_USER_LANG,
       fallbackLng: "it",
       debug: false,
       preload: [window.APP_USER_LANG],
       backend: {
-        loadPath: `/static/locales/{{lng}}.json`,
+        loadPath: "/static/locales/{{lng}}.json",
       },
     },
-    (err) => {
+    (err: unknown) => {
       if (err) {
         console.error("i18next initialization error:", err);
       }
-      // Update texts after initialization (even if there was an error)
       updateI18nTexts();
-
-      // Also update on next tick to catch Alpine.js rendered content
       setTimeout(() => {
         updateI18nTexts();
       }, INITIALIZATION_RETRY_DELAY);
@@ -154,14 +154,11 @@ function initI18next() {
   );
 }
 
-// Initialize i18next when DOM is ready
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initI18next);
 } else {
-  // DOM is already ready
   initI18next();
 }
 
-// Expose functions globally
 window.updateI18nTexts = updateI18nTexts;
 window.t = t;

@@ -1,7 +1,7 @@
 /**
- * Main application composition.
- * Composes the UI, storage, and map mixins into the main app object.
- */
+  * Main application composition.
+  * Composes the UI, storage, and map mixins into the main app object.
+  */
 (() => {
   /**
    * Creates the gas station application object.
@@ -29,6 +29,9 @@
       cityList: [],
       filteredCities: [],
       debugMode: false,
+      csvLastUpdated: null,
+      csvReloading: false,
+      csvStatusInterval: null,
 
       // mixins
       ...window.appUiMixin,

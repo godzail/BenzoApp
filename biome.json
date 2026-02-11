@@ -8,6 +8,8 @@
   "files": {
     "ignoreUnknown": true,
     "includes": [
+      "src/**/*.html",
+      "src/static/css/**",
       "src/static/ts/**"
     ]
   },
