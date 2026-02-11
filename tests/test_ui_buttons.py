@@ -52,3 +52,26 @@ def test_user_docs_title_is_reactive() -> None:
     assert ":title=\"translate('user_docs','User Documentation') + (currentLang ? '' : '')\"" in header, (
         "Header docs link should include reactive currentLang dependency for translations"
     )
+
+
+def test_lang_button_hover_text_present() -> None:
+    """Test that language buttons include hover text color utility to keep text readable."""
+    header = Path("src/static/templates/header.html").read_text()
+    assert "hover:text-[var(--text-primary)]" in header, "Expected hover:text utility on language buttons"
+
+
+def test_recent_searches_is_reactive() -> None:
+    """Test that recent searches heading is reactive to language changes."""
+    search_html = Path("src/static/templates/search.html").read_text()
+    assert "translate('recent_searches', 'Ricerche Recenti:') + (currentLang ? '' : '')" in search_html, (
+        "Recent searches heading should include reactive currentLang dependency"
+    )
+
+
+def test_updateI18nTexts_sets_document_title() -> None:
+    """Test that i18n.updateI18nTexts sets document.title to the translated title."""
+    i18n = Path("src/static/ts/i18n.ts").read_text()
+    assert (
+        'document.title = t("title", "Gas Station Finder")' in i18n
+        or "document.title = t('title', \"Gas Station Finder\")" in i18n
+    ), "i18n.updateI18nTexts should set document.title to the translated title"

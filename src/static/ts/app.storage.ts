@@ -40,10 +40,16 @@ interface AppStorageMixin {
 }
 
 window.appStorageMixin = {
+  /**
+   * Load the list of cities from the configured JSON endpoint.
+   * Falls back to `window.CONFIG.FALLBACK_CITIES` on error.
+   */
   async loadCities(): Promise<void> {
     try {
       const response = await fetch(window.CONFIG.CITIES_JSON_PATH);
-      if (!response.ok) throw new Error("Failed to load city list");
+      if (!response.ok) {
+        throw new Error("Failed to load city list");
+      }
       this.cityList = (await response.json()) as string[];
     } catch (_error) {
       console.error("Error loading cities:", _error);
@@ -51,6 +57,9 @@ window.appStorageMixin = {
     }
   },
 
+  /**
+   * Load recent searches from localStorage into memory.
+   */
   loadRecentSearches(): void {
     try {
       const stored = this.safeGetItem("recentSearches");
@@ -60,6 +69,11 @@ window.appStorageMixin = {
     }
   },
 
+  /**
+   * Save a search to recent searches, deduplicate and trim to the configured limit.
+   *
+   * @param search - Search object containing `city`, `radius`, `fuel`, and optional `results`.
+   */
   saveRecentSearch(search: {
     city: string;
     radius: string;
@@ -81,6 +95,11 @@ window.appStorageMixin = {
     this.safeSetItem("recentSearches", JSON.stringify(this.recentSearches));
   },
 
+  /**
+   * Apply a recent search to the form and submit it.
+   *
+   * @param search - The recent search to select and run.
+   */
   selectRecentSearch(search: {
     city: string;
     radius: string;

@@ -1,167 +1,160 @@
+"use strict";
 // i18next initialization and language switcher
 const STATUS_MESSAGE_DURATION = 3000;
 const INITIALIZATION_RETRY_DELAY = 100;
-
-// Determine language: use localStorage only if user has explicitly set it
-let userLang = "it"; // Default to Italian
+let userLang = "it";
 try {
-  const storedLang = localStorage.getItem("lang");
-  if (storedLang && (storedLang === "it" || storedLang === "en")) {
-    userLang = storedLang;
-  }
-} catch (_e) {
-  // ignore
+    const storedLang = localStorage.getItem("lang");
+    if (storedLang && (storedLang === "it" || storedLang === "en")) {
+        userLang = storedLang;
+    }
 }
-
-// Expose userLang globally for other scripts
+catch {
+    // ignore
+}
 window.APP_USER_LANG = userLang;
-
 /**
  * Safely get translation with fallback
- * @param {string} key - The translation key
- * @param {string} fallback - The fallback text if translation not found
- * @returns {string} Translated text or fallback
+ * @param key - The translation key
+ * @param fallback - The fallback text if translation not found
+ * @returns Translated text or fallback
  */
 function t(key, fallback = "") {
-  if (typeof i18next !== "undefined" && i18next.t) {
-    // Keys no longer have 'translation.' prefix
-    const translated = i18next.t(key);
-    // If translation returns the key itself, it means translation not found
-    if (translated === key) {
-      return fallback || key;
+    if (typeof i18next !== "undefined" && i18next.t) {
+        const translated = i18next.t(key);
+        if (translated === key) {
+            return fallback || key;
+        }
+        return translated;
     }
-    return translated;
-  }
-  return fallback || key;
+    return fallback || key;
 }
-
 /**
  * Set the application language
- * @param {string} lang - The language code ('en' or 'it')
+ * @param lang - The language code ('en' or 'it')
  */
 window.setLang = (lang) => {
-  if (window.gasStationApp?.debugMode) {
-    console.log("[DEBUG] i18next.changeLanguage called with lang:", lang);
-  }
-
-  // Reset and clear translation cache
-  if (typeof i18next !== "undefined") {
-    i18next.reloadResources(lang, "translation", () => {
-      i18next.changeLanguage(lang, () => {
-        updateI18nTexts();
-        // Announce language change to screen readers
-        const statusEl = document.getElementById("status-messages");
-        if (statusEl) {
-          const langName = lang === "it" ? "Italian" : "English";
-          statusEl.textContent = `Language reset and changed to ${langName}`;
-          setTimeout(() => {
-            statusEl.textContent = "";
-          }, STATUS_MESSAGE_DURATION);
-        }
-        // Dispatch event to notify app of language change
-        window.dispatchEvent(
-          new CustomEvent("languageChanged", { detail: { lang } }),
-        );
-      });
-    });
-  }
-  try {
-    localStorage.setItem("lang", lang);
-    window.APP_USER_LANG = lang;
-  } catch (_e) {
-    // ignore storage errors
-  }
+    const app = typeof window.gasStationApp === "function" ? window.gasStationApp() : null;
+    if (app?.debugMode) {
+        console.log("[DEBUG] i18next.changeLanguage called with lang:", lang);
+    }
+    if (typeof i18next !== "undefined" && i18next.reloadResources) {
+        i18next.reloadResources(lang, "translation", () => {
+            if (i18next.changeLanguage) {
+                i18next.changeLanguage(lang, () => {
+                    updateI18nTexts();
+                    const statusEl = document.getElementById("status-messages");
+                    if (statusEl) {
+                        const langName = lang === "it" ? "Italian" : "English";
+                        statusEl.textContent = `Language reset and changed to ${langName}`;
+                        setTimeout(() => {
+                            statusEl.textContent = "";
+                        }, STATUS_MESSAGE_DURATION);
+                    }
+                    window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
+                });
+            }
+        });
+    }
+    try {
+        localStorage.setItem("lang", lang);
+        window.APP_USER_LANG = lang;
+    }
+    catch {
+        // ignore storage errors
+    }
 };
-
 /**
  * Update i18n text content for all mapped elements
  */
 function updateI18nTexts() {
-  // Map of element IDs to translation keys with fallbacks
-  const i18nMap = {
-    "title-i18n": { key: "title", fallback: "Gas Station Finder" },
-    "recent-searches-i18n": {
-      key: "recent_searches",
-      fallback: "Recent Searches:",
-    },
-    "no-results-i18n": {
-      key: "no_results",
-      fallback: "No results found.",
-    },
-    "results-heading": {
-      key: "results_heading",
-      fallback: "Search Results",
-    },
-    "search-form-title": {
-      key: "search_form_title",
-      fallback: "Search for gas stations",
-    },
-  };
-
-  for (const [id, config] of Object.entries(i18nMap)) {
-    const el = document.getElementById(id);
-    if (el) {
-      const translatedText = t(config.key, config.fallback);
-      el.innerText = translatedText;
+    const i18nMap = {
+        "title-i18n": { key: "title", fallback: "Gas Station Finder" },
+        "recent-searches-i18n": {
+            key: "recent_searches",
+            fallback: "Recent Searches:",
+        },
+        "no-results-i18n": {
+            key: "no_results",
+            fallback: "No results found.",
+        },
+        "results-heading": {
+            key: "results_heading",
+            fallback: "Search Results",
+        },
+        "search-form-title": {
+            key: "search_form_title",
+            fallback: "Search for gas stations",
+        },
+    };
+    for (const [id, config] of Object.entries(i18nMap)) {
+        const el = document.getElementById(id);
+        if (el) {
+            const translatedText = t(config.key, config.fallback);
+            el.innerText = translatedText;
+        }
     }
-  }
-
-  // Update elements with data-i18n attributes
-  updateDataI18nElements();
+    // Update browser tab title with translated title
+    try {
+        document.title = t("title", "Gas Station Finder");
+    }
+    catch {
+        // ignore errors setting document.title in non-browser environments
+    }
+    updateDataI18nElements();
 }
-
 /**
  * Update all elements with data-i18n attributes
  */
 function updateDataI18nElements() {
-  const elements = document.querySelectorAll("[data-i18n]");
-  for (const el of elements) {
-    let key = el.getAttribute("data-i18n");
-    if (key) {
-      // Get fallback from current text content or empty string
-      const fallback = el.textContent?.trim() || "";
-
-      const translatedText = t(key, fallback);
-      el.innerText = translatedText;
+    const elements = document.querySelectorAll("[data-i18n]");
+    for (const el of Array.from(elements)) {
+        const key = el.getAttribute("data-i18n");
+        if (key) {
+            const fallback = el.textContent?.trim() || "";
+            const translatedText = t(key, fallback);
+            el.innerText = translatedText;
+        }
     }
-  }
 }
-
-// Function to initialize i18next
+/**
+ * Function to initialize i18next
+ */
 function initI18next() {
-  i18next.use(i18nextHttpBackend).init(
-    {
-      lng: window.APP_USER_LANG,
-      fallbackLng: "it",
-      debug: false,
-      preload: [window.APP_USER_LANG],
-      backend: {
-        loadPath: `/static/locales/{{lng}}.json`,
-      },
-    },
-    (err) => {
-      if (err) {
-        console.error("i18next initialization error:", err);
-      }
-      // Update texts after initialization (even if there was an error)
-      updateI18nTexts();
-
-      // Also update on next tick to catch Alpine.js rendered content
-      setTimeout(() => {
-        updateI18nTexts();
-      }, INITIALIZATION_RETRY_DELAY);
-    },
-  );
+    i18next.init({
+        lng: window.APP_USER_LANG,
+        fallbackLng: "it",
+        debug: false,
+        resources: {},
+    }, (err) => {
+        if (err) {
+            console.error("i18next initialization error:", err);
+        }
+        loadTranslations(window.APP_USER_LANG);
+    });
 }
-
-// Initialize i18next when DOM is ready
+async function loadTranslations(lang) {
+    try {
+        const response = await fetch(`/static/locales/${lang}.json`);
+        if (response.ok) {
+            const resources = await response.json();
+            i18next.addResourceBundle(lang, "translation", resources, true, true);
+            updateI18nTexts();
+            setTimeout(() => {
+                updateI18nTexts();
+            }, INITIALIZATION_RETRY_DELAY);
+        }
+    }
+    catch (err) {
+        console.error("Failed to load translations:", err);
+    }
+}
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initI18next);
-} else {
-  // DOM is already ready
-  initI18next();
+    document.addEventListener("DOMContentLoaded", initI18next);
 }
-
-// Expose functions globally
+else {
+    initI18next();
+}
 window.updateI18nTexts = updateI18nTexts;
 window.t = t;
+//# sourceMappingURL=i18n.js.map

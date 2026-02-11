@@ -10,7 +10,7 @@ if __name__ == "__main__":
     settings = Settings()  # pyright: ignore[reportCallIssue]
 
     # run bun build src/ts/*.ts --outdir static/js --watch
-    run_command = "bun build src/static/ts/app.ts --outdir src/static/js --minify --sourcemap --target browser--watch"
+    run_command = "bun watch:ts"
     logger.info(f"Starting build process with command: {run_command}")
 
     # Run uvicorn programmatically

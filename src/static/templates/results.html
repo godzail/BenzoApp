@@ -41,40 +41,59 @@
       <!-- Station Cards List -->
       <div id="stations-list">
         <template x-for="(station, index) in results" :key="station.id || index">
-          <article class="station-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-6 shadow-md transition-all duration-150 cursor-pointer relative min-h-[180px] hover:translate-y-[-2px] hover:shadow-xl hover:border-[var(--color-primary)]"
-            @click="selectStationForMap(station.id)" @keyup.enter="selectStationForMap(station.id)" tabindex="0"
-            :aria-label="(station.gestore || (typeof t !== 'undefined' ? t('station', 'Gas Station') : 'Gas Station')) + ', ' + formatCurrency(station.fuel_prices?.[0]?.price || 0)">
+          <article
+            class="station-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-6 shadow-md transition-all duration-150 cursor-pointer relative min-h-[180px] hover:translate-y-[-2px] hover:shadow-xl hover:border-[var(--color-primary)]"
+            @click="selectStationForMap(station.id)"
+            @keyup.enter="selectStationForMap(station.id)"
+            tabindex="0"
+            :aria-label="(station.gestore || (typeof t !== 'undefined' ? t('station', 'Gas Station') : 'Gas Station')) + ', ' + formatCurrency(station.fuel_prices?.[0]?.price || 0)"
+          >
             <div class="station-card-header mb-4 min-w-0">
               <!-- Line 1: Gas station name left, price right -->
               <div class="flex items-center justify-between gap-4 mb-2">
-                <div class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1">
-                  <div class="station-icon w-8 h-8 bg-[var(--color-primary-light)] rounded-lg flex items-center justify-center text-[var(--color-primary-dark)]">
+                <div
+                  class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1"
+                >
+                  <div
+                    class="station-icon w-8 h-8 bg-[var(--color-primary-light)] rounded-lg flex items-center justify-center text-[var(--color-primary-dark)]"
+                  >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
                       <path d="M2 17l10 5 10-5"></path>
                       <path d="M2 12l10 5 10-5"></path>
                     </svg>
                   </div>
-                  <span class="truncate overflow-hidden text-ellipsis whitespace-nowrap" x-text="station.gestore || translate('station', 'Gas Station')"></span>
+                  <span
+                    class="truncate overflow-hidden text-ellipsis whitespace-nowrap"
+                    x-text="station.gestore || translate('station', 'Gas Station')"
+                  ></span>
                 </div>
                 <div class="station-price flex flex-row items-center gap-2 flex-nowrap">
-                  <template x-if="station.fuel_prices && station.fuel_prices.length > 0">
-                    <span class="uppercase tracking-wide text-sm" :class="{
+                  <template x-if="station.fuel_prices && station.fuel_prices.length > 0"><span
+                    class="uppercase tracking-wide text-sm"
+                    :class="{
                         'text-[var(--fuel-benzina-color)]': station.fuel_prices[0].type === 'benzina',
                         'text-[var(--fuel-gasolio-color)]': station.fuel_prices[0].type === 'gasolio',
                         'text-[var(--fuel-gpl-color)]': station.fuel_prices[0].type === 'GPL',
                         'text-[var(--fuel-metano-color)]': station.fuel_prices[0].type === 'metano'
-                      }" x-text="translateFuel(station.fuel_prices[0].type)"></span>
-                  </template>
+                      }"
+                    x-text="translateFuel(station.fuel_prices[0].type)"
+                  ></span></template>
                   <template x-if="station.fuel_prices && station.fuel_prices.length > 0">
-                    <span class="text-2xl font-bold text-[var(--color-primary)]" x-text="formatCurrency(station.fuel_prices[0].price)"></span>
+                    <span
+                      class="text-2xl font-bold text-[var(--color-primary)]"
+                      x-text="formatCurrency(station.fuel_prices[0].price)"
+                    ></span>
                   </template>
                 </div>
               </div>
               <!-- Line 2: Empty left, price diff/best price + distance right -->
               <div class="flex items-center justify-end gap-3 pl-[calc(8px+2rem)]">
                 <template x-if="isCheapestStation(index)">
-                  <span class="inline-block bg-[var(--color-primary)] text-[#002c18] px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide animate-pulse-badge whitespace-nowrap" x-text="translate('best_price', 'Miglior Prezzo!')"></span>
+                  <span
+                    class="inline-block bg-[var(--color-primary)] text-[#002c18] px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide animate-pulse-badge whitespace-nowrap"
+                    x-text="translate('best_price', 'Miglior Prezzo!')"
+                  ></span>
                 </template>
                 <template x-if="station.fuel_prices && station.fuel_prices.length > 0 && !isCheapestStation(index)">
                   <span class="text-sm text-red-500 font-medium" x-text="getPriceDifference(index)"></span>
@@ -92,27 +111,46 @@
             </div>
 
             <div class="station-card-body flex flex-col gap-2">
-              <div class="station-address-row flex items-start gap-2 text-sm text-[var(--text-secondary)] break-word overflow-wrap-break-word">
-                <svg class="address-icon w-4 h-4 text-[var(--text-muted)] mt-0.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <div
+                class="station-address-row flex items-start gap-2 text-sm text-[var(--text-secondary)] break-word overflow-wrap-break-word"
+              >
+                <svg
+                  class="address-icon w-4 h-4 text-[var(--text-muted)] mt-0.5"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                   <circle cx="12" cy="10" r="3"></circle>
                 </svg>
-                <span class="break-word overflow-wrap-break-word leading-relaxed max-w-full" x-text="station.address"></span>
+                <span
+                  class="break-word overflow-wrap-break-word leading-relaxed max-w-full"
+                  x-text="station.address"
+                ></span>
               </div>
 
               <!-- Station Actions - Moved inside each card -->
               <div class="station-actions-row flex gap-2 mt-4 pt-4 border-t border-[var(--border-color)]">
-                <button class="btn btn-primary flex-1 min-w-0 whitespace-nowrap bg-[var(--color-primary)] text-white border-none rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--color-primary-hover)] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale disabled:transform-none" @click.stop="getDirections(station)"
+                <button
+                  class="btn btn-primary flex-1 min-w-0 whitespace-nowrap bg-[var(--color-primary)] text-white border-none rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--color-primary-hover)] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale disabled:transform-none"
+                  @click.stop="getDirections(station)"
                   :disabled="!station.latitude || !station.longitude"
-                  :title="(!station.latitude || !station.longitude) ? translate('coords_missing', 'Directions unavailable: coordinates missing') : ''">
+                  :title="(!station.latitude || !station.longitude) ? translate('coords_missing', 'Directions unavailable: coordinates missing') : ''"
+                >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 18l6-6-6-6"></path>
                   </svg>
                   <span x-text="translate('navigate', 'Navigate') + (currentLang ? '' : '')"></span>
                 </button>
-                <button class="btn btn-secondary flex-1 min-w-0 whitespace-nowrap bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed" @click.stop="selectStationForMap(station.id)"
+                <button
+                  class="btn btn-secondary flex-1 min-w-0 whitespace-nowrap bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  @click.stop="selectStationForMap(station.id)"
                   :disabled="!station.latitude || !station.longitude"
-                  :title="(!station.latitude || !station.longitude) ? translate('coords_missing', 'Map unavailable: coordinates missing') : ''">
+                  :title="(!station.latitude || !station.longitude) ? translate('coords_missing', 'Map unavailable: coordinates missing') : ''"
+                >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                     <circle cx="12" cy="10" r="3"></circle>
@@ -129,7 +167,10 @@
 
   <!-- Error Message -->
   <template x-if="error">
-    <div class="error-message flex items-center bg-red-500/10 text-red-500 p-4 rounded-xl border border-red-500/20 mt-4 font-medium" role="alert">
+    <div
+      class="error-message flex items-center bg-red-500/10 text-red-500 p-4 rounded-xl border border-red-500/20 mt-4 font-medium"
+      role="alert"
+    >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mr-2">
         <circle cx="12" cy="12" r="10"></circle>
         <line x1="12" y1="8" x2="12" y2="12"></line>

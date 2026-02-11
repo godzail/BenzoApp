@@ -78,6 +78,39 @@ def test_search_gas_stations_radius_bounds(client: TestClient) -> None:
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
+def test_search_timeout_behavior(client: TestClient) -> None:
+    """Ensure server-side search timeout returns a warning instead of hanging."""
+    import asyncio
+
+    from src.main import get_settings
+    from src.models import Settings
+
+    # Override dependency to use a very short timeout and patch fetch_gas_stations to be slow
+    class FastTimeoutSettings(Settings):
+        search_timeout_seconds = 1
+
+    async def _slow_fetch(params, settings, http_client) -> list:
+        await asyncio.sleep(5)
+        return []
+
+    # Apply overrides
+    app.dependency_overrides[get_settings] = lambda: FastTimeoutSettings()
+
+    # Monkeypatch the actual fetcher
+    import src.services.fuel_api as _fa
+
+    _fa.fetch_gas_stations = _slow_fetch
+
+    payload = {"city": "Rome", "radius": 5, "fuel": "benzina", "results": 2}
+    response = client.post("/search", json=payload)
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["stations"] == []
+    assert "warning" in data
+    assert "timed out" in data["warning"].lower()
+
+
 # Note: For a successful /search test, you need a real city and working external APIs.
 # This test is skipped by default to avoid flakiness.
 @pytest.mark.skip(reason="Depends on external API and real data.")
