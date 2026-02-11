@@ -41,36 +41,40 @@
       <!-- Station Cards List -->
       <div id="stations-list">
         <template x-for="(station, index) in results" :key="station.id || index">
-          <article class="station-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-6 shadow-md transition-all duration-150 cursor-pointer relative min-h-[180px] hover:translate-y-[-2px] hover:shadow-xl hover:border-[var(--color-primary)]" :class="{ 'border-2 border-[var(--color-primary)] shadow-[0_0_20px_rgba(0,200,83,0.2)]': isCheapestStation(index) }"
+          <article class="station-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-6 shadow-md transition-all duration-150 cursor-pointer relative min-h-[180px] hover:translate-y-[-2px] hover:shadow-xl hover:border-[var(--color-primary)]"
             @click="selectStationForMap(station.id)" @keyup.enter="selectStationForMap(station.id)" tabindex="0"
             :aria-label="(station.gestore || (typeof t !== 'undefined' ? t('station', 'Gas Station') : 'Gas Station')) + ', ' + formatCurrency(station.fuel_prices?.[0]?.price || 0)">
-            <!-- Best Price Badge -->
-            <template x-if="isCheapestStation(index)">
-              <span class="inline-block bg-[var(--color-primary)] text-[#002c18] px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide animate-pulse-badge mb-1 whitespace-nowrap" x-text="translate('best_price', 'Miglior Prezzo!')"></span>
-            </template>
-
-            <div class="station-card-header flex justify-between items-start mb-4 gap-4 min-w-0">
-              <div class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1">
-                <div class="station-icon w-8 h-8 bg-[var(--color-primary-light)] rounded-lg flex items-center justify-center text-[var(--color-primary-dark)]">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                    <path d="M2 17l10 5 10-5"></path>
-                    <path d="M2 12l10 5 10-5"></path>
-                  </svg>
+            <div class="station-card-header mb-4 min-w-0">
+              <!-- Line 1: Gas station name left, price right -->
+              <div class="flex items-center justify-between gap-4 mb-2">
+                <div class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1">
+                  <div class="station-icon w-8 h-8 bg-[var(--color-primary-light)] rounded-lg flex items-center justify-center text-[var(--color-primary-dark)]">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                      <path d="M2 17l10 5 10-5"></path>
+                      <path d="M2 12l10 5 10-5"></path>
+                    </svg>
+                  </div>
+                  <span class="truncate overflow-hidden text-ellipsis whitespace-nowrap" x-text="station.gestore || translate('station', 'Gas Station')"></span>
                 </div>
-                <span class="truncate overflow-hidden text-ellipsis whitespace-nowrap" x-text="station.gestore || translate('station', 'Gas Station')"></span>
+                <div class="station-price flex flex-row items-center gap-2 flex-nowrap">
+                  <template x-if="station.fuel_prices && station.fuel_prices.length > 0">
+                    <span class="uppercase tracking-wide text-sm" :class="{
+                        'text-[var(--fuel-benzina-color)]': station.fuel_prices[0].type === 'benzina',
+                        'text-[var(--fuel-gasolio-color)]': station.fuel_prices[0].type === 'gasolio',
+                        'text-[var(--fuel-gpl-color)]': station.fuel_prices[0].type === 'GPL',
+                        'text-[var(--fuel-metano-color)]': station.fuel_prices[0].type === 'metano'
+                      }" x-text="translateFuel(station.fuel_prices[0].type)"></span>
+                  </template>
+                  <template x-if="station.fuel_prices && station.fuel_prices.length > 0">
+                    <span class="text-2xl font-bold text-[var(--color-primary)]" x-text="formatCurrency(station.fuel_prices[0].price)"></span>
+                  </template>
+                </div>
               </div>
-              <div class="station-price flex flex-row items-center gap-2 flex-wrap justify-end flex-shrink-0">
-                <template x-if="station.fuel_prices && station.fuel_prices.length > 0">
-                  <span class="uppercase tracking-wide text-sm" :class="{
-                      'text-[var(--fuel-benzina-color)]': station.fuel_prices[0].type === 'benzina',
-                      'text-[var(--fuel-gasolio-color)]': station.fuel_prices[0].type === 'gasolio',
-                      'text-[var(--fuel-gpl-color)]': station.fuel_prices[0].type === 'GPL',
-                      'text-[var(--fuel-metano-color)]': station.fuel_prices[0].type === 'metano'
-                    }" x-text="translateFuel(station.fuel_prices[0].type)"></span>
-                </template>
-                <template x-if="station.fuel_prices && station.fuel_prices.length > 0">
-                  <span class="text-2xl font-bold text-[var(--color-primary)]" x-text="formatCurrency(station.fuel_prices[0].price)"></span>
+              <!-- Line 2: Empty left, price diff/best price + distance right -->
+              <div class="flex items-center justify-end gap-3 pl-[calc(8px+2rem)]">
+                <template x-if="isCheapestStation(index)">
+                  <span class="inline-block bg-[var(--color-primary)] text-[#002c18] px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide animate-pulse-badge whitespace-nowrap" x-text="translate('best_price', 'Miglior Prezzo!')"></span>
                 </template>
                 <template x-if="station.fuel_prices && station.fuel_prices.length > 0 && !isCheapestStation(index)">
                   <span class="text-sm text-red-500 font-medium" x-text="getPriceDifference(index)"></span>
