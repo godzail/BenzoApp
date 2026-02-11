@@ -68,19 +68,24 @@ class Settings(BaseSettings):
     prezzi_cache_hours: int = Field(24, description="Number of hours to consider the cache fresh.")
     prezzi_csv_delimiter: str = Field(
         "auto",
-        description="Delimiter for CSV parsing: 'auto' to auto-detect (default), or a specific character like '|' or ';' to force.",
+        description=(
+            "Delimiter for CSV parsing: 'auto' to auto-detect (default), "
+            "or a specific character like '|' or ';' to force."
+        ),
     )
-    # Local CSV storage & retention
     prezzi_local_data_dir: str | None = Field(
         None,
-        description="Optional directory to read/write Prezzi CSV files. If None, falls back to project 'data' and 'src/static/data'.",
+        description=(
+            "Optional directory to read/write Prezzi CSV files. "
+            "If None, falls back to project 'data' and 'src/static/data'."
+        ),
     )
     prezzi_keep_versions: int = Field(
         1,
         description="How many timestamped CSV versions to keep when new CSVs are saved.",
     )
     prezzi_preload_on_startup: bool = Field(
-        True,
+        default=True,
         description="If true, preload the latest local CSVs into cache on application startup (non-blocking).",
     )
 

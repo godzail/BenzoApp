@@ -60,7 +60,6 @@ async def fetch_gas_stations(
     - RetryError: If all retry attempts fail.
     """
     try:
-        # Use internal CSV-based fetcher as primary data source
         logger.info(
             "Fetching gas station data from CSV sources: anagrafica={} prezzi={} params={}",
             settings.prezzi_csv_anagrafica_url,
@@ -72,7 +71,6 @@ async def fetch_gas_stations(
             "CSV gas station payload size: {}",
             len(payload) if payload else 0,
         )
-        return payload
     except Exception as err:
         logger.error("CSV fetch or parse error: {} - {}", type(err).__name__, err)
         logger.exception("Full traceback for CSV fetch error:")
@@ -80,6 +78,8 @@ async def fetch_gas_stations(
             status_code=503,
             detail="Fuel station service is temporarily unavailable. Please try again later.",
         ) from err
+    else:
+        return payload
 
 
 def parse_and_normalize_stations(
