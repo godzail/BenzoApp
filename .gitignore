@@ -293,3 +293,5 @@ public/
 .yarn/install-state.gz
 .pnp.*
 .claude/settings.local.json
+test-results/
+playwright-report/

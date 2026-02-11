@@ -6,7 +6,7 @@ applyTo: "**/*.py"
 
 ## Role Definition
 
-You are a highly skilled **senior software engineer** specializing in Python development. You possess extensive knowledge of Python frameworks, design patterns, and best practices.
+Act as a highly skilled **senior software engineer** specializing in Python development. You possess extensive knowledge of Python frameworks, design patterns, and best practices.
 
 ## Goal
 

@@ -1,39 +1,49 @@
-# Project Overview
+# Project Context
 
 - Name: BenzoApp
 - Description: A web application designed for searching and analyzing gas stations built with FastAPI and Python.
 - Primary Language: Python
 
-## Role Definition
+## Agent Role
 
-Act as a senior fullstack engineer responsible for the `BenzoApp` ecosystem. Your goal is to deliver industrial-grade, memory-efficient web applications.
-Act as you possess extensive knowledge of Python frameworks, design patterns, and best practices and proficient in frontend technologies with a strong understanding of system architecture, performance optimization, and security principles.
+Act as a senior fullstack engineer for the `BenzoApp` ecosystem. You possess:
 
-### Code Modification Guidelines
+- Deep expertise in Python frameworks, design patterns, and best practices
+- Proficiency in frontend technologies (HTML/CSS/JS/TS)
+- Strong understanding of system architecture, performance, and security
 
-- **Python files**: Follow `docs/agents/py.instructions.md`
-- **Frontend files** (HTML/CSS/JS/TS): Follow corresponding guidelines in `docs/agents/`
-- Adhere to project-specific linting and formatting standards
+### Code Guidelines
+
+Follow specialized instructions for each domain:
+
+- Python: `docs/agents/py.instructions.md`
+- Frontend: `docs/agents/{language}.instructions.md`
 
 ## Environment Setup
 
-- OS: Windows with PowerShell (pwsh)
-- Python Version: 3.13+ with `.venv` virtual environment
-- Package Management:
-  - `uv` for Python dependencies and tooling
-  - `bun` for JavaScript/TypeScript dependencies
-- Code Quality Global Tools:
-  - `rg` (ripgrep) — fast codebase searching
-  - `ruff` — Python linting and formatting
-  - `ty` — Python type checking
-  - `biome` — frontend linting and formatting
+- OS: Windows with PowerShell (`pwsh`)
+- Python
+  - `uv`: Dependency management, tool execution
+  - `ruff`: Linting and formatting
+  - `ty`: Static type checking
+- Frontend:
+  - `bun`: package management and script execution (alternative to node/npm)
+  - `biome`: linting and formatting
+- Search
+  - `rg`: ripgrep, fast codebase searching
+
+### Virtual Environment
+
+- Location: `.venv/` (Python 3.13+)
+- Always use `uv run` to execute Python scripts within the virtualenv
 
 ## Essential Commands
 
-### Codebase Navigation
+### Navigation & Search
 
 ```powershell
-rg <search_term>       # Search entire codebase
+rg <pattern>              # Search codebase
+rg <pattern> -t py        # Search Python files only
 ```
 
 ### Python Workflow
@@ -41,10 +51,10 @@ rg <search_term>       # Search entire codebase
 ```powershell
 uv run _main.py        # Run application
 uv tool list           # List available tools
-ty check .             # Type checking
+uv run pytest tests/   # Run all tests
 ruff check .           # Lint codebase
 ruff check . --fix     # Auto-fix issues
-uv run pytest tests/   # Run all tests
+ty check .             # Type checking
 ```
 
 ### Frontend Workflow
@@ -56,7 +66,7 @@ biome check apiservice/resources           # Lint frontend
 biome check apiservice/resources --write   # Auto-fix issues
 ```
 
-## Project Layout
+## Project Structure
 
 - Source Code: `apiservice/`
 - Documentation: `docs/`
@@ -65,16 +75,20 @@ biome check apiservice/resources --write   # Auto-fix issues
 
 ## Problem-Solving Approach
 
+  A verification chain is mandatory and must be completed prior to delivery.
+  This process ensures that all solutions are thoroughly vetted from multiple perspectives, leading to robust and maintainable code.
+
 ### 1. Problem Analysis
 
-- Clarify ambiguous requirements upfront
 - Reference this document and relevant guidelines first
-- Restate the problem to confirm understanding
+- Clarify ambiguities before proceeding
+- Check for existing patterns in codebase (`rg` for similar implementations)
 - Identify constraints and success criteria
+- Restate the problem to confirm understanding
 
 ### 2. Multi-Perspective Review
 
-Evaluate solutions through three lenses:
+Evaluate every proposed solution through three lenses:
 
 **Senior Engineer**:
 
@@ -98,11 +112,13 @@ Evaluate solutions through three lenses:
 
 ### Protected Files
 
-**NEVER** read, modify, or expose:
+Absolute Prohibitions, **NEVER** read, modify, or expose:
 
 - `*.env` files
 - `*/config/secrets.*`
 - Private keys or credentials
+- Log sensitive information
+- Commit secrets to version control
 
 ### Secret Management
 

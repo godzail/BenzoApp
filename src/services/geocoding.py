@@ -12,6 +12,15 @@ from src.models import Settings
 # maxsize=1000 items, ttl=3600 seconds (1 hour)
 geocoding_cache: TTLCache[str, dict[str, float]] = TTLCache(maxsize=1000, ttl=3600)
 
+# Small alias mapping for common English/Italian city name pairs
+ALIASES: dict[str, str] = {"florence": "firenze", "firenze": "firenze"}
+
+
+def normalize_city_input(city: str) -> str:
+    """Normalize city input for cache keys and geocoding queries."""
+    c = city.strip().lower()
+    return ALIASES.get(c, c)
+
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)
 async def geocode_city(
@@ -33,15 +42,16 @@ async def geocode_city(
     - HTTPException: If the city is not found or the API returns an error.
     - RetryError: If all retry attempts fail.
     """
-    # Check cache first
-    if city in geocoding_cache:
-        logger.info("Found city '%s' in geocoding cache", city)
-        return geocoding_cache[city]
+    # Normalize city input and check cache first
+    normalized_city = normalize_city_input(city)
+    if normalized_city in geocoding_cache:
+        logger.info("Found city '{}' in geocoding cache", normalized_city)
+        return geocoding_cache[normalized_city]
 
     try:
         response = await http_client.get(
             settings.nominatim_api_url,
-            params={"q": city, "format": "json", "limit": 1},
+            params={"q": normalized_city, "format": "json", "limit": 1, "countrycodes": "it", "accept-language": "it"},
             headers={"User-Agent": settings.user_agent},
         )
         response.raise_for_status()
@@ -53,7 +63,7 @@ async def geocode_city(
         result = {"latitude": float(location["lat"]), "longitude": float(location["lon"])}
     except httpx.HTTPStatusError as err:
         logger.error(
-            "Geocoding API returned error: %s - %s",
+            "Geocoding API returned error: {} - {}",
             err.response.status_code,
             err.response.reason_phrase,
         )
@@ -62,12 +72,12 @@ async def geocode_city(
             detail=f"Geocoding service error: {err.response.reason_phrase}",
         ) from err
     except httpx.RequestError as err:
-        logger.warning("Geocoding request error: %s", err)
+        logger.warning("Geocoding request error: {}", err)
         raise HTTPException(
             status_code=503,
             detail="Geocoding service is temporarily unavailable. Please try again later.",
         ) from err
     else:
         # Update cache only if request succeeded
-        geocoding_cache[city] = result
+        geocoding_cache[normalized_city] = result
         return result
