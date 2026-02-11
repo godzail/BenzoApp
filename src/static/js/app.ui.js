@@ -503,6 +503,13 @@ window.appUiMixin = {
   updateMap() {
     if (!this.mapInitialized) {
       this.initMap?.();
+    } else {
+      const mapContainer = document.getElementById("map");
+      if (!mapContainer) {
+        this.mapInitialized = false;
+        this.map = null;
+        this.initMap?.();
+      }
     }
     if (!this.map) {
       return;

@@ -12,8 +12,8 @@ import pytest
 if TYPE_CHECKING:
     import httpx
 
-import src.services.prezzi_csv as prezzi_csv
 from src.models import Settings, StationSearchParams
+from src.services import prezzi_csv
 from src.services.prezzi_csv import (
     _fetch_csvs,
     _is_cache_fresh,
@@ -30,6 +30,8 @@ EXPECTED_PRICE_B = 1.4
 EXPECTED_PRICE_C = 1.6
 LAT = 43.7696
 LON = 11.2558
+FLOAT_TOLERANCE = 1e-6
+MIN_EXPECTED_CALLS = 2
 
 # Use typing.cast when passing dummy clients to async function to satisfy typecheckers
 
@@ -199,11 +201,11 @@ def test_read_json_file_invalid(tmp_path):
 
 
 def test_fetch_csvs_raises_on_http_error(monkeypatch):
-    """_fetch_csvs should raise if one of the responses signals an HTTP error and local fallback is unavailable."""
+    """_fetch_csvs should raise if HTTP error and local fallback is unavailable."""
 
-    # Simulate that local fallback files are missing to force re-raising the original exception
-    async def raise_missing(settings):
-        raise FileNotFoundError("local CSVs missing for test")
+    async def raise_missing(_settings):
+        msg = "local CSVs missing for test"
+        raise FileNotFoundError(msg)
 
     monkeypatch.setattr(prezzi_csv, "_load_local_csvs", raise_missing)
 
@@ -229,7 +231,6 @@ def test_fetch_csvs_raises_on_http_error(monkeypatch):
 
 def test_parse_date_accepts_date_only():
     """_parse_date should accept date-only strings (no time component)."""
-
     date_str = datetime.now(tz=UTC).strftime("%d/%m/%Y")
     dt = _parse_date(date_str)
 
@@ -297,7 +298,7 @@ def test_ignores_empty_cache_and_fetches_fresh(tmp_path):
     result = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
 
     # Two calls should have been made to fetch the two CSVs
-    assert client.calls == 2
+    assert client.calls == MIN_EXPECTED_CALLS
     assert isinstance(result, list)
     assert len(result) == 1
 
@@ -327,7 +328,7 @@ def test_fuel_name_variants_match(tmp_path):
 
     assert isinstance(result, list)
     assert len(result) == 1
-    assert abs(result[0]["prezzo"] - 1.55) < 1e-6
+    assert abs(result[0]["prezzo"] - 1.55) < FLOAT_TOLERANCE
 
 
 def test_pipe_delimiter_is_detected(tmp_path):
@@ -355,7 +356,7 @@ def test_pipe_delimiter_is_detected(tmp_path):
 
     assert isinstance(result, list)
     assert len(result) == 1
-    assert abs(result[0]["prezzo"] - 1.55) < 1e-6
+    assert abs(result[0]["prezzo"] - 1.55) < FLOAT_TOLERANCE
 
 
 def test_bom_stripped(tmp_path):
@@ -366,11 +367,11 @@ def test_bom_stripped(tmp_path):
     # Prepare pipe-delimited data with BOM prefix (mis-decoded UTF-8 BOM)
     anag_header = "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9"
     anag_row = _make_anagrafica_row("777", "43,7696", "11,2558")
-    anag_text = "ï»¿" + f"{anag_header}\n{anag_row}\n"
+    anag_text = f"ï»¿{anag_header}\n{anag_row}\n"
 
     prezzi_header = "col0|col1|col2|col3|col4"
     prezzi_row = _make_prezzi_row("777", "benzina", "1,65", "1", date_str)
-    prezzi_text = "ï»¿" + f"{prezzi_header}\n{prezzi_row}\n"
+    prezzi_text = f"ï»¿{prezzi_header}\n{prezzi_row}\n"
 
     client = DummyClient(anag_text.encode("iso-8859-1"), prezzi_text.encode("iso-8859-1"))
 
@@ -381,7 +382,7 @@ def test_bom_stripped(tmp_path):
 
     result = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
     assert len(result) == 1
-    assert abs(result[0]["prezzo"] - 1.65) < 1e-6
+    assert abs(result[0]["prezzo"] - 1.65) < FLOAT_TOLERANCE
 
 
 def test_force_delimiter_override(tmp_path):
@@ -424,7 +425,7 @@ def test_force_delimiter_override(tmp_path):
 
     result = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
     assert len(result) == 1
-    assert abs(result[0]["prezzo"] - 1.70) < 1e-6
+    assert abs(result[0]["prezzo"] - 1.70) < FLOAT_TOLERANCE
 
     # Test with force '|' (wrong delimiter) => should return empty
     # Use a fresh settings with a different cache path to avoid reusing the previous cache
@@ -470,10 +471,8 @@ def test_fetch_and_save_csvs_and_cleanup(tmp_path):
     assert len(prezzi_files) == 1
 
     # Wait to ensure timestamp difference then fetch again -> should save a new set and cleanup old one
-    import time as _time
-
-    _time.sleep(1)
-    result2 = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
+    time.sleep(1)
+    asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
     anag_files2 = list(tmp_path.glob("anagrafica_impianti_attivi_*.csv"))
     prezzi_files2 = list(tmp_path.glob("prezzo_alle_8_*.csv"))
     assert len(anag_files2) == 1
@@ -498,6 +497,6 @@ def test_load_local_csvs_uses_custom_dir(tmp_path):
     settings = Settings()
     settings.prezzi_local_data_dir = str(tmp_path)
 
-    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
-    assert "anagrafica" in anag_text
-    assert "prezzo" in prezzi_text
+    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))  # noqa: SLF001
+    assert "GestoreX" in anag_text
+    assert "benzina" in prezzi_text
