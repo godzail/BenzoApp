@@ -143,6 +143,7 @@ class Station(BaseModel):
     latitude: float
     longitude: float
     fuel_prices: list[FuelPrice]
+    distance: float | None = None
 
     model_config = {
         "json_schema_extra": {
@@ -158,6 +159,7 @@ class Station(BaseModel):
                             "price": 1.85,
                         },
                     ],
+                    "distance": 2.5,
                 },
             ],
         },

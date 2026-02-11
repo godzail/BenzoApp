@@ -56,21 +56,34 @@
                 <span x-text="station.gestore || translate('station', 'Gas Station')"></span>
               </div>
               <div class="station-price" aria-label="Price">
-                <!-- Best Price Badge - now inline with price -->
-                <template x-if="isCheapestStation(index)">
-                  <span class="best-price-badge-inline"
-                    x-text="translate('best_price', 'Best Price!') + (currentLang ? '' : '')"></span>
-                </template>
-                <template x-if="station.fuel_prices && station.fuel_prices.length > 0">
-                  <span class="price-large" x-text="formatCurrency(station.fuel_prices[0].price)"></span>
-                </template>
-                <template x-if="station.fuel_prices && station.fuel_prices.length > 0"><span class="price-fuel" :class="{
-                          'benzina': station.fuel_prices[0].type === 'benzina',
-                          'gasolio': station.fuel_prices[0].type === 'gasolio',
-                          'GPL': station.fuel_prices[0].type === 'GPL',
-                          'metano': station.fuel_prices[0].type === 'metano'
-                        }"
-                    x-text="translateFuel(station.fuel_prices[0].type) + (currentLang ? '' : '')"></span></template>
+                <div class="flex items-center gap-2">
+                  <template x-if="station.fuel_prices && station.fuel_prices.length > 0">
+                    <span class="uppercase tracking-wide text-sm" :class="{
+                      'text-yellow-600': station.fuel_prices[0].type === 'benzina',
+                      'text-gray-600 dark:text-gray-400': station.fuel_prices[0].type === 'gasolio',
+                      'text-blue-600': station.fuel_prices[0].type === 'GPL',
+                      'text-green-600': station.fuel_prices[0].type === 'metano'
+                    }" x-text="translateFuel(station.fuel_prices[0].type)"></span>
+                  </template>
+                  <template x-if="station.fuel_prices && station.fuel_prices.length > 0">
+                    <span class="text-2xl font-bold text-primary" x-text="formatCurrency(station.fuel_prices[0].price)"></span>
+                  </template>
+                  <template x-if="isCheapestStation(index)">
+                    <span class="text-xs font-bold text-primary uppercase tracking-wide" x-text="translate('best_price', 'Miglior Prezzo!')"></span>
+                  </template>
+                  <template x-if="station.fuel_prices && station.fuel_prices.length > 0 && !isCheapestStation(index)">
+                    <span class="text-sm text-red-500 font-medium" x-text="getPriceDifference(index)"></span>
+                  </template>
+                  <template x-if="station.distance">
+                    <span class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                      </svg>
+                      <span x-text="formatDistance(station.distance)"></span>
+                    </span>
+                  </template>
+                </div>
               </div>
             </div>
 
@@ -82,29 +95,6 @@
                   <circle cx="12" cy="10" r="3"></circle>
                 </svg>
                 <span class="station-address" x-text="station.address"></span>
-              </div>
-
-              <div class="station-meta-row">
-                <span class="fuel-badge" :class="{
-                        'benzina': formData.fuel === 'benzina',
-                        'gasolio': formData.fuel === 'gasolio',
-                        'GPL': formData.fuel === 'GPL',
-                        'metano': formData.fuel === 'metano'
-                      }">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                    <path d="M2 17l10 5 10-5"></path>
-                    <path d="M2 12l10 5 10-5"></path>
-                  </svg>
-                  <span x-text="translateFuel(formData.fuel) + (currentLang ? '' : '')"></span>
-                </span>
-                <template x-if="station.distance"><span class="distance-badge">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    <span x-text="station.distance + ' km'"></span>
-                  </span></template>
               </div>
 
               <!-- Station Actions - Moved inside each card -->

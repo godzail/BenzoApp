@@ -200,7 +200,13 @@ async def search_gas_stations(
         return SearchResponse(stations=[], warning="Failed to fetch gas station data. Please try again later.")
 
     # Parse and normalize stations
-    stations, skipped_count = parse_and_normalize_stations(stations_payload, normalized_fuel, results)
+    stations, skipped_count = parse_and_normalize_stations(
+        stations_payload,
+        normalized_fuel,
+        results,
+        search_lat=location["latitude"],
+        search_lon=location["longitude"],
+    )
 
     return SearchResponse(
         stations=stations,

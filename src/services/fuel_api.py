@@ -1,5 +1,8 @@
 """Fuel station API service."""
 
+import math
+from typing import Any
+
 import httpx
 from fastapi import HTTPException
 from loguru import logger
@@ -15,12 +18,33 @@ from src.models import (
 from src.services.prezzi_csv import fetch_and_combine_csv_data
 
 
+def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance between two coordinates using Haversine formula.
+
+    Parameters:
+    - lat1, lon1: First coordinate (search location).
+    - lat2, lon2: Second coordinate (station location).
+
+    Returns:
+    - Distance in kilometers.
+    """
+    earth_radius_km = 6371
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lon = math.radians(lon2 - lon1)
+
+    a = math.sin(delta_lat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return earth_radius_km * c
+
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)
 async def fetch_gas_stations(
     params: StationSearchParams,
     settings: Settings,
     http_client: httpx.AsyncClient,
-) -> dict:
+) -> dict | list[Any]:
     """Fetch gas stations from Prezzi Carburante API.
 
     Parameters:
@@ -62,6 +86,8 @@ def parse_and_normalize_stations(
     stations_payload: dict | list,
     fuel_type: str,
     results_limit: int,
+    search_lat: float | None = None,
+    search_lon: float | None = None,
 ) -> tuple[list[Station], int]:
     """Normalize payload to an iterable of station data dicts.
 
@@ -69,6 +95,8 @@ def parse_and_normalize_stations(
     - stations_payload: The raw JSON payload from the fuel API.
     - fuel_type: The normalized fuel type to use for Price objects.
     - results_limit: The maximum number of stations to return.
+    - search_lat: Latitude of search location for distance calculation.
+    - search_lon: Longitude of search location for distance calculation.
 
     Returns:
     - A tuple containing:
@@ -100,12 +128,17 @@ def parse_and_normalize_stations(
                 logger.warning("Skipping station {} because of invalid coordinates: lat=0.0, lon=0.0", idx)
                 skipped_count += 1
                 continue
+            # Calculate distance from search location
+            distance = None
+            if search_lat is not None and search_lon is not None:
+                distance = calculate_distance(search_lat, search_lon, lat, lon)
             station = Station(
                 id=str(idx),
                 address=data.get("indirizzo", "") or "",
                 latitude=lat,
                 longitude=lon,
                 fuel_prices=[FuelPrice(type=fuel_type, price=price)],
+                distance=round(distance, 1) if distance is not None else None,
             )
             stations.append(station)
         except (ValueError, TypeError) as err:
