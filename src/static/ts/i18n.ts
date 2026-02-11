@@ -1,5 +1,7 @@
-// i18next initialization and language switcher
-
+/**
+ * i18n utilities: initialize i18next, manage language switching, and
+ * update DOM text based on translation resources.
+ */
 const STATUS_MESSAGE_DURATION = 3000;
 const INITIALIZATION_RETRY_DELAY = 100;
 
@@ -106,6 +108,13 @@ function updateI18nTexts(): void {
     }
   }
 
+  // Update browser tab title with translated title
+  try {
+    document.title = t("title", "Gas Station Finder");
+  } catch {
+    // ignore errors setting document.title in non-browser environments
+  }
+
   updateDataI18nElements();
 }
 
@@ -125,33 +134,46 @@ function updateDataI18nElements(): void {
 }
 
 /**
- * Function to initialize i18next
+ * Initialize i18next with the configured language and ensure translations are loaded.
+ *
+ * This sets the initial language and triggers loading of translation resources.
  */
 function initI18next(): void {
-  const backendModule = {
-    init: () => backendModule,
-  };
-  const returned = i18next.use(backendModule);
-  (returned as { init: (opts: unknown, cb?: unknown) => void }).init(
+  i18next.init(
     {
       lng: window.APP_USER_LANG,
       fallbackLng: "it",
       debug: false,
-      preload: [window.APP_USER_LANG],
-      backend: {
-        loadPath: "/static/locales/{{lng}}.json",
-      },
+      resources: {},
     },
     (err: unknown) => {
       if (err) {
         console.error("i18next initialization error:", err);
       }
+      loadTranslations(window.APP_USER_LANG);
+    },
+  );
+}
+
+/**
+ * Load translation JSON for a language and add it to i18next resources.
+ *
+ * @param lang - Language code to load (e.g., 'it' or 'en').
+ */
+async function loadTranslations(lang: string): Promise<void> {
+  try {
+    const response = await fetch(`/static/locales/${lang}.json`);
+    if (response.ok) {
+      const resources = await response.json();
+      i18next.addResourceBundle(lang, "translation", resources, true, true);
       updateI18nTexts();
       setTimeout(() => {
         updateI18nTexts();
       }, INITIALIZATION_RETRY_DELAY);
-    },
-  );
+    }
+  } catch (err) {
+    console.error("Failed to load translations:", err);
+  }
 }
 
 if (document.readyState === "loading") {

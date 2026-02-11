@@ -1,44 +1,37 @@
+"use strict";
 /**
-  * Main application composition.
-  * Composes the UI, storage, and map mixins into the main app object.
-  */
-(() => {
-  /**
-   * Creates the gas station application object.
-   * @returns {Object} The application state and methods.
-   */
-  function gasStationApp() {
+ * Main application composition.
+ * Composes the UI, storage, and map mixins into the main app object.
+ */
+function gasStationApp() {
     return {
-      formData: {
-        city: "",
-        radius: window.CONFIG.DEFAULT_RADIUS,
-        fuel: window.CONFIG.DEFAULT_FUEL,
-        results: window.CONFIG.DEFAULT_RESULTS,
-      },
-      recentSearches: [],
-      loading: false,
-      results: [],
-      error: "",
-      searched: false,
-      currentTheme: window.CONFIG.DEFAULT_THEME,
-      currentLang: null,
-      map: null,
-      mapInitialized: false,
-      mapMarkers: {},
-      showCitySuggestions: false,
-      cityList: [],
-      filteredCities: [],
-      debugMode: false,
-      csvLastUpdated: null,
-      csvReloading: false,
-      csvStatusInterval: null,
-
-      // mixins
-      ...window.appUiMixin,
-      ...window.appStorageMixin,
-      ...window.appMapMixin,
+        formData: {
+            city: "",
+            radius: window.CONFIG.DEFAULT_RADIUS,
+            fuel: window.CONFIG.DEFAULT_FUEL,
+            results: window.CONFIG.DEFAULT_RESULTS,
+        },
+        recentSearches: [],
+        loading: false,
+        results: [],
+        error: "",
+        searched: false,
+        currentTheme: window.CONFIG.DEFAULT_THEME,
+        currentLang: null,
+        map: null,
+        mapInitialized: false,
+        mapMarkers: {},
+        showCitySuggestions: false,
+        cityList: [],
+        filteredCities: [],
+        debugMode: false,
+        csvLastUpdated: null,
+        csvReloading: false,
+        csvStatusInterval: null,
+        ...window.appUiMixin,
+        ...window.appStorageMixin,
+        ...window.appMapMixin,
     };
-  }
-
-  window.gasStationApp = gasStationApp;
-})();
+}
+window.gasStationApp = gasStationApp;
+//# sourceMappingURL=app.js.map

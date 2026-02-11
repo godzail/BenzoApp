@@ -1,15 +1,20 @@
 <div class="header-content">
   <!-- Logo/Title -->
   <div class="title-row">
-    <h1 id="title-i18n" class="app-title text-xl font-semibold text-[var(--text-primary)]"></h1>
+    <h1
+      id="title-i18n"
+      x-text="translate('title','Gas Station Finder') + (currentLang ? '' : '')"
+      class="app-title text-xl font-semibold text-[var(--text-primary)]"
+    ></h1>
     <div class="csv-status flex items-center gap-2 text-sm text-[var(--text-secondary)]">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
-      <span x-show="csvLastUpdated" x-text="formatTimestamp(csvLastUpdated)"></span>
-      <span x-show="!csvLastUpdated" x-text="translate('data_loading', 'Loading data...')"></span>
+      <span x-show="csvStatusLoading" x-text="translate('data_loading', 'Loading data...')"></span>
+      <span x-show="!csvStatusLoading && csvLastUpdated" x-text="formatTimestamp(csvLastUpdated)"></span>
+      <span x-show="!csvStatusLoading && !csvLastUpdated" x-text="translate('no_data', 'No data available')"></span>
       <button
-        x-show="csvLastUpdated"
+        x-show="!csvStatusLoading"
         @click="reloadCsv()"
         :disabled="csvReloading"
         class="reload-btn p-1 rounded hover:bg-[var(--bg-elevated)] transition-colors"
@@ -24,7 +29,9 @@
           stroke-width="2"
           viewBox="0 0 24 24"
         >
-          <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          <path
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
         </svg>
         <svg
           x-show="csvReloading"
@@ -34,15 +41,23 @@
           stroke-width="2"
           viewBox="0 0 24 24"
         >
-          <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          <path
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
         </svg>
       </button>
     </div>
   </div>
 
   <!-- Floating Search Bar -->
-  <div class="search-container flex-1 max-w-xl" x-data="{ highlightedIndex: -1 }" @keydown.escape="showCitySuggestions = false">
-    <div class="search-bar flex items-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-full p-1 shadow-md transition-all duration-150">
+  <div
+    class="search-container flex-1 max-w-xl"
+    x-data="{ highlightedIndex: -1 }"
+    @keydown.escape="showCitySuggestions = false"
+  >
+    <div
+      class="search-bar flex items-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-full p-1 shadow-md transition-all duration-150"
+    >
       <span class="search-icon text-[var(--text-muted)]">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"></circle>
@@ -88,7 +103,12 @@
 
     <!-- Autocomplete Dropdown -->
     <template x-if="showCitySuggestions && filteredCities.length > 0">
-      <ul class="autocomplete-list absolute left-0 right-0 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl z-50" id="city-suggestions" role="listbox" x-ref="suggestionsList">
+      <ul
+        class="autocomplete-list absolute left-0 right-0 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl z-50"
+        id="city-suggestions"
+        role="listbox"
+        x-ref="suggestionsList"
+      >
         <template x-for="(city, index) in filteredCities" :key="city">
           <li
             class="autocomplete-item px-4 py-2 cursor-pointer transition-colors duration-150 text-[var(--text-primary)]"
@@ -117,15 +137,27 @@
       <!-- Sun Icon (Light Mode) -->
       <svg
         x-show="currentTheme === 'dark'"
-        width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
       >
         <circle cx="12" cy="12" r="5"></circle>
-        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+        <path
+          d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
+        ></path>
       </svg>
       <!-- Moon Icon (Dark Mode) -->
       <svg
         x-show="currentTheme === 'light'"
-        width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
       >
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
       </svg>
@@ -134,7 +166,7 @@
     <!-- Language Switcher -->
     <div class="lang-switcher flex gap-1">
       <button
-        class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)]"
+        class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--text-primary)]"
         type="button"
         @click="setLanguage('en')"
         :class="{ 'bg-[var(--color-primary)] text-white border-[var(--color-primary)] font-bold': currentLang === 'en' }"
@@ -143,7 +175,7 @@
         EN
       </button>
       <button
-        class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)]"
+        class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--text-primary)]"
         type="button"
         @click="setLanguage('it')"
         :class="{ 'bg-[var(--color-primary)] text-white border-[var(--color-primary)] font-bold': currentLang === 'it' }"

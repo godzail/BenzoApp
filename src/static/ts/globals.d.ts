@@ -31,6 +31,7 @@ interface Window {
     CSV_STATUS_ENDPOINT: string;
     CSV_RELOAD_ENDPOINT: string;
     CSV_AUTO_REFRESH_INTERVAL_MS: number;
+    SEARCH_TIMEOUT_MS: number;
   };
   extractGestore: (station: { gestore?: string }) => string;
   themeManager: {
@@ -45,6 +46,13 @@ interface Window {
     changeLanguage?: (lang: string, callback?: () => void) => void;
     language?: string;
     reloadResources?: (lang: string, ns: string, callback?: () => void) => void;
+    addResourceBundle: (
+      lng: string,
+      ns: string,
+      resources: Record<string, unknown>,
+      deep?: boolean,
+      overwrite?: boolean,
+    ) => void;
     use: (module: { init: (options: unknown) => unknown }) => {
       init: (options: unknown) => void;
     };
@@ -53,8 +61,7 @@ interface Window {
         lng: string;
         fallbackLng: string;
         debug: boolean;
-        preload: string[];
-        backend: { loadPath: string };
+        resources?: Record<string, unknown>;
       },
       callback?: (err: unknown) => void,
     ) => void;
@@ -66,6 +73,13 @@ declare const i18next: {
   changeLanguage?: (lang: string, callback?: () => void) => void;
   language?: string;
   reloadResources?: (lang: string, ns: string, callback?: () => void) => void;
+  addResourceBundle: (
+    lng: string,
+    ns: string,
+    resources: Record<string, unknown>,
+    deep?: boolean,
+    overwrite?: boolean,
+  ) => void;
   use: (module: { init: (options: unknown) => unknown }) => {
     init: (options: unknown) => void;
   };
@@ -74,36 +88,10 @@ declare const i18next: {
       lng: string;
       fallbackLng: string;
       debug: boolean;
-      preload: string[];
-      backend: { loadPath: string };
+      resources?: Record<string, unknown>;
     },
     callback?: (err: unknown) => void,
   ) => void;
 };
 
-declare const L: {
-  map: (element: string) => {
-    setView: (center: [number, number], zoom: number) => unknown;
-    fitBounds: (
-      bounds: [[number, number], [number, number]],
-      options?: { padding?: [number, number]; maxZoom?: number },
-    ) => void;
-    invalidateSize: () => void;
-  };
-  marker: (coords: [number, number]) => {
-    addTo: (map: unknown) => {
-      __station?: unknown;
-      bindPopup: (content: string) => void;
-      openPopup: () => void;
-    };
-    setPopupContent: (content: string) => void;
-    getLatLng: () => [number, number];
-    remove: () => void;
-  };
-  tileLayer: (
-    url: string,
-    options: { attribution: string },
-  ) => {
-    addTo: (map: unknown) => void;
-  };
-};
+

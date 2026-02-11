@@ -36,5 +36,6 @@
   "max_results": "Max Results",
   "user_docs": "User Documentation",
   "data_loading": "Loading data...",
+  "no_data": "No data available",
   "reload_data": "Reload data"
 }

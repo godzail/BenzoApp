@@ -188,9 +188,19 @@ async def search_gas_stations(
     results: int = request.results if request.results and request.results > 0 else DEFAULT_RESULTS_COUNT
     radius: int = min(max(request.radius or 1, 1), MAX_SEARCH_RADIUS_KM)
 
-    # Geocode city
+    # Geocode city (with timeout)
     try:
-        location = await geocode_city(city, settings, app.state.http_client)
+        location = await asyncio.wait_for(
+            geocode_city(city, settings, app.state.http_client),
+            timeout=settings.search_timeout_seconds,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Search timed out during geocoding for city: {}", city)
+        return SearchResponse(
+            stations=[],
+            warning="Search timed out. Please try again later.",
+            error=True,
+        )
     except RetryError:
         return SearchResponse(
             stations=[],
@@ -200,7 +210,7 @@ async def search_gas_stations(
     except HTTPException:
         return SearchResponse(stations=[], warning="City not found. Please check the city name and try again.")
 
-    # Fetch stations
+    # Fetch stations (with timeout)
     try:
         normalized_fuel = normalize_fuel_type(request.fuel)
         params = StationSearchParams(
@@ -210,7 +220,17 @@ async def search_gas_stations(
             fuel=normalized_fuel,
             results=min(results, MAX_RESULTS_COUNT),
         )
-        stations_payload = await fetch_gas_stations(params, settings, app.state.http_client)
+        stations_payload = await asyncio.wait_for(
+            fetch_gas_stations(params, settings, app.state.http_client),
+            timeout=settings.search_timeout_seconds,
+        )
+    except asyncio.TimeoutError:
+        logger.warning("Search timed out while fetching stations for city: {}", city)
+        return SearchResponse(
+            stations=[],
+            warning="Search timed out while fetching station data. Please try again later.",
+            error=True,
+        )
     except RetryError:
         return SearchResponse(
             stations=[],

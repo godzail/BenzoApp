@@ -47,6 +47,7 @@ interface AppUiMixin {
   searched: boolean;
   csvLastUpdated: string | null;
   csvReloading: boolean;
+  csvStatusLoading: boolean;
   csvStatusInterval: ReturnType<typeof setInterval> | null;
   currentTheme: string;
   $nextTick?: (callback: () => void) => void;
@@ -92,11 +93,16 @@ interface AppUiMixin {
   getDirections(station: Station): void;
   locateUser(): void;
   reinitializeComponents?: () => void;
-  updateMap?: () => void;
 }
 
 window.appUiMixin = {
+  /**
+   * Fetch CSV status from the configured endpoint.
+   *
+   * @returns A promise that resolves to `CsvStatus` containing last update and stale flag.
+   */
   async fetchCsvStatus(): Promise<CsvStatus> {
+    this.csvStatusLoading = true;
     try {
       const response = await fetch(window.CONFIG.CSV_STATUS_ENDPOINT);
       if (!response.ok) {
@@ -109,9 +115,16 @@ window.appUiMixin = {
         (window.appUiMixin as AppUiMixin & { error?: string }).error,
       );
       return { last_updated: null, source: "unknown", is_stale: false };
+    } finally {
+      this.csvStatusLoading = false;
     }
   },
 
+  /**
+   * Trigger a CSV reload request to the server and update last-updated state.
+   *
+   * @returns Server response object or an error-like status object.
+   */
   async reloadCsv(): Promise<
     ReloadResponse | { status: string; message: string }
   > {
@@ -151,8 +164,16 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Format an ISO timestamp into a localized human-readable string.
+   *
+   * @param isoTimestamp - ISO-formatted date-time string.
+   * @returns Localized formatted date/time or the original string on error.
+   */
   formatTimestamp(isoTimestamp: string): string {
-    if (!isoTimestamp) return "";
+    if (!isoTimestamp) {
+      return "";
+    }
     try {
       const date = new Date(isoTimestamp);
       const locale = this.currentLang === "it" ? "it-IT" : "en-US";
@@ -172,6 +193,12 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Format a numeric value using configured currency settings.
+   *
+   * @param value - Numeric amount to format.
+   * @returns Formatted currency string.
+   */
   formatCurrency(value: number): string {
     return new Intl.NumberFormat(window.CONFIG.CURRENCY_LOCALE, {
       style: "currency",
@@ -181,8 +208,16 @@ window.appUiMixin = {
     }).format(value);
   },
 
+  /**
+   * Log debug information when `debugMode` is enabled.
+   *
+   * @param message - Debug message or label.
+   * @param data - Optional additional data to log.
+   */
   debug(message: string, data: unknown = null): void {
-    if (this.debugMode) console.log("[DEBUG]", message, data ?? "");
+    if (this.debugMode) {
+      console.log("[DEBUG]", message, data ?? "");
+    }
   },
 
   safeGetItem(key: string): string | null {
@@ -193,6 +228,12 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Safely write a value to localStorage, ignoring storage errors.
+   *
+   * @param key - Storage key.
+   * @param value - Value to store.
+   */
   safeSetItem(key: string, value: string): void {
     try {
       localStorage.setItem(key, value);
@@ -201,8 +242,15 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Toggle the loading bar UI and optional status message for accessibility.
+   *
+   * @param active - Whether the loading bar should be active.
+   */
   setLoadingBar(active: boolean): void {
-    if (!this.loadingBar) return;
+    if (!this.loadingBar) {
+      return;
+    }
     const statusEl = document.getElementById("status-messages");
     if (active) {
       this.loadingBar.classList.add("active");
@@ -223,21 +271,33 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Initialize UI components such as theme, loading bar and layout resizer.
+   */
   initializeComponents(): void {
     window.themeManager.init();
     this.currentTheme =
       document.documentElement.getAttribute("data-theme") ||
       window.CONFIG.DEFAULT_THEME;
     const progressEl = document.getElementById("loading-bar");
-    if (progressEl) this.loadingBar = progressEl;
+    if (progressEl) {
+      this.loadingBar = progressEl;
+    }
     this.initializeResizer();
   },
 
+  /**
+   * Set up layout resizer handlers for drag-to-resize behaviour.
+   * Uses guard clauses to be a no-op when required elements are not present.
+   */
   initializeResizer(): void {
     const resizer = document.getElementById("layout-resizer");
     const searchColumn = document.getElementById("search-column");
-    const mainLayout = document.querySelector(".main-layout");
-    if (!(resizer && searchColumn && mainLayout)) return;
+    const mainLayout = document.querySelector(".main-layout") as HTMLElement | null;
+    if (!(resizer && searchColumn && mainLayout)) {
+      return;
+    }
+    const layoutEl = mainLayout as HTMLElement;
 
     let isResizing = false;
     resizer.addEventListener("mousedown", () => {
@@ -247,14 +307,16 @@ window.appUiMixin = {
     });
 
     document.addEventListener("mousemove", (e) => {
-      if (!isResizing) return;
-      const containerRect = mainLayout.getBoundingClientRect();
+      if (!isResizing) {
+        return;
+      }
+      const containerRect = layoutEl.getBoundingClientRect();
       const relativeX = e.clientX - containerRect.left;
       const totalWidth = containerRect.width;
       let percentage = (relativeX / totalWidth) * 100;
       percentage = Math.max(10, Math.min(90, percentage));
-      mainLayout.style.gridTemplateColumns = `${percentage}% 4px 1fr`;
-      resizer.setAttribute("aria-valuenow", Math.round(percentage));
+      layoutEl.style.gridTemplateColumns = `${percentage}% 4px 1fr`;
+      resizer.setAttribute("aria-valuenow", String(Math.round(percentage)));
       if (
         this.map &&
         typeof (this.map as { invalidateSize?: () => void }).invalidateSize ===
@@ -265,7 +327,9 @@ window.appUiMixin = {
     });
 
     document.addEventListener("mouseup", () => {
-      if (!isResizing) return;
+      if (!isResizing) {
+        return;
+      }
       isResizing = false;
       document.body.style.cursor = "";
       document.body.classList.remove("is-resizing");
@@ -282,11 +346,19 @@ window.appUiMixin = {
     });
   },
 
+  /**
+   * Toggle between light and dark theme using the theme manager.
+   */
   toggleTheme(): void {
     this.currentTheme = window.themeManager.toggle();
     this.debug("Theme toggled to:", this.currentTheme);
   },
 
+  /**
+   * Update selected fuel type and debounced-submit form when required.
+   *
+   * @param fuel - Fuel identifier to set (e.g., 'diesel', 'benzina').
+   */
   setFuelType(fuel: string): void {
     this.formData.fuel = fuel;
     this.$nextTick?.(() => {
@@ -306,6 +378,10 @@ window.appUiMixin = {
     return this.formData.fuel === fuel;
   },
 
+  /**
+   * Handle city input changes and update suggestions list.
+   * Shows or hides the suggestion dropdown based on matches.
+   */
   onCityInput(): void {
     const value = (this.formData.city || "").trim().toLowerCase();
     if (value.length === 0) {
@@ -319,18 +395,31 @@ window.appUiMixin = {
     this.showCitySuggestions = this.filteredCities.length > 0;
   },
 
+  /**
+   * Select a city from suggestions, set it on the form and hide suggestions.
+   *
+   * @param city - City name selected by the user.
+   */
   selectCity(city: string): void {
     this.formData.city = city;
     this.filteredCities = [];
     this.showCitySuggestions = false;
   },
 
+  /**
+   * Hide the city suggestion dropdown after a short delay (used for blur events).
+   */
   hideCitySuggestions(): void {
     setTimeout(() => {
       this.showCitySuggestions = false;
     }, window.CONFIG.CITY_SUGGESTION_HIDE_DELAY);
   },
 
+  /**
+   * Return true if the station at `index` has the cheapest price among results.
+   *
+   * @param index - Index of the station within `results`.
+   */
   isCheapestStation(index: number): boolean {
     if (!this.results || this.results.length === 0) {
       return false;
@@ -346,20 +435,32 @@ window.appUiMixin = {
     return Number.isFinite(stationPrice) && stationPrice === minPrice;
   },
 
+  /**
+   * Compute a formatted price difference between the station at `index` and the cheapest price.
+   *
+   * @param index - String index of the station in `results`.
+   * @returns A formatted difference string or an empty string on error.
+   */
   getPriceDifference(index: string): string {
     const idx = Number.parseInt(index, 10);
-    if (!this.results || this.results.length === 0) return "";
+    if (!this.results || this.results.length === 0) {
+      return "";
+    }
 
     const prices = this.results
       .map((s) => Number(s.fuel_prices?.[0]?.price))
       .filter((p): p is number => Number.isFinite(p));
 
-    if (prices.length === 0) return "";
+    if (prices.length === 0) {
+      return "";
+    }
 
     const minPrice = Math.min(...prices);
     const stationPrice = Number(this.results[idx]?.fuel_prices?.[0]?.price);
 
-    if (!Number.isFinite(stationPrice)) return "";
+    if (!Number.isFinite(stationPrice)) {
+      return "";
+    }
 
     const diff = stationPrice - minPrice;
 
@@ -373,10 +474,18 @@ window.appUiMixin = {
 
   formatDistance(distance: number | string): string {
     const num = Number.parseFloat(distance as string);
-    if (isNaN(num)) return distance as string;
+    if (Number.isNaN(num)) {
+      return distance as string;
+    }
     return `${num.toFixed(1)} km`;
   },
 
+  /**
+   * Build the HTML content for a marker popup using station data and translations.
+   *
+   * @param station - Station object used to populate popup.
+   * @returns HTML string for popup content.
+   */
   buildPopupContent(station: Station): string {
     const title =
       station.gestore || this.translate("translation.station", "Gas Station");
@@ -389,6 +498,13 @@ window.appUiMixin = {
       `;
   },
 
+  /**
+   * Translate a key using the available translation helpers (window.t or i18next).
+   *
+   * @param key - Translation key.
+   * @param fallback - Fallback text if translation is missing.
+   * @returns The translated string or the provided fallback.
+   */
   translate(key: string, fallback = ""): string {
     if (typeof window.t === "function") {
       return window.t(key, fallback);
@@ -403,6 +519,10 @@ window.appUiMixin = {
     return fallback || key;
   },
 
+  /**
+   * Initialize `window.translateFuel` helper which maps internal fuel identifiers
+   * to translation keys and returns the translated label.
+   */
   initTranslateFuelHelper(): void {
     window.translateFuel = (type: string): string => {
       try {
@@ -432,13 +552,20 @@ window.appUiMixin = {
     };
   },
 
+  /**
+   * Set the application's language preference, persist it and trigger UI updates.
+   *
+   * @param lang - Language code ('it' or 'en').
+   */
   setLanguage(lang: string): void {
     this.safeSetItem("lang", lang);
     if (window.setLang) {
       window.setLang(lang as "it" | "en");
     } else if (window.i18next?.changeLanguage) {
       window.i18next.changeLanguage(lang, () => {
-        if (window.updateI18nTexts) window.updateI18nTexts();
+        if (window.updateI18nTexts) {
+          window.updateI18nTexts();
+        }
         window.dispatchEvent(
           new CustomEvent("languageChanged", { detail: { lang } }),
         );
@@ -446,6 +573,12 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Load an HTML fragment from `url` and inject it into the element with `elementId`.
+   *
+   * @param url - URL of the fragment to fetch.
+   * @param elementId - DOM element id to inject the HTML into.
+   */
   async loadComponent(url: string, elementId: string): Promise<void> {
     try {
       const response = await fetch(url);
@@ -462,6 +595,9 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Initialize the application: load templates, cities, translations and set up event listeners.
+   */
   async init(): Promise<void> {
     try {
       await Promise.all([
@@ -481,11 +617,14 @@ window.appUiMixin = {
         window.i18next?.language &&
         window.i18next.language !== this.currentLang
       ) {
-        window.i18next.changeLanguage(this.currentLang);
+        if (window.i18next.changeLanguage) {
+          window.i18next.changeLanguage(this.currentLang);
+        }
       }
 
-      window.addEventListener("languageChanged", (event) => {
-        const { lang } = event.detail;
+      window.addEventListener("languageChanged", (e) => {
+        const ev = e as CustomEvent<{ lang: string }>;
+        const { lang } = ev.detail;
         this.currentLang = lang;
         this.reinitializeComponents?.();
         this.refreshMapMarkersOnLanguageChange?.();
@@ -532,6 +671,9 @@ window.appUiMixin = {
     }
   },
 
+  /**
+   * Submit the search form to the configured search API, update results and handle errors/timeouts.
+   */
   async submitForm(): Promise<void> {
     this.loading = true;
     this.setLoadingBar(true);
@@ -540,10 +682,17 @@ window.appUiMixin = {
     this.saveRecentSearch({ ...this.formData });
     const fuelToSend =
       this.formData.fuel === "diesel" ? "gasolio" : this.formData.fuel;
+
+    // Use AbortController to enforce client-side timeout so the UI doesn't hang indefinitely
+    const controller = new AbortController();
+    const timeoutMs = window.CONFIG.SEARCH_TIMEOUT_MS || 12000;
+    const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
       const response = await fetch(window.CONFIG.SEARCH_API_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           city: this.formData.city,
           radius: Number.parseInt(
@@ -583,15 +732,23 @@ window.appUiMixin = {
         }
       });
     } catch (err) {
-      this.error = err instanceof Error ? err.message : "Unknown error";
+      if ((err as Error & { name?: string }).name === "AbortError") {
+        this.error = "Request timed out. Please try again.";
+      } else {
+        this.error = err instanceof Error ? err.message : "Unknown error";
+      }
       this.results = [];
       this.debug("Search failed:", this.error);
     } finally {
+      clearTimeout(timeoutHandle);
       this.loading = false;
       this.setLoadingBar(false);
     }
   },
 
+  /**
+   * Update map state: initialize if necessary, clear markers and add markers for current results.
+   */
   updateMap(): void {
     if (this.mapInitialized) {
       const mapContainer = document.getElementById("map");
