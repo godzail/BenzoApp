@@ -1,0 +1,446 @@
+/* Custom CSS - Animations, Third-party overrides, and Theme variables */
+:root {
+  --color-primary: #00c853;
+  --color-primary-light: #b9f6ca;
+  --glass-bg: rgba(20, 20, 25, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 20px;
+}
+
+/* Header content for desktop */
+.header-content {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1024px) {
+  .header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .search-container {
+    flex: 1;
+    max-width: 600px;
+  }
+
+  .controls-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .app-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+}
+
+/* Responsive adjustments for search container */
+@media (max-width: 1023px) {
+  .header-content {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .search-container {
+    order: 3;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* Search column sticky positioning for desktop */
+@media (min-width: 1024px) {
+  .search-column {
+    position: sticky;
+    top: 100px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    padding-right: 16px;
+  }
+
+  #results-container {
+    padding-top: 24px;
+  }
+
+  #map-column {
+    padding-left: 16px;
+    position: sticky;
+    top: 100px;
+    max-height: calc(100vh - 120px);
+  }
+
+  #map-container {
+    height: 100%;
+  }
+
+  #map-container .map-card {
+    height: 100%;
+  }
+
+  #map-container #map {
+    height: 100%;
+    min-height: 400px;
+  }
+}
+
+/* Mobile layout adjustments */
+@media (max-width: 1023px) {
+  #map-column {
+    order: 3;
+  }
+
+  #map-container #map {
+    height: 300px;
+  }
+}
+
+@media (max-width: 600px) {
+  .main-layout {
+    gap: 16px;
+  }
+
+  .radius-control {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .controls-row {
+    flex-wrap: wrap;
+  }
+}
+
+[data-theme="light"] {
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.1);
+}
+
+/* Resizer handle color */
+.resizer {
+  background: var(--border-color);
+}
+
+.resizer:hover,
+.resizer:active {
+  background: var(--color-primary);
+}
+
+/* Skeleton shimmer colors for light theme */
+[data-theme="light"] .animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--border-color) 50%,
+    var(--bg-elevated) 75%
+  );
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes loading-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes pulse-badge {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7); }
+  50% { box-shadow: 0 0 0 8px rgba(0, 200, 83, 0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Range slider styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--border-color);
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+  border: none;
+  transition: transform 0.15s ease;
+}
+
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Skeleton shimmer animation */
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--border-color) 50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* User location pulse ring */
+.user-location-marker::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  opacity: 0.3;
+  animation: pulse-ring 2s ease-out infinite;
+}
+
+/* Error message slide in */
+.error-message {
+  animation: slideIn 0.25s ease;
+}
+
+/* Loading bar animation */
+.loading-bar-progress {
+  width: 0%;
+  background: linear-gradient(
+    90deg,
+    var(--color-primary),
+    var(--color-primary-light)
+  );
+  transition: width 0.3s ease;
+  box-shadow: 0 0 10px var(--color-primary);
+}
+
+.loading-bar.active .loading-bar-progress {
+  width: 70%;
+  animation: loading-pulse 1.5s ease-in-out infinite;
+}
+
+/* Leaflet overrides */
+.leaflet-container {
+  background: var(--bg-primary);
+}
+
+.leaflet-popup-content-wrapper {
+  background: var(--bg-surface);
+  border-radius: 12px;
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-color);
+}
+
+.leaflet-popup-content {
+  color: var(--text-primary);
+  margin: 16px;
+}
+
+.leaflet-popup-tip {
+  background: var(--bg-surface);
+}
+
+/* Map popup address */
+.map-popup-address {
+  color: var(--text-secondary);
+}
+
+/* Fuel chip indicator rotation */
+.map-card[open] summary::after {
+  transform: rotate(180deg);
+}
+
+summary::after {
+  content: "";
+  margin-left: auto;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid currentColor;
+  transition: transform 0.15s ease;
+}
+
+/* Chip ripple effect */
+.chip.active::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+  pointer-events: none;
+}
+
+.chip.active:active::after {
+  width: 200px;
+  height: 200px;
+  transition: width 0s, height 0s;
+}
+
+/* Remove default disclosure triangle */
+.map-card summary::-webkit-details-marker,
+.map-card summary::marker {
+  display: none;
+}
+
+/* Recent searches toggle arrow */
+.recent-searches-title::before {
+  content: "▶";
+  font-size: 0.625rem;
+  transition: transform 0.15s ease;
+}
+
+details[open] .recent-searches-title::before {
+  transform: rotate(90deg);
+}
+
+.recent-searches-title::-webkit-details-marker {
+  display: none;
+}
+
+/* Chip base styles - fuel colors */
+.chip.benzina {
+  --chip-color: #e65100;
+  --chip-bg: rgba(255, 145, 0, 0.12);
+  --chip-border: rgba(255, 145, 0, 0.35);
+}
+
+.chip.gasolio {
+  --chip-color: #455a64;
+  --chip-bg: rgba(144, 164, 174, 0.12);
+  --chip-border: rgba(144, 164, 174, 0.35);
+}
+
+.chip.GPL {
+  --chip-color: #d84315;
+  --chip-bg: rgba(255, 87, 34, 0.12);
+  --chip-border: rgba(255, 87, 34, 0.35);
+}
+
+.chip.metano {
+  --chip-color: #1565c0;
+  --chip-bg: rgba(33, 150, 243, 0.12);
+  --chip-border: rgba(33, 150, 243, 0.35);
+}
+
+/* Light theme chip colors */
+[data-theme="light"] .chip.benzina {
+  --chip-color: #e65100;
+  --chip-bg: rgba(255, 145, 0, 0.15);
+  --chip-border: rgba(255, 145, 0, 0.4);
+}
+
+[data-theme="light"] .chip.gasolio {
+  --chip-color: #455a64;
+  --chip-bg: rgba(144, 164, 174, 0.15);
+  --chip-border: rgba(144, 164, 174, 0.4);
+}
+
+[data-theme="light"] .chip.GPL {
+  --chip-color: #d84315;
+  --chip-bg: rgba(255, 87, 34, 0.15);
+  --chip-border: rgba(255, 87, 34, 0.4);
+}
+
+[data-theme="light"] .chip.metano {
+  --chip-color: #1565c0;
+  --chip-bg: rgba(33, 150, 243, 0.15);
+  --chip-border: rgba(33, 150, 243, 0.4);
+}
+
+/* Inactive chip styles */
+.chip:not(.active) {
+  background: var(--chip-bg);
+  border-color: var(--chip-border);
+  color: var(--chip-color);
+}
+
+/* Focus visible for accessibility */
+.chip:focus-visible {
+  outline: 3px solid var(--chip-color);
+  outline-offset: 3px;
+  z-index: 1;
+}
+
+.chip.active:focus-visible {
+  outline-color: var(--chip-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 3px var(--chip-color);
+}
+
+/* Fuel chip active gradient backgrounds */
+.chip.active.benzina {
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  border-color: transparent;
+}
+
+.chip.active.gasolio {
+  background: linear-gradient(135deg, #607d8b 0%, #546e7a 100%);
+  border-color: transparent;
+}
+
+.chip.active.GPL {
+  background: linear-gradient(135deg, #ff5722 0%, #e64a19 100%);
+  border-color: transparent;
+}
+
+.chip.active.metano {
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+  border-color: transparent;
+}
