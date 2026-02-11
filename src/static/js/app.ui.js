@@ -4,6 +4,83 @@
  */
 window.appUiMixin = {
   /**
+   * Fetches CSV status from the server.
+   * @returns {Promise<Object>} The CSV status object with last_updated, source, and is_stale.
+   */
+  async fetchCsvStatus() {
+    try {
+      const response = await fetch(window.CONFIG.CSV_STATUS_ENDPOINT);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (err) {
+      this.debug("Failed to fetch CSV status:", err.message);
+      return { last_updated: null, source: "unknown", is_stale: false };
+    }
+  },
+
+  /**
+   * Triggers a CSV reload on the server.
+   * @returns {Promise<Object>} The reload response.
+   */
+  async reloadCsv() {
+    if (this.csvReloading) {
+      return;
+    }
+    this.csvReloading = true;
+    this.debug("CSV reload triggered");
+    try {
+      const response = await fetch(window.CONFIG.CSV_RELOAD_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response.json();
+      this.debug("CSV reload response:", result);
+      if (result.last_updated) {
+        this.csvLastUpdated = result.last_updated;
+      }
+      setTimeout(() => {
+        this.fetchCsvStatus().then((status) => {
+          this.csvLastUpdated = status.last_updated;
+        });
+      }, 2000);
+      return result;
+    } catch (err) {
+      this.debug("CSV reload failed:", err.message);
+      return { status: "error", message: err.message };
+    } finally {
+      this.csvReloading = false;
+    }
+  },
+
+  /**
+   * Formats an ISO timestamp for display.
+   * @param {string} isoTimestamp - ISO timestamp string.
+   * @returns {string} Formatted date string (e.g., "11 Feb 2026, 08:30").
+   */
+  formatTimestamp(isoTimestamp) {
+    if (!isoTimestamp) return "";
+    try {
+      const date = new Date(isoTimestamp);
+      const locale = this.currentLang === "it" ? "it-IT" : "en-US";
+      return date.toLocaleDateString(locale, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (err) {
+      this.debug("Failed to format timestamp:", err.message);
+      return isoTimestamp;
+    }
+  },
+
+  /**
    * Formats a numeric value as currency using the application's locale.
    * @param {number} value - The numeric value to format.
    * @returns {string} The formatted currency string (e.g., "€ 1.850").
@@ -426,6 +503,19 @@ window.appUiMixin = {
           window.updateI18nTexts();
         }
       });
+
+      this.fetchCsvStatus().then((status) => {
+        this.csvLastUpdated = status.last_updated;
+      });
+
+      if (this.csvStatusInterval) {
+        clearInterval(this.csvStatusInterval);
+      }
+      this.csvStatusInterval = setInterval(() => {
+        this.fetchCsvStatus().then((status) => {
+          this.csvLastUpdated = status.last_updated;
+        });
+      }, window.CONFIG.CSV_AUTO_REFRESH_INTERVAL_MS);
     } catch (error) {
       console.error("Error during initialization:", error);
       this.error = "Failed to initialize application";

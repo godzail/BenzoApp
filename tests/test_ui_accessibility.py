@@ -86,7 +86,7 @@ def test_base_css_variables_defined():
     with Path.open(Path(BASE_CSS), encoding="utf-8") as f:
         css = f.read()
 
-    required_vars = ["--bg-primary", "--bg-surface", "--text-primary", "--color-primary"]
+    required_vars = ["--bg-primary", "--bg-surface", "--text-primary", "--color-primary", "--color-primary-hover"]
     for var in required_vars:
         assert var in css, f"Required CSS variable {var} not found in base.css"
 

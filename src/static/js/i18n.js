@@ -2,6 +2,20 @@
 const STATUS_MESSAGE_DURATION = 3000;
 const INITIALIZATION_RETRY_DELAY = 100;
 
+// Determine language: use localStorage only if user has explicitly set it
+let userLang = "it"; // Default to Italian
+try {
+  const storedLang = localStorage.getItem("lang");
+  if (storedLang && (storedLang === "it" || storedLang === "en")) {
+    userLang = storedLang;
+  }
+} catch (_e) {
+  // ignore
+}
+
+// Expose userLang globally for other scripts
+window.APP_USER_LANG = userLang;
+
 /**
  * Safely get translation with fallback
  * @param {string} key - The translation key
@@ -53,6 +67,7 @@ window.setLang = (lang) => {
   }
   try {
     localStorage.setItem("lang", lang);
+    window.APP_USER_LANG = lang;
   } catch (_e) {
     // ignore storage errors
   }
@@ -112,32 +127,16 @@ function updateDataI18nElements() {
   }
 }
 
-// Determine language: use localStorage only if user has explicitly set it
-let userLang;
-try {
-  userLang = localStorage.getItem("lang");
-} catch (_e) {
-  userLang = null;
-}
-
-if (!userLang || (userLang !== "it" && userLang !== "en")) {
-  userLang = "it";
-  try {
-    localStorage.setItem("lang", "it");
-  } catch (_e) {
-    // ignore
-  }
-}
-
 // Function to initialize i18next
 function initI18next() {
   i18next.use(i18nextHttpBackend).init(
     {
-      lng: userLang,
+      lng: window.APP_USER_LANG,
       fallbackLng: "it",
       debug: false,
+      preload: [window.APP_USER_LANG],
       backend: {
-        loadPath: `/static/locales/{{lng}}.json?v=${new Date().getTime()}`,
+        loadPath: `/static/locales/{{lng}}.json`,
       },
     },
     (err) => {

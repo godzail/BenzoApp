@@ -1,6 +1,44 @@
 <div class="header-content">
   <!-- Logo/Title -->
-  <h1 id="title-i18n" class="app-title text-xl font-semibold text-[var(--text-primary)]"></h1>
+  <div class="title-row">
+    <h1 id="title-i18n" class="app-title text-xl font-semibold text-[var(--text-primary)]"></h1>
+    <div class="csv-status flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+      </svg>
+      <span x-show="csvLastUpdated" x-text="formatTimestamp(csvLastUpdated)"></span>
+      <span x-show="!csvLastUpdated" x-text="translate('data_loading', 'Loading data...')"></span>
+      <button
+        x-show="csvLastUpdated"
+        @click="reloadCsv()"
+        :disabled="csvReloading"
+        class="reload-btn p-1 rounded hover:bg-[var(--bg-elevated)] transition-colors"
+        :aria-label="translate('reload_data', 'Reload data')"
+        type="button"
+      >
+        <svg
+          x-show="!csvReloading"
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        <svg
+          x-show="csvReloading"
+          class="w-4 h-4 animate-spin"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+      </button>
+    </div>
+  </div>
 
   <!-- Floating Search Bar -->
   <div class="search-container flex-1 max-w-xl" x-data="{ highlightedIndex: -1 }" @keydown.escape="showCitySuggestions = false">
