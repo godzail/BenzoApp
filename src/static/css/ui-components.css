@@ -5,7 +5,7 @@
    ============================================ */
 
 .recent-searches-container {
-  margin-bottom: var(--space-lg);
+  padding-top: var(--space-sm);
 }
 
 .recent-searches-title {
@@ -15,6 +15,25 @@
   margin-bottom: var(--space-sm);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.recent-searches-title::-details-marker {
+  display: none;
+}
+
+.recent-searches-title::before {
+  content: "▶";
+  font-size: 0.625rem;
+  transition: transform var(--transition-fast);
+}
+
+details[open] .recent-searches-title::before {
+  transform: rotate(90deg);
 }
 
 .recent-searches-list {
