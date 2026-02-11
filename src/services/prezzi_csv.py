@@ -435,9 +435,11 @@ async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
     preferred_dir = Path(local_dir) if local_dir else PROJECT_ROOT / "src" / "static" / "data"
 
     for d in candidates:
-        anag_path = d / "anagrafica_impianti_attivi.csv"
-        prezzi_path = d / "prezzo_alle_8.csv"
-        if anag_path.exists() and prezzi_path.exists():
+        anag_files = list(d.glob("anagrafica_impianti_attivi*.csv"))
+        prezzi_files = list(d.glob("prezzo_alle_8*.csv"))
+        if anag_files and prezzi_files:
+            anag_path = anag_files[0]
+            prezzi_path = prezzi_files[0]
             try:
                 anag_text = await asyncio.to_thread(anag_path.read_text, "iso-8859-1")
                 prezzi_text = await asyncio.to_thread(prezzi_path.read_text, "iso-8859-1")
@@ -497,7 +499,7 @@ def _candidate_local_csv_dirs(settings: Settings) -> list[Path]:
             PROJECT_ROOT / "src" / "static" / "data",
             Path(__file__).parent / "static" / "data",
             PROJECT_ROOT / "data",
-        )
+        ),
     )
     return candidates
 
@@ -523,7 +525,7 @@ async def _save_csv_files(anag_text: str, prezzi_text: str, settings: Settings) 
                 logger.debug("Skipping candidate directory {} due to error", d)
                 continue
         if target_dir is None:
-            logger.warning("No writable local csv directory found among candidates: %s", candidates)
+            logger.warning("No writable local csv directory found among candidates: {}", candidates)
             return None
         ts = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
         anag_name = f"anagrafica_impianti_attivi_{ts}.csv"
@@ -603,7 +605,7 @@ def check_preferred_local_dir_writable(settings: Settings) -> bool:
         test_file.unlink()
     except Exception as err:
         logger.warning(
-            "Preferred CSV dir %s is not writable; set PREZZI_LOCAL_DATA_DIR to a writable path. Error: %s",
+            "Preferred CSV dir {} is not writable; set PREZZI_LOCAL_DATA_DIR to a writable path. Error: {}",
             preferred,
             err,
         )

@@ -9,8 +9,8 @@
     "ignoreUnknown": true,
     "includes": [
       "src/**/*.html",
-      "src/static/css/**",
-      "src/static/ts/**"
+      "src/**/*.css",
+      "src/**/*.ts"
     ]
   },
   "formatter": {
@@ -50,7 +50,8 @@
       "L",
       "i18next",
       "i18nextHttpBackend",
-      "updateI18nTexts"
+      "updateI18nTexts",
+      "tailwind"
     ],
     "formatter": {
       "quoteStyle": "double"

@@ -4,8 +4,8 @@
     "private": true,
     "scripts": {
         "test:e2e": "playwright test",
-        "build:ts": "bun build src/static/ts/app.ts --outdir src/static/js --minify --sourcemap --target browser",
-        "watch:ts": "bun build src/static/ts/app.ts --outdir src/static/js --minify --sourcemap --target browser --watch",
+        "build:ts": "tsc",
+        "watch:ts": "tsc --watch",
         "lint:ts": "biome check src/static",
         "format:ts": "biome check src/static --write"
     },

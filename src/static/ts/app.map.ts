@@ -45,6 +45,9 @@ interface AppMapMixin {
 }
 
 window.appMapMixin = {
+  /**
+   * Remove all markers from the map and clear the internal registry.
+   */
   clearMapMarkers(): void {
     if (this.mapMarkers) {
       for (const marker of Object.values(this.mapMarkers)) {
@@ -59,15 +62,24 @@ window.appMapMixin = {
     }
   },
 
+  /**
+   * Add markers for the current `results` to the map and adjust view to fit them.
+   */
   addMapMarkers(): void {
-    if (!this.results || this.results.length === 0) return;
+    if (!this.results || this.results.length === 0) {
+      return;
+    }
     const validStations = this.results.filter((s) => s.latitude && s.longitude);
-    if (validStations.length === 0) return;
+    if (validStations.length === 0) {
+      return;
+    }
 
     const bounds = validStations.map((st) => [st.latitude!, st.longitude!]);
 
     for (const station of validStations) {
-      if (!station.id) continue;
+      if (!station.id) {
+        continue;
+      }
       const marker = (
         L as unknown as {
           marker: (coords: [number, number]) => {
@@ -103,6 +115,9 @@ window.appMapMixin = {
     });
   },
 
+  /**
+   * Fit the map view to contain all current markers, respecting configured padding and max zoom.
+   */
   fitMapBounds(): void {
     const markers = Object.values(this.mapMarkers || {});
     if (markers.length > 0) {
@@ -123,10 +138,17 @@ window.appMapMixin = {
     }
   },
 
+  /**
+   * Initialize the Leaflet map inside the '#map' element with default center and tile layer.
+   */
   initMap(): void {
-    if (this.mapInitialized) return;
+    if (this.mapInitialized) {
+      return;
+    }
     const mapContainer = document.getElementById("map");
-    if (!mapContainer) return;
+    if (!mapContainer) {
+      return;
+    }
     this.map = (
       L as unknown as {
         map: (element: string) => {
@@ -163,6 +185,10 @@ window.appMapMixin = {
     }, window.CONFIG.MAP_RESIZE_DELAY);
   },
 
+  /**
+   * Refresh popup content for all markers when the application language changes.
+   * Ensures popups show translated station information.
+   */
   refreshMapMarkersOnLanguageChange(): void {
     for (const marker of Object.values(this.mapMarkers || {})) {
       if (
@@ -188,10 +214,19 @@ window.appMapMixin = {
     });
   },
 
+  /**
+   * Center the map on the given station and open its popup.
+   *
+   * @param stationId - Identifier of the station to select on the map.
+   */
   selectStationForMap(stationId: string | number): void {
-    if (!(this.map && this.mapMarkers && stationId)) return;
+    if (!(this.map && this.mapMarkers && stationId)) {
+      return;
+    }
     const marker = this.mapMarkers[stationId];
-    if (!marker) return;
+    if (!marker) {
+      return;
+    }
     const station = (
       marker as { __station?: { latitude?: number; longitude?: number } }
     ).__station;
@@ -205,24 +240,37 @@ window.appMapMixin = {
     }
   },
 
+  /**
+   * Open directions to a station using Google Maps in a new tab.
+   *
+   * @param station - Object containing `latitude` and `longitude` of the destination.
+   */
   getDirections(station: { latitude?: number; longitude?: number }): void {
-    if (!(station?.latitude && station.longitude)) return;
+    if (!(station?.latitude && station.longitude)) {
+      return;
+    }
     const url = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`;
     const newWindow = window.open(url, "_blank", "noopener,noreferrer");
-    if (newWindow) (newWindow as { opener: null }).opener = null;
+    if (newWindow) {
+      (newWindow as { opener: null }).opener = null;
+    }
   },
 
+  /**
+   * Attempt to locate the user via the browser `geolocation` API and submit a search for the current location.
+   * Sets an error message if location cannot be retrieved.
+   */
   locateUser(): void {
     if (!navigator.geolocation) {
       this.error = "Geolocation is not supported by your browser";
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      (_position) => {
         this.formData.city = "Current Location";
         this.submitForm();
       },
-      (error) => {
+      (_error) => {
         this.error = "Unable to retrieve your location";
       },
     );

@@ -51,7 +51,9 @@
   try {
     applyStoredTheme();
     updateIcons();
-    if (btn) { btn.addEventListener("click", toggleTheme); }
+    if (btn) {
+      btn.addEventListener("click", toggleTheme);
+    }
   } catch (e) {
     console.error(e);
   }

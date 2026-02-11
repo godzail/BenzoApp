@@ -25,6 +25,29 @@ from src.services.prezzi_csv import (
     fetch_and_combine_csv_data,
 )
 
+
+@pytest.fixture(autouse=True)
+def cleanup_project_csv_files():
+    """Guarantee cleanup of CSV files created in src/static/data for tests."""
+    project_dir = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    project_dir.mkdir(parents=True, exist_ok=True)
+    files_to_clean = [
+        project_dir / "anagrafica_impianti_attivi.csv",
+        project_dir / "prezzo_alle_8.csv",
+    ]
+    timestamped = list(project_dir.glob("anagrafica_impianti_attivi_*.csv")) + list(
+        project_dir.glob("prezzo_alle_8_*.csv"),
+    )
+    files_to_clean.extend(timestamped)
+    for f in files_to_clean:
+        with suppress(Exception):
+            f.unlink()
+    yield
+    for f in files_to_clean:
+        with suppress(Exception):
+            f.unlink()
+
+
 # Test constants
 HTTP_ERROR_THRESHOLD = 400
 EXPECTED_PRICE_A = 1.5
@@ -597,36 +620,31 @@ def test_load_from_project_src_static_data_dir():
     project_dir.mkdir(parents=True, exist_ok=True)
     anag = project_dir / "anagrafica_impianti_attivi.csv"
     pre = project_dir / "prezzo_alle_8.csv"
-    try:
-        anag.write_text(
-            "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9\n"
-            + _make_anagrafica_row("1234", "43,7696", "11,2558")
-            + "\n",
-            encoding="iso-8859-1",
+    anag.write_text(
+        "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9\n"
+        + _make_anagrafica_row("1234", "43,7696", "11,2558")
+        + "\n",
+        encoding="iso-8859-1",
+    )
+    pre.write_text(
+        "col0|col1|col2|col3|col4\n"
+        + _make_prezzi_row(
+            "1234",
+            "benzina",
+            "1.49",
+            "1",
+            datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M:%S"),
         )
-        pre.write_text(
-            "col0|col1|col2|col3|col4\n"
-            + _make_prezzi_row(
-                "1234",
-                "benzina",
-                "1.49",
-                "1",
-                datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M:%S"),
-            )
-            + "\n",
-            encoding="iso-8859-1",
-        )
+        + "\n",
+        encoding="iso-8859-1",
+    )
 
-        settings = Settings()
-        settings.prezzi_local_data_dir = None
+    settings = Settings()
+    settings.prezzi_local_data_dir = None
 
-        anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
-        assert "GestoreX" in anag_text
-        assert "benzina" in prezzi_text
-    finally:
-        with suppress(Exception):
-            anag.unlink()
-            pre.unlink()
+    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+    assert "GestoreX" in anag_text
+    assert "benzina" in prezzi_text
 
 
 def test_load_migrates_from_service_to_project_dir():
@@ -634,54 +652,36 @@ def test_load_migrates_from_service_to_project_dir():
     service_dir = Path(prezzi_csv.__file__).parent / "static" / "data"
     project_dir = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
     service_dir.mkdir(parents=True, exist_ok=True)
-    # Ensure project dir is empty for the test
-    if project_dir.exists():
-        for p in project_dir.glob("*"):
-            try:
-                p.unlink()
-            except Exception:
-                pass
-
     anag = service_dir / "anagrafica_impianti_attivi.csv"
     pre = service_dir / "prezzo_alle_8.csv"
-    try:
-        anag.write_text(
-            "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9\n"
-            + _make_anagrafica_row("4242", "43,7696", "11,2558")
-            + "\n",
-            encoding="iso-8859-1",
+    anag.write_text(
+        "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9\n"
+        + _make_anagrafica_row("4242", "43,7696", "11,2558")
+        + "\n",
+        encoding="iso-8859-1",
+    )
+    pre.write_text(
+        "col0|col1|col2|col3|col4\n"
+        + _make_prezzi_row(
+            "4242",
+            "benzina",
+            "1.29",
+            "1",
+            datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M:%S"),
         )
-        pre.write_text(
-            "col0|col1|col2|col3|col4\n"
-            + _make_prezzi_row(
-                "4242",
-                "benzina",
-                "1.29",
-                "1",
-                datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M:%S"),
-            )
-            + "\n",
-            encoding="iso-8859-1",
-        )
+        + "\n",
+        encoding="iso-8859-1",
+    )
 
-        settings = Settings()
-        settings.prezzi_local_data_dir = None
+    settings = Settings()
+    settings.prezzi_local_data_dir = None
 
-        anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
-        assert "GestoreX" in anag_text
-        assert "benzina" in prezzi_text
+    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+    assert "GestoreX" in anag_text
+    assert "benzina" in prezzi_text
 
-        # Assert files were migrated to project-level src/static/data
-        assert (project_dir / "anagrafica_impianti_attivi.csv").exists()
-        assert (project_dir / "prezzo_alle_8.csv").exists()
-    finally:
-        with suppress(Exception):
-            anag.unlink()
-            pre.unlink()
-            # cleanup migrated copies
-            with suppress(Exception):
-                (project_dir / "anagrafica_impianti_attivi.csv").unlink()
-                (project_dir / "prezzo_alle_8.csv").unlink()
+    assert (project_dir / "anagrafica_impianti_attivi.csv").exists()
+    assert (project_dir / "prezzo_alle_8.csv").exists()
 
 
 def test_load_migrates_from_project_data_to_src_static():
@@ -690,54 +690,36 @@ def test_load_migrates_from_project_data_to_src_static():
     project_src = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
     project_data.mkdir(parents=True, exist_ok=True)
 
-    # ensure project src dir is empty
-    if project_src.exists():
-        for p in project_src.glob("*"):
-            try:
-                p.unlink()
-            except Exception:
-                pass
-
     anag = project_data / "anagrafica_impianti_attivi.csv"
     pre = project_data / "prezzo_alle_8.csv"
-    try:
-        anag.write_text(
-            "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9\n"
-            + _make_anagrafica_row("5555", "43,7696", "11,2558")
-            + "\n",
-            encoding="iso-8859-1",
+    anag.write_text(
+        "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9\n"
+        + _make_anagrafica_row("5555", "43,7696", "11,2558")
+        + "\n",
+        encoding="iso-8859-1",
+    )
+    pre.write_text(
+        "col0|col1|col2|col3|col4\n"
+        + _make_prezzi_row(
+            "5555",
+            "benzina",
+            "1.35",
+            "1",
+            datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M:%S"),
         )
-        pre.write_text(
-            "col0|col1|col2|col3|col4\n"
-            + _make_prezzi_row(
-                "5555",
-                "benzina",
-                "1.35",
-                "1",
-                datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M:%S"),
-            )
-            + "\n",
-            encoding="iso-8859-1",
-        )
+        + "\n",
+        encoding="iso-8859-1",
+    )
 
-        settings = Settings()
-        settings.prezzi_local_data_dir = None
+    settings = Settings()
+    settings.prezzi_local_data_dir = None
 
-        anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
-        assert "GestoreX" in anag_text
-        assert "benzina" in prezzi_text
+    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+    assert "GestoreX" in anag_text
+    assert "benzina" in prezzi_text
 
-        # Assert files were migrated to project-level src/static/data
-        assert (project_src / "anagrafica_impianti_attivi.csv").exists()
-        assert (project_src / "prezzo_alle_8.csv").exists()
-    finally:
-        with suppress(Exception):
-            anag.unlink()
-            pre.unlink()
-            # cleanup migrated copies
-            with suppress(Exception):
-                (project_src / "anagrafica_impianti_attivi.csv").unlink()
-                (project_src / "prezzo_alle_8.csv").unlink()
+    assert (project_src / "anagrafica_impianti_attivi.csv").exists()
+    assert (project_src / "prezzo_alle_8.csv").exists()
 
 
 def test_get_latest_csv_timestamp_prefers_project_src_static():
@@ -747,17 +729,12 @@ def test_get_latest_csv_timestamp_prefers_project_src_static():
     ts = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
     anag_name = project_dir / f"anagrafica_impianti_attivi_{ts}.csv"
     pre_name = project_dir / f"prezzo_alle_8_{ts}.csv"
-    try:
-        anag_name.write_text("col0|col1\n1|2\n", encoding="iso-8859-1")
-        pre_name.write_text("col0|col1\n1|2\n", encoding="iso-8859-1")
-        settings = Settings()
-        settings.prezzi_local_data_dir = None
-        latest = prezzi_csv.get_latest_csv_timestamp(settings)
-        assert latest is not None
-    finally:
-        with suppress(Exception):
-            anag_name.unlink()
-            pre_name.unlink()
+    anag_name.write_text("col0|col1\n1|2\n", encoding="iso-8859-1")
+    pre_name.write_text("col0|col1\n1|2\n", encoding="iso-8859-1")
+    settings = Settings()
+    settings.prezzi_local_data_dir = None
+    latest = prezzi_csv.get_latest_csv_timestamp(settings)
+    assert latest is not None
 
 
 def test_save_logs_filenames(tmp_path, monkeypatch, caplog):

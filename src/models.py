@@ -64,7 +64,9 @@ class Settings(BaseSettings):
         "https://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv",
         description="CSV URL for prezzi (prezzo_alle_8.csv).",
     )
-    prezzi_cache_path: str = Field("data/prezzi_data.json", description="Path to cached combined prezzi JSON file.")
+    prezzi_cache_path: str = Field(
+        "src/static/data/prezzi_data.json", description="Path to cached combined prezzi JSON file."
+    )
     prezzi_cache_hours: int = Field(24, description="Number of hours to consider the cache fresh.")
     prezzi_csv_delimiter: str = Field(
         "auto",
@@ -94,6 +96,8 @@ class Settings(BaseSettings):
     server_port: int = Field(8000, description="Port number for the uvicorn server.")
     server_reload: bool = Field(default=True, description="Enable auto-reload on code changes.")
     server_workers: int = Field(1, description="Number of worker processes.")
+    # Timeout for interactive search requests (seconds)
+    search_timeout_seconds: int = Field(12, description="Timeout in seconds for interactive search requests.")
 
 
 class SearchRequest(BaseModel):
