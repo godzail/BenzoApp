@@ -1,7 +1,4 @@
-import math
 import re
-
-import pytest
 
 BASE_CSS = "src/static/css/base.css"
 COMPONENTS_CSS = "src/static/css/components.css"
@@ -47,7 +44,7 @@ def blend_rgba_over(bg_rgb: tuple, fg_rgba: tuple) -> tuple:
 
 
 def parse_css_variable(file_path: str, var_name: str) -> str:
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         text = f.read()
     # Find --var: value; occurrences
     m = re.search(rf"--{re.escape(var_name)}:\s*([^;]+);", text)
@@ -78,7 +75,7 @@ def test_metano_fuel_badge_contrast_dark():
     bg_rgb = hex_to_rgb(bg_surface_hex)
 
     # The components.css defines a dark override for the metano badge background and text
-    with open(COMPONENTS_CSS, "r", encoding="utf-8") as f:
+    with open(COMPONENTS_CSS, encoding="utf-8") as f:
         comp = f.read()
 
     # Find the dark-theme metano background rgba and text color
@@ -109,7 +106,7 @@ def test_best_price_badge_contrast_dark():
     primary_rgb = hex_to_rgb(color_primary_hex)
 
     # Read the components.css override
-    with open(COMPONENTS_CSS, "r", encoding="utf-8") as f:
+    with open(COMPONENTS_CSS, encoding="utf-8") as f:
         comp = f.read()
 
     m = re.search(r"\[data-theme=\"dark\"\]\s*\.best-price-badge-inline\s*\{([^}]+)\}", comp)
@@ -125,7 +122,7 @@ def test_best_price_badge_contrast_dark():
 
 def test_price_fuel_metano_contrast_dark():
     # price-fuel.metano text should be white in dark theme
-    with open(COMPONENTS_CSS, "r", encoding="utf-8") as f:
+    with open(COMPONENTS_CSS, encoding="utf-8") as f:
         comp = f.read()
 
     m = re.search(r"\[data-theme=\"dark\"\]\s*\.price-fuel\.metano\s*\{([^}]+)\}", comp)
