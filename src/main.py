@@ -73,9 +73,8 @@ async def lifespan(_app: FastAPI):
         if settings.prezzi_preload_on_startup:
             try:
                 task = asyncio.create_task(preload_local_csv_cache(settings))
-                # keep a reference to avoid GC and aid debugging
-                _app.state._preload_task = task
-                task.add_done_callback(lambda t: logger.debug("Prezzi preload task finished"))
+                _app.state._preload_task = task  # noqa: SLF001
+                task.add_done_callback(lambda _: logger.debug("Prezzi preload task finished"))
             except Exception as err:
                 logger.warning("Failed to start prezzi preload task: {}", err)
         try:
@@ -257,18 +256,67 @@ async def render_docs(page: str) -> HTMLResponse:
         rendered = f"<pre>{_html.escape(md_text)}</pre>"
 
     html_page = (
-        "<!doctype html><html><head><meta charset='utf-8'>"
+        "<!doctype html><html>"
+        "<head>"
+        "<meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         "<link rel='stylesheet' href='/static/css/styles.split.css'>"
-        "<link rel='stylesheet' href='/static/css/docs.css'>"
         "<link rel='icon' href='/favicon.ico'>"
         "<base href='/docs-static/'>"
-        "<title>Documentation</title></head><body>"
-        f"<div class='docs-container' style='padding:24px;max-width:1000px;margin:72px auto;'>"
-        '<button id="docs-theme-toggle" aria-label="Toggle theme" '
-        "style='padding:6px 8px;border-radius:6px;border:1px solid rgba(0,0,0,0.1);"
-        "background:var(--docs-toggle-bg,#fff);font-size:16px;line-height:1;'> </button>"
-        f"{rendered}</div>"
+        "<title>Documentation</title>"
+        "<script src='https://cdn.tailwindcss.com'></script>"
+        "<script>tailwind.config={darkMode:'class',theme:{extend:{colors:"
+        "{primary:{'DEFAULT':'#00c853'}},fontFamily:{sans:['Inter','system-ui']}}}}"
+        "</script>"
+        "<style>"
+        ".docs-content h1{font-size:1.875rem;font-weight:700;margin-bottom:1rem;"
+        "color:var(--text-primary);}"
+        ".docs-content h2{font-size:1.5rem;font-weight:600;margin-top:1.5rem;"
+        "margin-bottom:0.75rem;color:var(--text-primary);}"
+        ".docs-content h3{font-size:1.25rem;font-weight:600;margin-top:1.25rem;"
+        "margin-bottom:0.5rem;color:var(--text-primary);}"
+        ".docs-content p{margin-bottom:1rem;line-height:1.625;"
+        "color:var(--text-secondary);}"
+        ".docs-content code{background:var(--bg-elevated);padding:0.125rem 0.375rem;"
+        "border-radius:0.25rem;font-size:0.875rem;}"
+        ".docs-content pre{background:var(--bg-elevated);padding:1rem;border-radius:0.5rem;"
+        "overflow-x:auto;margin-bottom:1rem;}"
+        ".docs-content pre code{background:none;padding:0;}"
+        ".docs-content table{width:100%;border-collapse:collapse;margin-bottom:1rem;}"
+        ".docs-content th,.docs-content td{border:1px solid var(--border-color);"
+        "padding:0.5rem 0.75rem;text-align:left;}"
+        ".docs-content th{background:var(--bg-elevated);font-weight:600;}"
+        ".docs-content ul,.docs-content ol{margin-bottom:1rem;padding-left:1.5rem;}"
+        ".docs-content li{margin-bottom:0.25rem;line-height:1.625;}"
+        ".docs-content a{color:var(--color-primary);text-decoration:none;}"
+        ".docs-content a:hover{text-decoration:underline;}"
+        ".docs-content img{max-width:100%;height:auto;border-radius:0.5rem;margin:1rem 0;}"
+        ".docs-content hr{border-color:var(--border-color);margin:2rem 0;}"
+        "</style>"
+        "</head>"
+        "<body class='bg-[var(--bg-primary)] text-[var(--text-primary)] "
+        "min-h-screen font-sans transition-colors duration-250'>"
+        "<div class='max-w-3xl mx-auto px-6 py-12 relative'>"
+        f"<div class='docs-content'>{rendered}</div>"
+        "<button id='docs-theme-toggle' aria-label='Toggle theme' "
+        "class='absolute top-6 right-6 p-2 rounded-lg border border-[var(--border-color)] "
+        "bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-colors "
+        "cursor-pointer text-[var(--text-primary)] shadow-sm'>"
+        "<svg id='theme-icon-sun' class='w-5 h-5' fill='none' stroke='currentColor' "
+        "viewBox='0 0 24 24'>"
+        "<path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' "
+        "d='M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707"
+        "M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"
+        "M16 12a4 4 0 11-8 0 4 4 0 018 0z'/>"
+        "</svg>"
+        "<svg id='theme-icon-moon' class='w-5 h-5 hidden' fill='none' stroke='currentColor' "
+        "viewBox='0 0 24 24'>"
+        "<path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' "
+        "d='M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21"
+        "a9.003 9.003 0 008.354-5.646z'/>"
+        "</svg>"
+        "</button>"
+        "</div>"
         "<script src='/static/js/docs-theme.js' defer></script>"
         "</body></html>"
     )

@@ -1,38 +1,52 @@
-import asyncio
-from typing import cast
+"""Unit tests for geocoding service."""
 
-import httpx
+import asyncio
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    import httpx
 
 from src.models import Settings
 from src.services.geocoding import geocode_city
 
 
 class DummyResponse:
-    def __init__(self, json_data, status_code: int = 200, text: str = ""):
+    """Mock HTTP response for testing."""
+
+    def __init__(self, json_data: Any, status_code: int = 200, text: str = "") -> None:
+        """Initialize mock response with JSON data, status code, and text."""
         self._json = json_data
         self.status_code = status_code
         self.text = text
         self.reason_phrase = "OK"
 
-    def raise_for_status(self):
-        if self.status_code >= 400:
-            # Avoid constructing httpx.HTTPStatusError in the test stub
-            raise RuntimeError("HTTP error")
+    def raise_for_status(self) -> None:
+        """Raise an error for status codes >= 400."""
+        http_error_code = 400
+        if self.status_code >= http_error_code:
+            msg = "HTTP error"
+            raise RuntimeError(msg)
 
-    def json(self):
+    def json(self) -> Any:
+        """Return the JSON data."""
         return self._json
 
 
 class DummyClient:
-    def __init__(self):
+    """Mock HTTP client for testing geocoding."""
+
+    def __init__(self) -> None:
+        """Initialize with empty called_with dict."""
         self.called_with: dict | None = None
 
-    async def get(self, url, params=None, headers=None):
+    async def get(self, url: str, params: dict | None = None, headers: dict | None = None) -> DummyResponse:
+        """Mock GET request that returns dummy geocoding data."""
         self.called_with = {"url": url, "params": params, "headers": headers}
         return DummyResponse([{"lat": "43.7696", "lon": "11.2558"}], text='[{"lat":"43.7696","lon":"11.2558"}]')
 
 
-def test_geocoding_country_bias_and_alias():
+def test_geocoding_country_bias_and_alias() -> None:
+    """Test that geocoding uses country bias and city name aliases."""
     client = DummyClient()
     settings = Settings()
 

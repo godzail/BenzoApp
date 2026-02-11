@@ -11,7 +11,7 @@ def test_docs_user_page(client: TestClient) -> None:
     assert "BenzoApp User Guide" in response.text
     # The doc should render a table (converted from markdown) and the theme toggle should be present
     assert "<table" in response.text
-    assert 'id="docs-theme-toggle"' in response.text
+    assert "id='docs-theme-toggle'" in response.text
 
 
 def test_docs_page_not_found(client: TestClient) -> None:
@@ -29,10 +29,11 @@ def test_docs_static_image(client: TestClient) -> None:
 
 
 def test_docs_css_served(client: TestClient) -> None:
-    """Ensure the docs CSS file is served and contains the docs container selector."""
-    r = client.get("/static/css/docs.css")
+    """Ensure the docs CSS styles are rendered in the docs page."""
+    r = client.get("/help/user")
     assert r.status_code == status.HTTP_200_OK
-    assert ".docs-container" in r.text
+    # The docs page should include the docs-content CSS class styling inline
+    assert ".docs-content" in r.text
 
 
 def test_favicon_routes(client: TestClient) -> None:

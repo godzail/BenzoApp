@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import httpx
+from dateutil.parser import parse as dateutil_parse
 from loguru import logger
 
 from src.services.fuel_type_utils import normalize_fuel_type
@@ -29,11 +30,13 @@ from src.services.fuel_type_utils import normalize_fuel_type
 if TYPE_CHECKING:
     from src.models import Settings, StationSearchParams
 
-# Local fallback data directory (for manually downloaded CSVs)
 PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 LOCAL_DATA_DIR = PROJECT_ROOT / "data"
 
-# Column indices and constants
+PREZZI_MIN_COLS = 5
+PRICE_IDX = 2
+SELF_IDX = 3
+DATE_IDX = 4
 LAT_IDX = 8
 LON_IDX = 9
 GESTORE_IDX = 2
@@ -41,6 +44,8 @@ ADDR_IDX_START = 5
 ADDR_IDX_END = 8
 DAYS_RECENCY = 7
 EARTH_R_KM = 6371.0
+MIN_CSV_COLUMNS = 2
+MIN_CONTENT_LENGTH = 50
 
 
 def _deg2rad(deg: float) -> float:
@@ -61,20 +66,13 @@ def _parse_date(date_string: str | None) -> datetime | None:
         return None
     for fmt in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%d/%m/%Y"):
         try:
-            dt = datetime.strptime(date_string, fmt)  # noqa: DTZ007
-            # Make timezone-aware (UTC) since source data has no TZ info
+            dt = datetime.strptime(date_string, fmt)
             return dt.replace(tzinfo=UTC)
         except ValueError:
             continue
-    # Fallback: use dateutil if available for more flexible formats (ISO, timezone-aware)
-    try:
-        from dateutil.parser import parse as _dateutil_parse
 
-        dt = _dateutil_parse(date_string)
-        dt = dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
-        return dt
-    except Exception:
-        return None
+    dt = dateutil_parse(date_string)
+    return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
 
 
 def _is_recent(dt: datetime | None, days: int = DAYS_RECENCY) -> bool:
@@ -125,7 +123,6 @@ def _detect_delimiter(csv_text: str, default: str = "|") -> str:
     if not lines:
         return default
     header = lines[0]
-    # Pipe first since it's the new format (Feb 2026), then semicolon for legacy
     candidates = ["|", ";", ",", "\t"]
     best = default
     best_count = 0
@@ -134,7 +131,7 @@ def _detect_delimiter(csv_text: str, default: str = "|") -> str:
         if count > best_count:
             best_count = count
             best = d
-    if best_count >= 2:
+    if best_count >= MIN_CSV_COLUMNS:
         logger.debug("Auto-detected CSV delimiter: '{}' (split into {} columns)", best, best_count)
         return best
     try:
@@ -149,7 +146,6 @@ def _detect_delimiter(csv_text: str, default: str = "|") -> str:
 
 
 def _parse_anagrafica(csv_text: str, force_delimiter: str | None = None) -> dict[str, dict[str, Any]]:
-    # Strip BOM if present (UTF-8 BOM or mis-decoded sequence)
     if csv_text.startswith("\ufeff"):
         csv_text = csv_text[1:]
     elif csv_text.startswith("ï»¿"):
@@ -180,7 +176,6 @@ def _parse_anagrafica(csv_text: str, force_delimiter: str | None = None) -> dict
             "longitudine": lon,
             "prezzi": {},
         }
-    # Debug: show parsing counts
     logger.debug(
         "Parsed anagrafica: total_rows=%d, valid_entries=%d, delimiter=%s",
         len(rows) - 1,
@@ -198,7 +193,6 @@ def _parse_anagrafica(csv_text: str, force_delimiter: str | None = None) -> dict
 
 
 def _parse_prezzi(csv_text: str, data: dict[str, dict[str, Any]], force_delimiter: str | None = None) -> None:
-    # Strip BOM if present (UTF-8 BOM or mis-decoded sequence)
     if csv_text.startswith("\ufeff"):
         csv_text = csv_text[1:]
     elif csv_text.startswith("ï»¿"):
@@ -237,7 +231,6 @@ def _parse_prezzi(csv_text: str, data: dict[str, dict[str, Any]], force_delimite
             price = float(price_raw) if price_raw else None
         except ValueError:
             price = None
-        # Keep the lowest price if multiple entries exist
         existing = data[id_impianto]["prezzi"].get(canonical)
         if price is not None and (existing is None or price < existing.get("prezzo", float("inf"))):
             data[id_impianto]["prezzi"][canonical] = {
@@ -246,7 +239,6 @@ def _parse_prezzi(csv_text: str, data: dict[str, dict[str, Any]], force_delimite
                 "data": row[DATE_IDX] if len(row) > DATE_IDX else "",
             }
             updates_applied += 1
-    # Debug: summary of prezzi parsing
     sample_fuel_types = list({k for d in data.values() for k in d.get("prezzi", {})})
     logger.debug(
         "Parsed prezzi: total_price_rows=%d, updates_applied=%d, sample_fuel_types=%s, delimiter=%s",
@@ -264,10 +256,27 @@ def _parse_prezzi(csv_text: str, data: dict[str, dict[str, Any]], force_delimite
         )
 
 
-PREZZI_MIN_COLS = 5
-PRICE_IDX = 2
-SELF_IDX = 3
-DATE_IDX = 4
+def _parse_and_combine_sync(
+    anag_text: str,
+    prezzi_text: str,
+    force_delimiter: str | None = None,
+) -> dict[str, Any]:
+    """Parse anagrafica and prezzi CSVs synchronously and return merged data.
+
+    Parses both CSV texts, merges the prezzi data into the anagrafica records,
+    and returns a dictionary keyed by station ID.
+
+    Parameters:
+    - anag_text: Raw CSV content for station registry.
+    - prezzi_text: Raw CSV content for fuel prices.
+    - force_delimiter: Optional delimiter to force; auto-detected if None.
+
+    Returns:
+    - Dictionary mapping station IDs to their merged data (including prices).
+    """
+    data = _parse_anagrafica(anag_text, force_delimiter)
+    _parse_prezzi(prezzi_text, data, force_delimiter)
+    return data
 
 
 async def fetch_and_combine_csv_data(
@@ -283,7 +292,6 @@ async def fetch_and_combine_csv_data(
     """
     combined: dict[str, Any] | None = None
 
-    # Try using fresh cache first
     try:
         is_fresh = await _is_cache_fresh(settings.prezzi_cache_path, settings.prezzi_cache_hours)
         if is_fresh:
@@ -302,29 +310,24 @@ async def fetch_and_combine_csv_data(
         combined = None
 
     if combined is None:
-        # Fetch CSVs and parse
         anag_text, prezzi_text = await _fetch_csvs(http_client, settings)
         force_delimiter = None if settings.prezzi_csv_delimiter == "auto" else settings.prezzi_csv_delimiter
         combined = await asyncio.to_thread(
             lambda: _parse_and_combine_sync(anag_text, prezzi_text, force_delimiter),
         )
         logger.debug("Combined CSV stations count: %d", len(combined) if combined else 0)
-        # Persist cache (best-effort)
         await _write_json_file(settings.prezzi_cache_path, combined)
-        # Save raw CSVs with timestamped filenames and cleanup older ones
         saved_dir = await _save_csv_files(anag_text, prezzi_text, settings)
         if saved_dir:
-            # re-run parse from saved files to ensure cache matches files on disk
             try:
                 anag_text2, prezzi_text2 = await _load_local_csvs(settings)
                 combined2 = await asyncio.to_thread(
-                    lambda: _parse_and_combine_sync(anag_text2, prezzi_text2, force_delimiter)
+                    lambda: _parse_and_combine_sync(anag_text2, prezzi_text2, force_delimiter),
                 )
                 await _write_json_file(settings.prezzi_cache_path, combined2)
             except Exception as e:
                 logger.warning("Failed to refresh cache after saving CSVs: {}", e)
 
-    # Now produce top stations filtered by params
     return _filter_and_transform_combined(combined, params)
 
 
@@ -350,8 +353,9 @@ async def _load_cached_combined(cache_path: str) -> dict[str, Any] | None:
 
 
 async def _fetch_csvs(http_client: httpx.AsyncClient, settings: Settings) -> tuple[str, str]:
-    """Fetch CSVs from remote URLs. If network fetch fails, attempt to load from local
-    data directory (LOCAL_DATA_DIR) as fallback.
+    """Fetch CSVs from remote URLs.
+
+    If network fetch fails, attempt to load from local data directory (LOCAL_DATA_DIR) as fallback.
     """
     try:
         resp_anag, resp_prezzi = await asyncio.gather(
@@ -368,7 +372,7 @@ async def _fetch_csvs(http_client: httpx.AsyncClient, settings: Settings) -> tup
             return await _load_local_csvs(settings)
         except Exception:
             logger.error("Local fallback failed, re-raising original HTTP error")
-            raise original_exc
+            raise original_exc from e
     except httpx.RequestError as e:
         url = str(e.request.url) if e.request else "unknown"
         logger.error("Network error fetching CSV: {} - url={}", type(e).__name__, url)
@@ -378,7 +382,7 @@ async def _fetch_csvs(http_client: httpx.AsyncClient, settings: Settings) -> tup
             return await _load_local_csvs(settings)
         except Exception:
             logger.error("Local fallback failed, re-raising original network error")
-            raise original_exc
+            raise original_exc from e
     except Exception as e:
         logger.error("Unexpected error fetching CSV: {} - {}", type(e).__name__, e)
         logger.warning("Attempting to fallback to local CSV files in {}", LOCAL_DATA_DIR)
@@ -387,9 +391,8 @@ async def _fetch_csvs(http_client: httpx.AsyncClient, settings: Settings) -> tup
             return await _load_local_csvs(settings)
         except Exception:
             logger.error("Local fallback failed, re-raising original unexpected exception")
-            raise original_exc
+            raise original_exc from e
 
-    # Log response metadata for debugging
     logger.debug(
         "CSV fetch response: anagrafica url={}, status={}, CT={}, len={} bytes",
         resp_anag.url,
@@ -408,9 +411,8 @@ async def _fetch_csvs(http_client: httpx.AsyncClient, settings: Settings) -> tup
     anag_text = resp_anag.content.decode("iso-8859-1")
     prezzi_text = resp_prezzi.content.decode("iso-8859-1")
 
-    # Validate content length and log samples
     for name, text in (("anagrafica", anag_text), ("prezzi", prezzi_text)):
-        if len(text) < 50:
+        if len(text) < MIN_CONTENT_LENGTH:
             logger.warning("{} CSV content suspiciously short ({} chars): {!r}", name, len(text), text[:100])
         else:
             logger.debug("{} CSV sample (first 100 chars): {!r}", name, text[:100])
@@ -429,11 +431,12 @@ async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
             try:
                 anag_text = await asyncio.to_thread(anag_path.read_text, "iso-8859-1")
                 prezzi_text = await asyncio.to_thread(prezzi_path.read_text, "iso-8859-1")
-                logger.info("Loaded CSV data from local files: anag='{}', prezzi='{}'", anag_path, prezzi_path)
-                return anag_text, prezzi_text
             except Exception as err:
                 logger.error("Failed to read local CSV files in {}: {}", d, err)
                 raise
+            else:
+                logger.info("Loaded CSV data from local files: anag='{}', prezzi='{}'", anag_path, prezzi_path)
+                return anag_text, prezzi_text
         else:
             missing.append(str(d))
     msg = f"Local CSV files not found in candidate dirs: {', '.join(missing)}"
@@ -447,8 +450,7 @@ def _candidate_local_csv_dirs(settings: Settings) -> list[Path]:
     local_dir = getattr(settings, "prezzi_local_data_dir", None)
     if local_dir:
         candidates.append(Path(local_dir))
-    candidates.append(PROJECT_ROOT / "data")
-    candidates.append(Path(__file__).parent / "static" / "data")
+    candidates.extend((PROJECT_ROOT / "data", Path(__file__).parent / "static" / "data"))
     return candidates
 
 
@@ -459,7 +461,6 @@ async def _save_csv_files(anag_text: str, prezzi_text: str, settings: Settings) 
     """
     try:
         candidates = _candidate_local_csv_dirs(settings)
-        # prefer explicit dir from settings or the first candidate that exists or is creatable
         target_dir = None
         for d in candidates:
             try:
@@ -467,12 +468,11 @@ async def _save_csv_files(anag_text: str, prezzi_text: str, settings: Settings) 
                 if d_exists:
                     target_dir = d
                     break
-                else:
-                    # attempt to create when it's under project (avoid creating arbitrary paths)
-                    await asyncio.to_thread(d.mkdir, parents=True, exist_ok=True)
-                    target_dir = d
-                    break
+                await asyncio.to_thread(d.mkdir, parents=True, exist_ok=True)
+                target_dir = d
+                break
             except Exception:
+                logger.debug("Skipping candidate directory {} due to error", d)
                 continue
         if target_dir is None:
             logger.warning("No writable local csv directory found among candidates: %s", candidates)
@@ -480,28 +480,25 @@ async def _save_csv_files(anag_text: str, prezzi_text: str, settings: Settings) 
         ts = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
         anag_name = f"anagrafica_impianti_attivi_{ts}.csv"
         prezzi_name = f"prezzo_alle_8_{ts}.csv"
-        anag_part = target_dir / (anag_name + ".part")
-        prezzi_part = target_dir / (prezzi_name + ".part")
+        anag_part = target_dir / f"{anag_name}.part"
+        prezzi_part = target_dir / f"{prezzi_name}.part"
         anag_final = target_dir / anag_name
         prezzi_final = target_dir / prezzi_name
 
-        # write part files
         await asyncio.to_thread(anag_part.write_text, anag_text, "iso-8859-1")
         await asyncio.to_thread(prezzi_part.write_text, prezzi_text, "iso-8859-1")
-        # atomically rename to final names
         await asyncio.to_thread(anag_part.replace, anag_final)
         await asyncio.to_thread(prezzi_part.replace, prezzi_final)
         logger.info("Saved fetched CSVs to {}", target_dir)
 
-        # cleanup older versions
         _cleanup_old_csvs(target_dir, "anagrafica_impianti_attivi_", settings.prezzi_keep_versions)
         _cleanup_old_csvs(target_dir, "prezzo_alle_8_", settings.prezzi_keep_versions)
-
-        return target_dir
     except Exception as err:
         logger.warning("Failed to save fetched CSVs: {}", err)
         logger.exception(err)
         return None
+    else:
+        return target_dir
 
 
 def _cleanup_old_csvs(directory: Path, prefix: str, keep: int = 1) -> None:
@@ -514,7 +511,7 @@ def _cleanup_old_csvs(directory: Path, prefix: str, keep: int = 1) -> None:
                 p.unlink()
                 logger.debug("Removed old CSV file {}", p)
             except Exception as err:
-                logger.warning("Failed to remove old CSV file {}: {}", p, err)
+                logger.exception("Failed to remove old CSV file {}: {}", p, err)
     except Exception as err:
         logger.warning("cleanup_old_csvs failed for {}: {}", directory, err)
 
@@ -543,17 +540,15 @@ def _filter_and_transform_combined(
     search_lon = params.longitude if params else None
     distance_limit = float(params.distance) if params else float("inf")
     fuel = normalize_fuel_type(params.fuel) if params and params.fuel else ""
-    fuel_key = fuel.lower() if fuel else ""
+    fuel_key = fuel
     max_items = int(params.results) if params else 5
 
-    # Counters for debugging/exclusion reasons
     excluded_no_price = 0
     excluded_stale = 0
     excluded_invalid_coords = 0
     excluded_out_of_distance = 0
 
     for station in combined.values():
-        # Skip if no price for requested fuel
         if not fuel or fuel_key not in station.get("prezzi", {}):
             logger.debug(
                 "Skip station (no price) addr='{}' available_fuels={}",
@@ -563,7 +558,6 @@ def _filter_and_transform_combined(
             excluded_no_price += 1
             continue
         price_info = station["prezzi"][fuel_key]
-        # Skip stale entries (>7 days)
         if not _is_recent(_parse_date(price_info.get("data"))):
             excluded_stale += 1
             continue
@@ -572,7 +566,6 @@ def _filter_and_transform_combined(
         if lat is None or lon is None:
             excluded_invalid_coords += 1
             continue
-        # If search coordinates provided, filter by distance
         if search_lat is not None and search_lon is not None:
             dist = _haversine_km(search_lat, search_lon, lat, lon)
             if dist > distance_limit:
@@ -594,7 +587,6 @@ def _filter_and_transform_combined(
             },
         )
 
-    # Sort by price ascending
     stations.sort(key=lambda s: s.get("prezzo", float("inf")))
 
     logger.debug(
@@ -608,14 +600,3 @@ def _filter_and_transform_combined(
     )
 
     return stations[: max(1, min(max_items, len(stations)))]
-
-
-# Helper synchronous combine used inside to_thread
-def _parse_and_combine_sync(
-    anag_text: str,
-    prezzi_text: str,
-    force_delimiter: str | None = None,
-) -> dict[str, Any]:
-    data = _parse_anagrafica(anag_text, force_delimiter)
-    _parse_prezzi(prezzi_text, data, force_delimiter)
-    return data
