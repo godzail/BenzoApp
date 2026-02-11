@@ -1,20 +1,22 @@
 <!-- Recent Searches -->
 <template x-if="recentSearches.length > 0">
-  <section class="recent-searches-container" aria-labelledby="recent-searches-i18n">
-    <h3 class="recent-searches-title" id="recent-searches-i18n"></h3>
-    <div class="recent-searches-list">
-      <template x-for="(search, idx) in recentSearches" :key="idx">
-        <button class="recent-search-btn" type="button" @click="selectRecentSearch(search)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          <span
-            x-text="search.city + ', ' + search.radius + 'km, ' + (window.translateFuel ? translateFuel(search.fuel) : search.fuel)"></span>
-        </button>
-      </template>
-    </div>
-  </section>
+  <details>
+    <summary class="recent-searches-title" id="recent-searches-i18n" x-text="translate('recent_searches', 'Ricerche Recenti:')"></summary>
+    <section class="recent-searches-container" aria-labelledby="recent-searches-i18n">
+      <div class="recent-searches-list">
+        <template x-for="(search, idx) in recentSearches" :key="idx">
+          <button class="recent-search-btn" type="button" @click="selectRecentSearch(search)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 16 16 14"></polyline>
+            </svg>
+            <span
+              x-text="search.city + ', ' + search.radius + 'km, ' + (window.translateFuel ? translateFuel(search.fuel) : search.fuel)"></span>
+          </button>
+        </template>
+      </div>
+    </section>
+  </details>
 </template>
 
 <!-- Fuel Type Chips -->
@@ -94,20 +96,3 @@
     </span>
   </button>
 </form>
-
-<!-- Map Card - Moved from results to search column -->
-<template x-if="results.length > 0">
-  <details class="map-card search-column-map" open
-    @toggle="$nextTick(() => { if (map && $event.target.open) { map.invalidateSize(); } })">
-    <summary>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-        <circle cx="12" cy="10" r="3"></circle>
-      </svg>
-      <span x-text="translate('map_summary', 'Mappa') + (currentLang ? '' : '')"></span>
-    </summary>
-    <div class="map-view">
-      <div id="map"></div>
-    </div>
-  </details>
-</template>

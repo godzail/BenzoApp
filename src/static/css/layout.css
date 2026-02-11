@@ -18,7 +18,7 @@
   gap: var(--space-xl);
 }
 
-/* Desktop: Search on left (50%), Results on right (50%) with Resizer */
+/* Desktop: Search + Results on left, Map on right with Resizer */
 @media (min-width: 1024px) {
   .main-layout {
     display: grid;
@@ -35,10 +35,30 @@
     padding-right: var(--space-md);
   }
 
+  /* Results now in search column */
   #results-container {
+    padding-top: var(--space-lg);
+  }
+
+  /* Map column - right side */
+  #map-column {
     padding-left: var(--space-md);
-    max-height: calc(100vh - 120px);
-    overflow-y: auto;
+    position: sticky;
+    top: 100px;
+    height: calc(100vh - 120px);
+  }
+
+  #map-container {
+    height: 100%;
+  }
+
+  #map-container .map-card {
+    height: 100%;
+  }
+
+  #map-container #map {
+    height: 100%;
+    min-height: 400px;
   }
 
   /* Resizer Handle Styling */
@@ -63,6 +83,23 @@
   .resizer:focus {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
+  }
+}
+
+/* Mobile: stack map below results */
+@media (max-width: 1023px) {
+  .main-layout {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xl);
+  }
+
+  #map-column {
+    order: 3;
+  }
+
+  #map-container #map {
+    height: 300px;
   }
 }
 

@@ -28,6 +28,25 @@
     <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@latest/dist/leaflet.css" crossorigin="">
     <script defer src="https://unpkg.com/leaflet@latest/dist/leaflet.js" crossorigin=""></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                DEFAULT: '#00c853',
+                hover: '#00b248',
+                light: '#b9f6ca',
+                dark: '#009624',
+              }
+            }
+          }
+        }
+      }
+    </script>
     <!-- Canonical URL -->
     <link rel="canonical" href="https://yourdomain.com/">
     <!-- Structured Data -->
@@ -62,14 +81,16 @@
     <header id="header-container" role="banner"></header>
     <main role="main" id="main-content">
       <h1 class="sr-only">Gas Station Finder Application</h1>
-      <div class="main-layout">
-        <!-- Left Column: Search + Map -->
-        <div class="search-column" id="search-column">
+      <div class="main-layout grid grid-cols-1 lg:grid-cols-[1fr_4px_1fr] gap-0">
+        <!-- Left Column: Search + Results -->
+        <div class="search-column lg:sticky lg:top-[100px] lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto lg:pr-4" id="search-column">
           <div id="search-container" role="search" aria-label="Gas station search"></div>
+          <div id="results-container" role="region" aria-label="Search results"></div>
         </div>
-        <!-- Resizer Handle -->
+        
+        <!-- Resizer -->
         <div
-          class="resizer"
+          class="resizer hidden lg:block"
           id="layout-resizer"
           role="separator"
           aria-orientation="vertical"
@@ -78,8 +99,11 @@
           aria-valuemax="90"
           tabindex="0"
         ></div>
-        <!-- Right Column: Results (includes map card) -->
-        <div id="results-container" role="region" aria-label="Search results"></div>
+        
+        <!-- Right Column: Map -->
+        <div id="map-column" class="hidden lg:block lg:sticky lg:top-[100px] lg:max-h-[calc(100vh-120px)] lg:pl-4">
+          <div id="map-container" role="region" aria-label="Map view"></div>
+        </div>
       </div>
     </main>
   </body>

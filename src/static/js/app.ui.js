@@ -228,6 +228,46 @@ window.appUiMixin = {
   },
 
   /**
+   * Calculates the price difference from the cheapest station.
+   * @param {number} index - Index of the station in the results array.
+   * @returns {string} Formatted price difference (e.g., "+0.002 €" or "Best").
+   */
+  getPriceDifference(index) {
+    if (!this.results || this.results.length === 0) return '';
+
+    const prices = this.results
+      .map(s => Number(s.fuel_prices?.[0]?.price))
+      .filter(p => Number.isFinite(p));
+
+    if (prices.length === 0) return '';
+
+    const minPrice = Math.min(...prices);
+    const stationPrice = Number(this.results[index]?.fuel_prices?.[0]?.price);
+
+    if (!Number.isFinite(stationPrice)) return '';
+
+    const diff = stationPrice - minPrice;
+
+    if (diff === 0) {
+      return this.translate('best_price_short', 'Best');
+    }
+
+    const sign = diff > 0 ? '+' : '';
+    return `${sign}${diff.toFixed(3)} €`;
+  },
+
+  /**
+   * Formats distance value with unit.
+   * @param {number|string} distance - The distance value.
+   * @returns {string} Formatted distance (e.g., "2.5 km").
+   */
+  formatDistance(distance) {
+    const num = parseFloat(distance);
+    if (isNaN(num)) return distance;
+    return `${num.toFixed(1)} km`;
+  },
+
+  /**
    * Builds the HTML content for a map marker popup.
    * @param {Object} station - The station object.
    * @param {string} [station.gestore] - The station operator name.
@@ -342,10 +382,8 @@ window.appUiMixin = {
       await Promise.all([
         this.loadComponent("/static/templates/header.html", "header-container"),
         this.loadComponent("/static/templates/search.html", "search-container"),
-        this.loadComponent(
-          "/static/templates/results.html",
-          "results-container",
-        ),
+        this.loadComponent("/static/templates/results.html", "results-container"),
+        this.loadComponent("/static/templates/map.html", "map-container"),
         this.loadCities(),
       ]);
 

@@ -62,13 +62,13 @@ ty check .             # Type checking
 ```powershell
 bun install                      # Install dependencies
 bun run <script>                 # Run package.json scripts
-biome check apiservice/resources           # Lint frontend
-biome check apiservice/resources --write   # Auto-fix issues
+biome check src/static/          # Lint frontend
+biome check src/static/ --write   # Auto-fix issues
 ```
 
 ## Project Structure
 
-- Source Code: `apiservice/`
+- Source Code: `src/`
 - Documentation: `docs/`
 - Tests: `tests/`
 - Python Project Configuration: `pyproject.toml`
