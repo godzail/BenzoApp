@@ -12,6 +12,7 @@ from src.models import (
     Station,
     StationSearchParams,
 )
+from src.services.prezzi_csv import fetch_and_combine_csv_data
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)
@@ -35,31 +36,22 @@ async def fetch_gas_stations(
     - RetryError: If all retry attempts fail.
     """
     try:
+        # Use internal CSV-based fetcher as primary data source
         logger.info(
-            "Making request to gas station API: URL=%s, params=%s",
-            settings.prezzi_carburante_api_url,
+            "Fetching gas station data from CSV sources: anagrafica={} prezzi={} params={}",
+            settings.prezzi_csv_anagrafica_url,
+            settings.prezzi_csv_prezzi_url,
             params.model_dump(),
         )
-        response = await http_client.get(
-            settings.prezzi_carburante_api_url,
-            params=params.model_dump(),
-        )
+        payload = await fetch_and_combine_csv_data(settings, http_client, params=params)
         logger.info(
-            "Gas station API response: status_code=%s, response_size=%s bytes",
-            response.status_code,
-            len(response.text) if response.text else 0,
+            "CSV gas station payload size: {}",
+            len(payload) if payload else 0,
         )
-        response.raise_for_status()
-        return response.json()
-    except httpx.HTTPStatusError as err:
-        logger.error(
-            "Gas station API HTTP error: %s - %s",
-            err.response.status_code,
-            err.response.reason_phrase,
-        )
-        raise
-    except httpx.RequestError as err:
-        logger.error("Gas station API request error: %s", err)
+        return payload
+    except Exception as err:
+        logger.error("CSV fetch or parse error: {} - {}", type(err).__name__, err)
+        logger.exception("Full traceback for CSV fetch error:")
         raise HTTPException(
             status_code=503,
             detail="Fuel station service is temporarily unavailable. Please try again later.",
@@ -88,33 +80,40 @@ def parse_and_normalize_stations(
     elif isinstance(stations_payload, dict):
         payload_iter = enumerate(stations_payload.values())
     else:
-        logger.warning("Unexpected stations payload type: %s", type(stations_payload))
+        logger.warning("Unexpected stations payload type: {}", type(stations_payload))
         return [], 0
 
     stations: list[Station] = []
     skipped_count = 0
     for idx, data in payload_iter:
         if not isinstance(data, dict):
-            logger.warning("Skipping non-dict station entry at index %s", idx)
+            logger.warning("Skipping non-dict station entry at index {}", idx)
             skipped_count += 1
             continue
         try:
             prezzo_raw = data.get("prezzo", 0.0)
             price: float = float(prezzo_raw) if prezzo_raw is not None else 0.0
+            lat = float(data.get("latitudine") or 0.0)
+            lon = float(data.get("longitudine") or 0.0)
+            # Filter out invalid coordinates at (0.0, 0.0)
+            if lat == 0.0 and lon == 0.0:
+                logger.warning("Skipping station {} because of invalid coordinates: lat=0.0, lon=0.0", idx)
+                skipped_count += 1
+                continue
             station = Station(
                 id=str(idx),
                 address=data.get("indirizzo", "") or "",
-                latitude=float(data.get("latitudine") or 0.0),
-                longitude=float(data.get("longitudine") or 0.0),
+                latitude=lat,
+                longitude=lon,
                 fuel_prices=[FuelPrice(type=fuel_type, price=price)],
             )
             stations.append(station)
         except (ValueError, TypeError) as err:
-            logger.warning("Skipping station %s due to parse error: %s", idx, err)
+            logger.warning("Skipping station {} due to parse error: {}", idx, err)
             skipped_count += 1
             continue
 
-    stations.sort(key=lambda s: (s.fuel_prices[0].price if s.fuel_prices else float("inf")))
+    stations.sort(key=lambda s: s.fuel_prices[0].price if s.fuel_prices else float("inf"))
     limit = max(1, min(results_limit, MAX_RESULTS_COUNT))
 
     return stations[:limit], skipped_count

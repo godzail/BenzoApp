@@ -40,6 +40,7 @@ from src.models import (
 from src.services.fuel_api import fetch_gas_stations, parse_and_normalize_stations
 from src.services.fuel_type_utils import normalize_fuel_type
 from src.services.geocoding import geocode_city
+from src.services.prezzi_csv import preload_local_csv_cache
 
 
 def get_settings() -> Settings:
@@ -58,17 +59,31 @@ def get_settings() -> Settings:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifespan context manager to handle startup and shutdown events."""
+    settings = get_settings()
     # Create a shared HTTP client for connection pooling with timeout
-    timeout = httpx.Timeout(30.0, connect=10.0)
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    timeout = httpx.Timeout(60.0, connect=15.0)
+    headers = {
+        "User-Agent": settings.user_agent,
+        "Accept": "text/csv",
+    }
+    async with httpx.AsyncClient(timeout=timeout, headers=headers, follow_redirects=True) as client:
         # Store the client in app state for use in endpoints
         _app.state.http_client = client
+        # Optionally preload local CSV data into cache (non-blocking)
+        if settings.prezzi_preload_on_startup:
+            try:
+                task = asyncio.create_task(preload_local_csv_cache(settings))
+                # keep a reference to avoid GC and aid debugging
+                _app.state._preload_task = task
+                task.add_done_callback(lambda t: logger.debug("Prezzi preload task finished"))
+            except Exception as err:
+                logger.warning("Failed to start prezzi preload task: {}", err)
         try:
             yield
         except (asyncio.CancelledError, KeyboardInterrupt):
             logger.info("Shutdown: CancelledError or KeyboardInterrupt caught, exiting cleanly.")
         except Exception as err:
-            logger.exception(f"Unexpected error in lifespan: {err}")
+            logger.exception("Unexpected error in lifespan: {}", err)
 
 
 # --- FastAPI App Initialization ---
@@ -137,7 +152,7 @@ async def search_gas_stations(
     - SearchResponse: List of stations and an optional warning message.
     """
     logger.info(
-        "Received search request: city=%s, radius=%skm, fuel=%s, results=%s",
+        "Received search request: city={}, radius={}km, fuel={}, results={}",
         request.city,
         request.radius,
         request.fuel,

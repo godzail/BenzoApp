@@ -51,7 +51,7 @@ BenzoApp is built with a modern, scalable architecture:
 ### External Services
 
 - **OpenStreetMap Nominatim** - Geocoding city names to coordinates
-- **Prezzi Carburante API** - Real-time fuel price data for Italian gas stations
+- **MIMIT — Carburanti (open data CSV)** - Official CSV datasets for fuel prices and station registry (Italian Ministry of Enterprises and Made in Italy). Data is ingested directly from CSV exports.
 
 ## 🚀 Quick Start
 
@@ -113,7 +113,7 @@ The application uses environment variables for configuration. See [.env.example]
 | Variable                    | Description                                  | Default                                                   |
 |-----------------------------|----------------------------------------------|-----------------------------------------------------------|
 | `NOMINATIM_API_URL`         | OpenStreetMap geocoding API endpoint         | `https://nominatim.openstreetmap.org/search`              |
-| `PREZZI_CARBURANTE_API_URL` | Fuel price API endpoint                      | `https://prezzi-carburante.onrender.com/api/distributori` |
+| `PREZZI_CARBURANTE_API_URL` | Fuel price API endpoint                      | `https://www.mimit.gov.it/it/open-data/elenco-dataset/carburanti-prezzi-praticati-e-anagrafica-degli-impianti` |
 | `CORS_ALLOWED_ORIGINS`      | Comma-separated list of allowed CORS origins | `http://127.0.0.1:8000`                                   |
 | `USER_AGENT`                | Custom user agent for external API requests  | `BenzoApp/1.0 (+https://example.com)`                     |
 
@@ -248,8 +248,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- [Prezzi Carburante](https://prezzi-carburante.onrender.com/) for providing fuel price data
 - [OpenStreetMap](https://www.openstreetmap.org/) for geocoding services
+- [MIMIT — Carburanti (open data)](https://www.mimit.gov.it/it/open-data/elenco-dataset/carburanti-prezzi-praticati-e-anagrafica-degli-impianti) — Official open dataset for fuel prices and station registry (Italian Ministry of Enterprises and Made in Italy)
 - [FastAPI](https://fastapi.tiangolo.com/) for the amazing web framework
 - [Leaflet](https://leafletjs.com/) for interactive maps
 

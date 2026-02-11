@@ -3,8 +3,6 @@
 from fastapi.testclient import TestClient
 from starlette import status
 
-from src.main import app
-
 
 def test_docs_user_page(client: TestClient) -> None:
     """Request /help/user and ensure rendered content includes the main H1."""

@@ -55,6 +55,35 @@ class Settings(BaseSettings):
     )
     user_agent: str = Field("GasStationFinder/1.0", description="User-Agent header for external API requests.")
 
+    # Prezzi CSV source and cache configuration
+    prezzi_csv_anagrafica_url: str = Field(
+        "https://www.mimit.gov.it/images/exportCSV/anagrafica_impianti_attivi.csv",
+        description="CSV URL for station anagrafica (anagrafica_impianti_attivi.csv).",
+    )
+    prezzi_csv_prezzi_url: str = Field(
+        "https://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv",
+        description="CSV URL for prezzi (prezzo_alle_8.csv).",
+    )
+    prezzi_cache_path: str = Field("data/prezzi_data.json", description="Path to cached combined prezzi JSON file.")
+    prezzi_cache_hours: int = Field(24, description="Number of hours to consider the cache fresh.")
+    prezzi_csv_delimiter: str = Field(
+        "auto",
+        description="Delimiter for CSV parsing: 'auto' to auto-detect (default), or a specific character like '|' or ';' to force.",
+    )
+    # Local CSV storage & retention
+    prezzi_local_data_dir: str | None = Field(
+        None,
+        description="Optional directory to read/write Prezzi CSV files. If None, falls back to project 'data' and 'src/static/data'.",
+    )
+    prezzi_keep_versions: int = Field(
+        1,
+        description="How many timestamped CSV versions to keep when new CSVs are saved.",
+    )
+    prezzi_preload_on_startup: bool = Field(
+        True,
+        description="If true, preload the latest local CSVs into cache on application startup (non-blocking).",
+    )
+
     # Server configuration
     server_host: str = Field("127.0.0.1", description="Host address for the uvicorn server.")
     server_port: int = Field(8000, description="Port number for the uvicorn server.")
