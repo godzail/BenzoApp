@@ -295,3 +295,4 @@ public/
 .claude/settings.local.json
 test-results/
 playwright-report/
+data/
