@@ -36,8 +36,8 @@ def _load_local_city_coords(settings: Settings) -> dict[str, dict[str, float]]:
     try:
         cache_parent = Path(settings.prezzi_cache_path).parent
         candidates.append(cache_parent / "cities.json")
-    except Exception:
-        pass
+    except Exception as e:  # Don't silently ignore
+        logger.debug("Could not determine cache parent from prezzi_cache_path: %s", e)
     candidates.extend([Path("src/static/data/cities.json"), Path("data/cities.json")])
 
     for p in candidates:

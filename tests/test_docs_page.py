@@ -22,10 +22,10 @@ def test_docs_page_not_found(client: TestClient) -> None:
 
 def test_docs_static_image(client: TestClient) -> None:
     """The docs screenshots should be served under /docs-static."""
-    response = client.get("/docs-static/screenshots/main.png")
+    response = client.get("/docs-static/screenshots/main.jpg")
     assert response.status_code == status.HTTP_200_OK
-    # Basic binary-ish check
-    assert response.content[:8] in (b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff\xe0\x00\x10JFIF")
+    # Basic binary check: JPEG files start with FF D8 FF
+    assert response.content[:3] == b"\xff\xd8\xff"
 
 
 def test_docs_css_served(client: TestClient) -> None:

@@ -1,73 +1,39 @@
 "use strict";
 /**
  * Docs theme toggle - handles light/dark mode with SVG icons.
+ * Uses global window.themeUtils for core theme logic.
  */
 (() => {
-    const ThemeStorageKey = "app-theme";
     const btn = document.getElementById("docs-theme-toggle");
-    const sunIcon = document.getElementById("theme-icon-sun");
-    const moonIcon = document.getElementById("theme-icon-moon");
-    const getSystemPreference = () => {
-        if (window.matchMedia?.("(prefers-color-scheme: light)")?.matches) {
-            return "light";
-        }
-        return "dark";
-    };
-    const getStoredTheme = () => {
-        try {
-            return localStorage.getItem(ThemeStorageKey);
-        }
-        catch {
-            return null;
-        }
-    };
-    const setStoredTheme = (theme) => {
-        try {
-            localStorage.setItem(ThemeStorageKey, theme);
-        }
-        catch {
-            console.warn("Failed to store theme preference");
-        }
-    };
-    const applyTheme = (theme) => {
-        document.documentElement.setAttribute("data-theme", theme);
-    };
-    const updateIcons = () => {
-        const currentTheme = document.documentElement.getAttribute("data-theme");
-        const isLight = currentTheme === "light";
-        if (sunIcon && moonIcon) {
-            sunIcon.classList.toggle("hidden", isLight);
-            moonIcon.classList.toggle("hidden", !isLight);
-        }
-    };
+    const theme = window.themeUtils;
     const init = () => {
-        const storedTheme = getStoredTheme();
-        console.log("Docs theme init: stored =", storedTheme);
-        const theme = storedTheme || getSystemPreference();
-        console.log("Docs theme init: applying =", theme);
-        applyTheme(theme);
-        updateIcons();
+        // Initialize theme (applies stored or system preference)
+        theme.initTheme();
+        // Ensure icons match current theme
+        const currentTheme = document.documentElement.getAttribute("data-theme") ||
+            theme.getStoredTheme() ||
+            theme.getSystemPreference();
+        theme.updateThemeIcons(currentTheme);
+        // Listen for system theme changes (when not overridden by user)
         if (window.matchMedia) {
             const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
-            mediaQuery.addEventListener("change", (e) => {
-                if (!getStoredTheme()) {
-                    applyTheme(e.matches ? "light" : "dark");
-                    updateIcons();
+            const handler = (e) => {
+                if (!theme.getStoredTheme()) {
+                    theme.updateThemeIcons(e.matches ? "light" : "dark");
                 }
-            });
+            };
+            mediaQuery.addEventListener("change", handler);
         }
     };
-    const toggleTheme = () => {
-        const currentTheme = document.documentElement.getAttribute("data-theme");
-        const newTheme = currentTheme === "light" ? "dark" : "light";
-        applyTheme(newTheme);
-        setStoredTheme(newTheme);
-        updateIcons();
+    const toggle = () => {
+        const newTheme = theme.toggleTheme();
+        theme.updateThemeIcons(newTheme);
     };
     try {
         init();
         if (btn) {
-            btn.addEventListener("click", toggleTheme);
+            btn.removeEventListener("click", toggle); // guard against duplicates
+            btn.addEventListener("click", toggle);
         }
     }
     catch (e) {
