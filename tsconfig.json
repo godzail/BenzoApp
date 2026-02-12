@@ -4,7 +4,7 @@
         "outDir": "src/static/js",
         "module": "ESNext",
         "target": "ES2020",
-        "moduleResolution": "Bundler",
+        "moduleResolution": "node",
         "strict": true,
         "sourceMap": true,
         "esModuleInterop": true,

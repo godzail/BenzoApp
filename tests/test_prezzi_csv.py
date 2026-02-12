@@ -232,7 +232,8 @@ def test_fetch_csvs_raises_on_http_error(monkeypatch):
         msg = "local CSVs missing for test"
         raise FileNotFoundError(msg)
 
-    monkeypatch.setattr(prezzi_csv, "_load_local_csvs", raise_missing)
+    from src.services import csv_fetcher
+    monkeypatch.setattr(csv_fetcher, "_load_local_csvs", raise_missing)
 
     class ErrResp:
         def __init__(self):
@@ -544,7 +545,8 @@ def test_save_uses_preferred_candidate_when_unset(tmp_path, monkeypatch):
     def fake_candidates(settings):
         return [preferred, other]
 
-    monkeypatch.setattr(prezzi_csv, "_candidate_local_csv_dirs", fake_candidates)
+    from src.services import csv_fetcher
+    monkeypatch.setattr(csv_fetcher, "_candidate_local_csv_dirs", fake_candidates)
 
     now = datetime.now(tz=UTC)
     date_str = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -737,14 +739,15 @@ def test_get_latest_csv_timestamp_prefers_project_src_static():
     assert latest is not None
 
 
-def test_save_logs_filenames(tmp_path, monkeypatch, caplog):
+def test_save_logs_filenames(tmp_path, monkeypatch):
     """Verify that saving CSVs logs the exact filenames saved."""
     preferred = tmp_path / "preferred"
 
     def fake_candidates(settings):
         return [preferred]
 
-    monkeypatch.setattr(prezzi_csv, "_candidate_local_csv_dirs", fake_candidates)
+    from src.services import csv_fetcher
+    monkeypatch.setattr(csv_fetcher, "_candidate_local_csv_dirs", fake_candidates)
 
     now = datetime.now(tz=UTC)
     date_str = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -767,24 +770,35 @@ def test_save_logs_filenames(tmp_path, monkeypatch, caplog):
 
     params = StationSearchParams(latitude=LAT, longitude=LON, distance=10, fuel="benzina", results=5)
 
-    caplog.set_level("INFO")
+    # Mock logger.info from csv_fetcher module (where saving occurs)
+    from unittest.mock import MagicMock
+    from src.services import csv_fetcher
+    mock_logger = MagicMock()
+    monkeypatch.setattr(csv_fetcher, "logger", mock_logger)
 
     result = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
 
-    # Check that logger recorded saved filenames
+    # Check that logger.info was called with a message containing the expected filename patterns
     found = False
-    for rec in caplog.records:
-        if (
-            rec.message.startswith("Saved fetched CSVs to")
-            and "anagrafica_impianti_attivi_" in rec.message
-            and "prezzo_alle_8_" in rec.message
-        ):
-            found = True
-            break
-    assert found, f"Expected saved CSVs log not found. Logs:\n{caplog.text}"
+    for call in mock_logger.info.call_args_list:
+        args = call[0]
+        if len(args) >= 3:
+            try:
+                # Reconstruct the formatted message like loguru would
+                formatted = args[0].format(*args[1:])
+            except (IndexError, KeyError):
+                continue
+            if (
+                formatted.startswith("Saved fetched CSVs to")
+                and "anagrafica_impianti_attivi_" in formatted
+                and "prezzo_alle_8_" in formatted
+            ):
+                found = True
+                break
+    assert found, f"Expected saved CSVs log not found. Info calls: {mock_logger.info.call_args_list}"
 
 
-def test_check_preferred_local_dir_writable_warns(monkeypatch, caplog):
+def test_check_preferred_local_dir_writable_warns(monkeypatch):
     """If writing to the preferred dir fails, a warning should be logged and False returned."""
     settings = Settings()
     settings.prezzi_local_data_dir = None
@@ -794,7 +808,15 @@ def test_check_preferred_local_dir_writable_warns(monkeypatch, caplog):
 
     monkeypatch.setattr(Path, "write_text", fake_write_text)
 
-    caplog.set_level("WARNING")
+    # Mock logger.warning from csv_cache module
+    from unittest.mock import MagicMock
+    from src.services import csv_cache
+    mock_logger = MagicMock()
+    monkeypatch.setattr(csv_cache, "logger", mock_logger)
+
     ok = prezzi_csv.check_preferred_local_dir_writable(settings)
     assert ok is False
-    assert "not writable" in caplog.text
+    # Verify warning was logged with expected message
+    mock_logger.warning.assert_called()
+    warning_msg = mock_logger.warning.call_args[0][0]
+    assert "not writable" in warning_msg

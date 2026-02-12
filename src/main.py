@@ -23,13 +23,16 @@ from typing import Annotated, Any
 
 import httpx
 from dateutil.parser import parse as dateutil_parse
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from markdown import markdown as py_markdown
 from tenacity import RetryError
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from src.models import (
     DEFAULT_RESULTS_COUNT,
@@ -54,6 +57,7 @@ from src.services.prezzi_csv import (
     get_latest_csv_timestamp,
     preload_local_csv_cache,
 )
+from src.services.csv_fetcher import _candidate_local_csv_dirs, _cleanup_old_csvs
 
 
 def get_settings() -> Settings:
@@ -66,6 +70,8 @@ def get_settings() -> Settings:
         Settings: The application settings object.
     """
     return Settings()
+
+
 
 
 # --- Lifespan Management ---
@@ -111,6 +117,11 @@ async def lifespan(_app: FastAPI):
 # HTTP status code for service unavailable responses
 HTTP_503_SERVICE_UNAVAILABLE = 503
 app = FastAPI(title="Gas Station Finder API", lifespan=lifespan)
+
+# Configure rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure Loguru logger
 logger.remove()
@@ -158,10 +169,12 @@ async def favicon_ico() -> FileResponse:
     )
 
 
+@limiter.limit("10/minute")
 @app.post("/search", response_class=JSONResponse)
 async def search_gas_stations(
     request: SearchRequest,
     settings: Annotated[Settings, Depends(get_settings)],
+    fastapi_request: Request,  # for rate limiting
 ) -> SearchResponse:
     """Search for gas stations near a city within a given radius.
 
@@ -347,6 +360,7 @@ async def render_docs(page: str) -> HTMLResponse:
                     </svg>
                 </button>
             </div>
+            <script src='/static/js/theme-utils.js' defer></script>
             <script src='/static/js/docs-theme.js' defer></script>
         </body>
         </html>""")
@@ -403,7 +417,9 @@ async def get_csv_status(settings: Annotated[Settings, Depends(get_settings)]) -
 
 
 @app.post("/api/reload-csv")
-async def reload_csv(settings: Annotated[Settings, Depends(get_settings)]) -> dict[str, Any]:
+async def reload_csv(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict[str, Any]:
     """Force reload of CSV data by clearing cache and triggering async fetch.
 
     Returns:
@@ -436,6 +452,17 @@ async def reload_csv(settings: Annotated[Settings, Depends(get_settings)]) -> di
                         logger.info("CSV reload completed successfully, saved to: {}", saved_dir)
                     else:
                         logger.warning("CSV reload completed but failed to save local copies")
+
+                    # Clean up old CSVs across ALL candidate directories (keep only the newest)
+                    def _cleanup_all_candidates():
+                        candidates = _candidate_local_csv_dirs(settings)
+                        keep = getattr(settings, "prezzi_keep_versions", 1)
+                        for d in candidates:
+                            if d.exists():
+                                _cleanup_old_csvs(d, "anagrafica_impianti_attivi_", keep)
+                                _cleanup_old_csvs(d, "prezzo_alle_8_", keep)
+                    await asyncio.to_thread(_cleanup_all_candidates)
+                    logger.info("Cleaned up old CSV files across all candidate directories")
             except Exception as err:
                 logger.error("Async CSV reload failed: {}", err)
                 logger.exception(err)

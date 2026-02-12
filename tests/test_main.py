@@ -87,7 +87,7 @@ def test_search_timeout_behavior(client: TestClient) -> None:
 
     # Override dependency to use a very short timeout and patch fetch_gas_stations to be slow
     class FastTimeoutSettings(Settings):
-        search_timeout_seconds = 1
+        search_timeout_seconds: int = 1
 
     async def _slow_fetch(params, settings, http_client) -> list:
         await asyncio.sleep(5)
