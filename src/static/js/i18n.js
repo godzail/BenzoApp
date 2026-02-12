@@ -1,5 +1,8 @@
 "use strict";
-// i18next initialization and language switcher
+/**
+ * i18n utilities: initialize i18next, manage language switching, and
+ * update DOM text based on translation resources.
+ */
 const STATUS_MESSAGE_DURATION = 3000;
 const INITIALIZATION_RETRY_DELAY = 100;
 let userLang = "it";
@@ -118,7 +121,9 @@ function updateDataI18nElements() {
     }
 }
 /**
- * Function to initialize i18next
+ * Initialize i18next with the configured language and ensure translations are loaded.
+ *
+ * This sets the initial language and triggers loading of translation resources.
  */
 function initI18next() {
     i18next.init({
@@ -133,6 +138,11 @@ function initI18next() {
         loadTranslations(window.APP_USER_LANG);
     });
 }
+/**
+ * Load translation JSON for a language and add it to i18next resources.
+ *
+ * @param lang - Language code to load (e.g., 'it' or 'en').
+ */
 async function loadTranslations(lang) {
     try {
         const response = await fetch(`/static/locales/${lang}.json`);

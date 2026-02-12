@@ -26,15 +26,30 @@ window.CONFIG = {
     CSV_STATUS_ENDPOINT: "/api/csv-status",
     CSV_RELOAD_ENDPOINT: "/api/reload-csv",
     CSV_AUTO_REFRESH_INTERVAL_MS: 24 * 60 * 60 * 1000,
+    SEARCH_TIMEOUT_MS: 12000,
 };
+/**
+ * Extract the `gestore` (station owner) value from a station object.
+ *
+ * @param station - Station object that may contain a `gestore` field.
+ * @returns The `gestore` string or an empty string when missing.
+ */
 window.extractGestore = (station) => station.gestore || "";
 window.themeManager = {
+    /**
+     * Return the system color scheme preference ('light' or 'dark').
+     */
     getSystemPreference() {
         if (window.matchMedia?.("(prefers-color-scheme: light)")?.matches) {
             return "light";
         }
         return "dark";
     },
+    /**
+     * Read the stored theme preference from localStorage if available.
+     *
+     * @returns The stored theme string or `null` if none is set.
+     */
     getStoredTheme() {
         try {
             return localStorage.getItem(window.CONFIG.THEME_STORAGE_KEY);
@@ -43,6 +58,11 @@ window.themeManager = {
             return null;
         }
     },
+    /**
+     * Persist the selected theme value to localStorage.
+     *
+     * @param theme - Theme to persist ('light' or 'dark').
+     */
     setStoredTheme(theme) {
         try {
             localStorage.setItem(window.CONFIG.THEME_STORAGE_KEY, theme);
@@ -51,9 +71,17 @@ window.themeManager = {
             console.warn("Failed to store theme preference");
         }
     },
+    /**
+     * Apply the selected theme by setting the `data-theme` attribute on the document element.
+     *
+     * @param theme - Theme to apply ('light' or 'dark').
+     */
     applyTheme(theme) {
         document.documentElement.setAttribute("data-theme", theme);
     },
+    /**
+     * Initialize the theme manager - apply stored theme or system preference and listen for changes.
+     */
     init() {
         const storedTheme = this.getStoredTheme();
         const theme = (storedTheme ||
@@ -68,6 +96,11 @@ window.themeManager = {
             });
         }
     },
+    /**
+     * Toggle the current theme between 'light' and 'dark', persist and return the new theme.
+     *
+     * @returns The newly applied theme.
+     */
     toggle() {
         const currentTheme = document.documentElement.getAttribute("data-theme");
         const newTheme = currentTheme === "light" ? "dark" : "light";

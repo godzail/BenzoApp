@@ -3,54 +3,73 @@
  */
 
 ((): void => {
+  const ThemeStorageKey = "app-theme";
   const btn = document.getElementById("docs-theme-toggle");
   const sunIcon = document.getElementById("theme-icon-sun");
   const moonIcon = document.getElementById("theme-icon-moon");
 
-  const applyStoredTheme = (): void => {
+  const getSystemPreference = (): string => {
+    if (window.matchMedia?.("(prefers-color-scheme: light)")?.matches) {
+      return "light";
+    }
+    return "dark";
+  };
+
+  const getStoredTheme = (): string | null => {
     try {
-      const stored = localStorage.getItem("docs-theme");
-      if (stored === "light") {
-        document.documentElement.setAttribute("data-theme", "light");
-      }
+      return localStorage.getItem(ThemeStorageKey);
     } catch {
-      // ignore
+      return null;
     }
   };
 
+  const setStoredTheme = (theme: string): void => {
+    try {
+      localStorage.setItem(ThemeStorageKey, theme);
+    } catch {
+      console.warn("Failed to store theme preference");
+    }
+  };
+
+  const applyTheme = (theme: string): void => {
+    document.documentElement.setAttribute("data-theme", theme);
+  };
+
   const updateIcons = (): void => {
-    const isLight =
-      document.documentElement.getAttribute("data-theme") === "light";
+    const currentTheme = document.documentElement.getAttribute("data-theme");
+    const isLight = currentTheme === "light";
     if (sunIcon && moonIcon) {
       sunIcon.classList.toggle("hidden", isLight);
       moonIcon.classList.toggle("hidden", !isLight);
     }
   };
 
-  const toggleTheme = (): void => {
-    const isLight =
-      document.documentElement.getAttribute("data-theme") === "light";
-    if (isLight) {
-      document.documentElement.removeAttribute("data-theme");
-      try {
-        localStorage.removeItem("docs-theme");
-      } catch {
-        // ignore
-      }
-    } else {
-      document.documentElement.setAttribute("data-theme", "light");
-      try {
-        localStorage.setItem("docs-theme", "light");
-      } catch {
-        // ignore
-      }
+  const init = (): void => {
+    const storedTheme = getStoredTheme();
+    const theme = storedTheme || getSystemPreference();
+    applyTheme(theme);
+    updateIcons();
+    if (window.matchMedia) {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
+      mediaQuery.addEventListener("change", (e: MediaQueryListEvent) => {
+        if (!getStoredTheme()) {
+          applyTheme(e.matches ? "light" : "dark");
+          updateIcons();
+        }
+      });
     }
+  };
+
+  const toggleTheme = (): void => {
+    const currentTheme = document.documentElement.getAttribute("data-theme");
+    const newTheme = currentTheme === "light" ? "dark" : "light";
+    applyTheme(newTheme);
+    setStoredTheme(newTheme);
     updateIcons();
   };
 
   try {
-    applyStoredTheme();
-    updateIcons();
+    init();
     if (btn) {
       btn.addEventListener("click", toggleTheme);
     }
