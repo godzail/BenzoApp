@@ -3,6 +3,11 @@
  * Main application composition.
  * Composes the UI, storage, and map mixins into the main app object.
  */
+/**
+ * Create the main application instance by composing UI, storage and map mixins.
+ *
+ * @returns A new `GasStationApp` object containing state and public methods used by the UI.
+ */
 function gasStationApp() {
     return {
         formData: {
@@ -27,6 +32,7 @@ function gasStationApp() {
         debugMode: false,
         csvLastUpdated: null,
         csvReloading: false,
+        csvStatusLoading: false,
         csvStatusInterval: null,
         ...window.appUiMixin,
         ...window.appStorageMixin,

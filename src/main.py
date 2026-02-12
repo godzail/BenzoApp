@@ -194,7 +194,7 @@ async def search_gas_stations(
             geocode_city(city, settings, app.state.http_client),
             timeout=settings.search_timeout_seconds,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("Search timed out during geocoding for city: {}", city)
         return SearchResponse(
             stations=[],
@@ -224,7 +224,7 @@ async def search_gas_stations(
             fetch_gas_stations(params, settings, app.state.http_client),
             timeout=settings.search_timeout_seconds,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("Search timed out while fetching stations for city: {}", city)
         return SearchResponse(
             stations=[],
@@ -319,19 +319,27 @@ async def render_docs(page: str) -> HTMLResponse:
         <body class='bg-[var(--bg-primary)] text-[var(--text-primary)]
         min-h-screen font-sans transition-colors duration-250'>
             <div class='max-w-3xl mx-auto px-6 py-12 relative'>
-                <div class='docs-content'>{rendered}</div>
-                <button id='docs-theme-toggle' aria-label='Toggle theme'
-                class='absolute top-6 right-6 p-2 rounded-lg border border-[var(--border-color)]
+                <div class='docs-content mt-4'>{rendered}</div>
+                <button onclick="window.location.href='/'" aria-label='Back to main page'
+                class='absolute top-6 left-6 p-1.5 rounded-lg border border-[var(--border-color)]
                 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-colors
                 cursor-pointer text-[var(--text-primary)] shadow-sm'>
-                    <svg id='theme-icon-sun' class='w-5 h-5' fill='none' stroke='currentColor'
+                    <svg class='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15 19l-7-7 7-7'/>
+                    </svg>
+                </button>
+                <button id='docs-theme-toggle' aria-label='Toggle theme'
+                class='absolute top-6 right-6 p-1.5 rounded-lg border border-[var(--border-color)]
+                bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-colors
+                cursor-pointer text-[var(--text-primary)] shadow-sm'>
+                    <svg id='theme-icon-sun' class='w-4 h-4' fill='none' stroke='currentColor'
                     viewBox='0 0 24 24'>
                         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2'
                         d='M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707
                         M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707
                         M16 12a4 4 0 11-8 0 4 4 0 018 0z'/>
                     </svg>
-                    <svg id='theme-icon-moon' class='w-5 h-5 hidden' fill='none' stroke='currentColor'
+                    <svg id='theme-icon-moon' class='w-4 h-4 hidden' fill='none' stroke='currentColor'
                     viewBox='0 0 24 24'>
                         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2'
                         d='M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21

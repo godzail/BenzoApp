@@ -1,6 +1,6 @@
 # Guida Utente di BenzoApp
 
-**Versione 1.0** | Ultimo aggiornamento: Febbraio 2025
+**Versione 1.1** | Ultimo aggiornamento: Febbraio 2026
 
 ---
 
@@ -12,8 +12,7 @@ BenzoApp fornisce dati sui prezzi in tempo reale da fonti ufficiali, mostrati at
 
 ### Vista principale
 
-![Interfaccia principale](screenshots/main.jpg)
-*Figura 1: L'interfaccia principale di BenzoApp che mostra il campo di ricerca, i filtri e la mappa interattiva*
+Figura 1: L'interfaccia principale di BenzoApp che mostra il campo di ricerca, i filtri e la mappa interattiva
 
 ---
 
@@ -29,7 +28,7 @@ BenzoApp fornisce dati sui prezzi in tempo reale da fonti ufficiali, mostrati at
 ### 🔍 Ricerca intelligente
 
 - Ricerca per qualsiasi nome di città italiana
-- Raggio di ricerca regolabile (1-200 km)
+- Raggio di ricerca regolabile (1-50 km)
 - Filtra per tipo di carburante: Benzina, Gasolio, GPL, Metano
 - Limita i risultati per mostrare solo le stazioni più rilevanti
 
@@ -52,6 +51,11 @@ BenzoApp fornisce dati sui prezzi in tempo reale da fonti ufficiali, mostrati at
 - Design responsive per desktop e mobile
 - Ricerca asincrona veloce con indicatori di caricamento
 - Cronologia delle ricerche recenti per accesso rapido
+- Indicatore di stato CSV con ricarica manuale
+- Rilevamento posizione corrente per ricerca automatica
+- Layout ridimensionabile tra pannello ricerca e mappa
+- Indicatori di differenza prezzi per confronto facile
+- Ricerca automatica al cambio tipo di carburante
 
 ---
 
@@ -84,13 +88,14 @@ BenzoApp fornisce dati sui prezzi in tempo reale da fonti ufficiali, mostrati at
    - Esempi: "Roma", "Milano", "Napoli", "Torino"
 
 2. **Regola i parametri di ricerca** (opzionale):
-   - **Raggio**: trascina lo slider per impostare la distanza di ricerca (1-200 km)
-   - **Tipo di carburante**: seleziona la tua preferenza
+   - **Raggio**: trascina lo slider per impostare la distanza di ricerca (1-50 km)
+   - **Tipo di carburante**: seleziona la tua preferenza dai chip carburante
      - Benzina
      - Gasolio
      - GPL
      - Metano
    - **Risultati**: scegli quante stazioni mostrare (1-20)
+   - **Posizione corrente**: clicca il pulsante posizione per cercare vicino alla tua posizione attuale
 
 3. **Clicca "Cerca"** o premi Invio
    - Attendi l'indicatore di caricamento
@@ -113,6 +118,7 @@ Il pannello dei risultati mostra per ogni stazione:
 - **Indirizzo**: indirizzo completo
 - **Distanza**: distanza dalla posizione di ricerca
 - **Prezzi dei carburanti**: prezzi correnti per i carburanti disponibili
+- **Differenza prezzo**: mostra quanto più costosa rispetto alla stazione più economica
 - **Formato prezzo**: tutti i prezzi mostrati in €/litro con 3 decimali
 
 #### Marker sulla mappa
@@ -143,8 +149,9 @@ La stazione con il prezzo più basso per il carburante selezionato è contrasseg
 
 #### Controlli della mappa
 
-- **Schermo intero**: clicca il pulsante fullscreen (se presente)
-- **Selezione layer**: passa tra stili di mappa (se abilitato)
+- **Zoom**: usa i pulsanti + e - o la rotella del mouse
+- **Pan**: clicca e trascina per spostare la mappa
+- **Adatta automaticamente**: la mappa si adatta automaticamente per mostrare tutti i risultati
 
 ### 4. Azioni aggiuntive
 
@@ -209,8 +216,8 @@ Se una stazione non è visibile nella vista corrente:
 
 - **Aree urbane**: 5-10 km solitamente sufficienti
 - **Aree rurali**: 20-50 km potrebbero essere necessari
-- **Viaggi**: 50-100 km per pianificare le soste
-- **Massimo**: 200 km per pianificazioni regionali
+- **Viaggi**: 50 km per pianificare le soste
+- **Massimo**: 50 km per pianificazioni regionali
 
 ### Lettura dei prezzi
 
@@ -231,16 +238,17 @@ Se una stazione non è visibile nella vista corrente:
 
 ### Dati ufficiali
 
-BenzoApp recupera i prezzi da **Prezzi Carburante API**, che aggrega dati da:
+BenzoApp scarica e memorizza nella cache i dati sui prezzi direttamente dal sito web del Ministero dello Sviluppo Economico (MIMIT), utilizzando file CSV ufficiali:
 
-- Ministero dello Sviluppo Economico
-- Reti di monitoraggio regionali
-- Segnalazioni dirette delle stazioni (quando richiesto dalla legge)
+- **Registro stazioni**: `anagrafica_impianti_attivi.csv` - Elenco delle stazioni attive
+- **Prezzi carburante**: `prezzo_alle_8.csv` - Prezzi correnti aggiornati giornalmente
+- I dati sono memorizzati nella cache locale per 24 ore per migliorare le prestazioni e ridurre le richieste esterne
 
 ### Frequenza di aggiornamento
 
-- I prezzi vengono aggiornati **giornalmente** dalle fonti dati
-- Alcune stazioni possono aggiornare più frequentemente
+- I file CSV vengono scaricati **giornalmente** dalle fonti ufficiali
+- I dati nella cache vengono aggiornati ogni 24 ore o manualmente tramite il pulsante di ricarica
+- I prezzi riflettono i dati più recenti disponibili (tipicamente entro 24 ore)
 - I prezzi del weekend possono riflettere i dati del venerdì
 
 ### Note sull'accuratezza
@@ -289,7 +297,8 @@ BenzoApp recupera i prezzi da **Prezzi Carburante API**, che aggrega dati da:
 | Messaggio | Significato | Soluzione |
 |-----------|------------|-----------|
 | "Servizio di geocoding temporaneamente non disponibile" | Problema con l'API esterna | Attendi qualche minuto e riprova |
-| "Dati delle stazioni temporaneamente non disponibili" | Problema con l'API prezzi | Controlla la connessione e riprova più tardi |
+| "Dati delle stazioni temporaneamente non disponibili" | Problema con download CSV o parsing | Controlla la connessione e riprova, o usa il pulsante di ricarica |
+| "Ricarica CSV avviata" | Aggiornamento manuale dati iniziato | Attendi il completamento dell'indicatore |
 | "X stazioni escluse per dati incompleti" | Alcune stazioni non hanno prezzi | Prova criteri diversi |
 
 ---
@@ -305,28 +314,18 @@ BenzoApp recupera i prezzi da **Prezzi Carburante API**, che aggrega dati da:
 ### Cosa non raccogliamo
 
 - Informazioni personali
-- Dati di localizzazione (a meno che non venga fornito il nome della città)
+- Dati di localizzazione (a meno che non venga usata la funzione posizione corrente)
 - Cronologia di navigazione
 - Qualsiasi informazione identificabile
 
 ### Conservazione dei dati
 
 - La cronologia delle ricerche è memorizzata **localmente** nel browser
+- Vengono effettuate chiamate API esterne per:
+  - OpenStreetMap Nominatim per geocoding dei nomi delle città
+  - Ministero dello Sviluppo Economico per download dei file CSV
 - Nessun dato personale viene inviato ai nostri server, eccetto le query necessarie per ottenere i risultati
 - Per rimuovere le preferenze, cancella i dati del browser
-
----
-
-## Scorciatoie da tastiera
-
-| Azione | Scorciatoia |
-|--------|------------|
-| Focalizza ricerca città | `Ctrl/Cmd + K` |
-| Invia ricerca | `Enter` (nel campo di ricerca) |
-| Toggle tema | Non assegnata |
-| Cambia lingua | Non assegnata |
-
-*Nota: le scorciatoie potrebbero essere aggiunte in versioni future.*
 
 ---
 
@@ -359,7 +358,7 @@ R: I prezzi provengono da fonti ufficiali e sono generalmente accurati, ma posso
 R: BenzoApp è progettata per stazioni italiane. Ricerche per città non italiane potrebbero non restituire risultati.
 
 **D: Perché mancano alcuni prezzi?**
-R: Non tutte le stazioni inviano i dati all'API ufficiale, specialmente in zone remote. Le stazioni con dati incompleti sono filtrate.
+R: Non tutte le stazioni inviano i dati ai file CSV ufficiali, specialmente in zone remote. Le stazioni con dati incompleti sono filtrate.
 
 ### Tecniche
 
@@ -367,7 +366,7 @@ R: Non tutte le stazioni inviano i dati all'API ufficiale, specialmente in zone 
 R: No. Usando il nome della città non viene usata la posizione GPS del dispositivo.
 
 **D: Le mie ricerche vengono registrate?**
-R: Le ricerche recenti sono salvate localmente nel browser, non vengono inviate ai server.
+R: Le ricerche recenti sono salvate localmente nel browser, vengono effettuate chiamate API esterne per geocoding e recupero dati, ma nessun dato viene inviato ai nostri server eccetto la query necessaria.
 
 **D: Posso esportare i risultati?**
 R: Funzionalità non disponibile al momento, potrebbe essere aggiunta in futuro.
@@ -411,14 +410,15 @@ Vedi il repository per le linee guida di contribuzione.
 ### Tecnologie utilizzate
 
 - **Backend**: FastAPI, Pydantic, httpx, Tenacity, Loguru
-- **Frontend**: Alpine.js, Leaflet, i18next
-- **API**: OpenStreetMap Nominatim, Prezzi Carburante
+- **Frontend**: Alpine.js, Leaflet, i18next, TypeScript
+- **Strumenti di build**: Bun per gestione pacchetti e scripting
+- **API**: OpenStreetMap Nominatim, download file CSV Ministero dello Sviluppo Economico
 - **Design**: CSS personalizzato con font Inter
 
 ### Fornitori dati
 
 - **Geocoding**: contributori OpenStreetMap
-- **Prezzi carburante**: Ministero dello Sviluppo Economico
+- **Prezzi carburante**: file CSV Ministero dello Sviluppo Economico (MIMIT)
 
 ### Licenza
 
@@ -427,6 +427,16 @@ BenzoApp è rilasciata sotto licenza MIT. Vedi il file LICENSE per i dettagli.
 ---
 
 ## Cronologia versioni
+
+### v1.1.0 (Febbraio 2026)
+
+- Aggiunto indicatore di stato CSV con ricarica manuale
+- Implementato rilevamento posizione corrente per ricerca automatica
+- Aggiunto layout ridimensionabile tra pannello ricerca e mappa
+- Migliorato confronto prezzi con indicatori di differenza
+- Migliorata ricerca con attivazione automatica al cambio tipo carburante
+- Aggiornata fonte dati a download CSV diretti con caching locale
+- Migliorate funzionalità di accessibilità e raffinatezze UI
 
 ### v1.0.0 (Febbraio 2025)
 
