@@ -1,6 +1,6 @@
 # BenzoApp User Guide
 
-**Version 1.0** | Last Updated: February 2025
+**Version 1.1** | Last Updated: February 2026
 
 ---
 
@@ -12,8 +12,7 @@ BenzoApp provides real-time fuel price data from official sources, displayed thr
 
 ### Main View
 
-![Main Interface](screenshots/main.jpg)
-*Figure 1: The main interface of BenzoApp showing the search input, filters, and interactive map*
+Figure 1: The main interface of BenzoApp showing the search input, filters, and interactive map
 
 ---
 
@@ -29,7 +28,7 @@ BenzoApp provides real-time fuel price data from official sources, displayed thr
 ### 🔍 Smart Search
 
 - Search by any Italian city name
-- Adjustable search radius (1-200 km)
+- Adjustable search radius (1-50 km)
 - Filter by fuel type: Benzina, Gasolio, GPL, Metano
 - Limit results to show only the most relevant stations
 
@@ -52,6 +51,11 @@ BenzoApp provides real-time fuel price data from official sources, displayed thr
 - Responsive design for desktop and mobile
 - Fast, asynchronous search with loading indicators
 - Recent search history for quick access
+- CSV data status indicator with manual reload
+- Current location detection for automatic search
+- Resizable layout between search and map panels
+- Price difference indicators for easy comparison
+- Automatic search on fuel type selection
 
 ---
 
@@ -84,13 +88,14 @@ BenzoApp provides real-time fuel price data from official sources, displayed thr
    - Examples: "Roma", "Milano", "Napoli", "Torino"
 
 2. **Adjust search parameters** (optional):
-   - **Radius**: Drag the slider to set search distance (1-200 km)
-   - **Fuel Type**: Select your fuel preference from the dropdown
+   - **Radius**: Drag the slider to set search distance (1-50 km)
+   - **Fuel Type**: Select your fuel preference from the fuel chips
      - Benzina (Gasoline)
      - Gasolio (Diesel)
      - GPL (LPG)
      - Metano (Methane)
    - **Results**: Choose how many stations to display (1-20)
+   - **Current Location**: Click the location button to search near your current position
 
 3. **Click "Cerca" (Search)** or press Enter
    - Wait for the loading indicator
@@ -113,6 +118,7 @@ The results panel displays each gas station with:
 - **Address**: Full street address
 - **Distance**: How far the station is from your search location
 - **Fuel Prices**: Current prices for available fuel types
+- **Price Difference**: Shows how much more expensive compared to the cheapest station
 - **Price Format**: All prices shown as €/liter with 3 decimal places
 
 #### Map Markers
@@ -143,8 +149,9 @@ The station offering the lowest price for your selected fuel type is marked with
 
 #### Map Controls
 
-- **Toggle Fullscreen**: Click the fullscreen button (if available)
-- **Layer Selection**: Switch between map view styles (if enabled)
+- **Zoom**: Use the + and - buttons or scroll wheel
+- **Pan**: Click and drag to move the map
+- **Auto-fit**: The map automatically adjusts to show all results
 
 ### 4. Additional Actions
 
@@ -215,8 +222,8 @@ View your recent search history:
 
 - **Urban areas**: 5-10 km is usually sufficient
 - **Rural areas**: 20-50 km may be needed
-- **Road trips**: 50-100 km to plan fuel stops
-- **Maximum**: 200 km for regional planning
+- **Road trips**: 50 km to plan fuel stops
+- **Maximum**: 50 km for regional planning
 
 ### Reading Prices
 
@@ -237,16 +244,17 @@ View your recent search history:
 
 ### Official Data
 
-BenzoApp retrieves fuel prices from the **Prezzi Carburante API**, which aggregates data from:
+BenzoApp downloads and caches fuel price data directly from the Italian Ministry of Economic Development (MIMIT) website, using official CSV files:
 
-- Italian Ministry of Economic Development
-- Regional monitoring networks
-- Direct station reports (where required by law)
+- **Station Registry**: `anagrafica_impianti_attivi.csv` - List of active gas stations
+- **Fuel Prices**: `prezzo_alle_8.csv` - Current fuel prices updated daily
+- Data is cached locally for 24 hours to improve performance and reduce external requests
 
 ### Update Frequency
 
-- Prices are updated **daily** by data providers
-- Some stations may have more frequent updates
+- CSV files are downloaded **daily** from official sources
+- Cached data is refreshed every 24 hours or manually via the reload button
+- Prices reflect the most recent available data (typically within 24 hours)
 - Weekend prices may reflect Friday's data
 
 ### Accuracy Notes
@@ -295,7 +303,8 @@ BenzoApp retrieves fuel prices from the **Prezzi Carburante API**, which aggrega
 | Message | Meaning | Solution |
 |---------|---------|----------|
 | "City geocoding service temporarily unavailable" | External API issue | Wait a few minutes and retry |
-| "Gas station data temporarily unavailable" | Fuel price API issue | Check connection, retry later |
+| "Gas station data temporarily unavailable" | CSV download or parsing issue | Check connection, retry later, or use reload button |
+| "CSV reload started" | Manual data refresh initiated | Wait for completion indicator |
 | "X stations were excluded due to incomplete data" | Some stations missing prices | Results are filtered; try different criteria |
 
 ---
@@ -311,28 +320,18 @@ BenzoApp retrieves fuel prices from the **Prezzi Carburante API**, which aggrega
 ### What We Don't Collect
 
 - Personal information
-- Location data (unless you use city name)
+- Location data (unless you use the current location feature)
 - Browsing history
 - Any identifiable information
 
 ### Data Storage
 
 - All search history is stored **locally** in your browser
-- No data is transmitted to our servers except search queries
+- External API calls are made to:
+  - OpenStreetMap Nominatim for geocoding city names
+  - Italian Ministry of Economic Development for CSV data downloads
+- No data is transmitted to our servers except the search query to retrieve results
 - Clear your browser data to remove saved preferences
-
----
-
-## Keyboard Shortcuts
-
-| Action | Shortcut |
-|--------|----------|
-| Focus city search | `Ctrl/Cmd + K` |
-| Submit search | `Enter` (in search field) |
-| Toggle theme | Not assigned |
-| Switch language | Not assigned |
-
-*Note: Keyboard shortcuts may be added in future versions.*
 
 ---
 
@@ -365,7 +364,7 @@ A: Prices come from official sources and are generally very accurate. However, t
 A: BenzoApp is designed for Italian fuel stations. Searching for non-Italian cities will likely return no results.
 
 **Q: Why are some stations missing prices?**
-A: Not all stations report data to the official API, especially in remote areas. Stations with incomplete data are filtered from results.
+A: Not all stations report data to the official CSV files, especially in remote areas. Stations with incomplete data are filtered from results.
 
 ### Technical
 
@@ -373,7 +372,7 @@ A: Not all stations report data to the official API, especially in remote areas.
 A: No. We only use the city name you enter. We do not access your device's GPS or location services.
 
 **Q: Are my searches logged?**
-A: Searches are stored locally in your browser for the recent searches feature. No data is sent to external servers except the search query to retrieve results.
+A: Searches are stored locally in your browser for the recent searches feature. External API calls are made for geocoding and data retrieval, but no data is sent to our servers except the search query.
 
 **Q: Can I export my search results?**
 A: This feature is not currently available but may be added in future versions.
@@ -421,14 +420,15 @@ See the project repository for contribution guidelines.
 ### Technologies Used
 
 - **Backend**: FastAPI, Pydantic, httpx, Tenacity, Loguru
-- **Frontend**: Alpine.js, Leaflet, i18next
-- **APIs**: OpenStreetMap Nominatim, Prezzi Carburante
+- **Frontend**: Alpine.js, Leaflet, i18next, TypeScript
+- **Build Tools**: Bun for package management and scripting
+- **APIs**: OpenStreetMap Nominatim, Italian Ministry of Economic Development CSV downloads
 - **Design**: Custom CSS with Inter font
 
 ### Data Providers
 
 - **Geocoding**: OpenStreetMap contributors
-- **Fuel Prices**: Italian Ministry of Economic Development
+- **Fuel Prices**: Italian Ministry of Economic Development (MIMIT) CSV files
 
 ### License
 
@@ -437,6 +437,16 @@ BenzoApp is released under the MIT License. See LICENSE file for details.
 ---
 
 ## Version History
+
+### v1.1.0 (February 2026)
+
+- Added CSV data status indicator and manual reload functionality
+- Implemented current location detection for automatic search
+- Added resizable layout between search and map panels
+- Enhanced price comparison with difference indicators
+- Improved search with automatic triggering on fuel type selection
+- Updated data source to direct CSV downloads with local caching
+- Enhanced accessibility features and UI refinements
 
 ### v1.0.0 (February 2025)
 

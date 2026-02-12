@@ -3,6 +3,9 @@
  * Map-related helper methods for the gas station application.
  */
 window.appMapMixin = {
+    /**
+     * Remove all markers from the map and clear the internal registry.
+     */
     clearMapMarkers() {
         if (this.mapMarkers) {
             for (const marker of Object.values(this.mapMarkers)) {
@@ -14,6 +17,9 @@ window.appMapMixin = {
             this.mapMarkers = {};
         }
     },
+    /**
+     * Add markers for the current `results` to the map and adjust view to fit them.
+     */
     addMapMarkers() {
         if (!this.results || this.results.length === 0) {
             return;
@@ -41,6 +47,9 @@ window.appMapMixin = {
             maxZoom: window.CONFIG.MAX_ZOOM,
         });
     },
+    /**
+     * Fit the map view to contain all current markers, respecting configured padding and max zoom.
+     */
     fitMapBounds() {
         const markers = Object.values(this.mapMarkers || {});
         if (markers.length > 0) {
@@ -51,6 +60,9 @@ window.appMapMixin = {
             });
         }
     },
+    /**
+     * Initialize the Leaflet map inside the '#map' element with default center and tile layer.
+     */
     initMap() {
         if (this.mapInitialized) {
             return;
@@ -76,6 +88,10 @@ window.appMapMixin = {
             }
         }, window.CONFIG.MAP_RESIZE_DELAY);
     },
+    /**
+     * Refresh popup content for all markers when the application language changes.
+     * Ensures popups show translated station information.
+     */
     refreshMapMarkersOnLanguageChange() {
         for (const marker of Object.values(this.mapMarkers || {})) {
             if (marker &&
@@ -89,6 +105,11 @@ window.appMapMixin = {
             this.updateMap?.();
         });
     },
+    /**
+     * Center the map on the given station and open its popup.
+     *
+     * @param stationId - Identifier of the station to select on the map.
+     */
     selectStationForMap(stationId) {
         if (!(this.map && this.mapMarkers && stationId)) {
             return;
@@ -103,6 +124,11 @@ window.appMapMixin = {
             marker.openPopup();
         }
     },
+    /**
+     * Open directions to a station using Google Maps in a new tab.
+     *
+     * @param station - Object containing `latitude` and `longitude` of the destination.
+     */
     getDirections(station) {
         if (!(station?.latitude && station.longitude)) {
             return;
@@ -113,6 +139,10 @@ window.appMapMixin = {
             newWindow.opener = null;
         }
     },
+    /**
+     * Attempt to locate the user via the browser `geolocation` API and submit a search for the current location.
+     * Sets an error message if location cannot be retrieved.
+     */
     locateUser() {
         if (!navigator.geolocation) {
             this.error = "Geolocation is not supported by your browser";
