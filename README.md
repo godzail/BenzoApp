@@ -7,27 +7,29 @@
 ---
 
 <p align="center">
-  <img src="docs/screenshots/main.png" alt="Main Interface" />
+  <img src="docs/screenshots/main.jpg" alt="Main Interface" />
   <br />
   <em>Figure 1: The main interface of BenzoApp showing the search input, filters, and interactive map</em>
 </p>
 
 ---
 
-BenzoApp is a fast, user-friendly web application that helps users find and compare fuel prices at gas stations across Italy. Leveraging real-time data from the Prezzi Carburante API and geocoding services from OpenStreetMap, BenzoApp provides an intuitive interface with interactive maps and smart filtering options.
+BenzoApp is a fast, user-friendly web application that helps users find and compare fuel prices at gas stations across Italy. Leveraging real-time data from official CSV datasets and geocoding services from OpenStreetMap, BenzoApp provides an intuitive interface with interactive maps and smart filtering options.
 
 ## ✨ Features
 
 - 🌍 **City-based Search** - Find gas stations near any Italian city using geocoding
-- 💰 **Price Comparison** - Compare fuel prices across multiple stations
+- 💰 **Price Comparison** - Compare fuel prices across multiple stations with difference indicators
 - 🗺️ **Interactive Map** - Visualize station locations on an interactive map powered by Leaflet
-- 📍 **Location Services** - Navigate to stations or view them on the map
-- 🔍 **Smart Filtering** - Filter by fuel type (Benzina, Gasolio, GPL, Metano)
-- 📏 **Radius Control** - Adjustable search radius (1-200 km)
+- 📍 **Location Services** - Navigate to stations, current location detection, or view them on the map
+- 🔍 **Smart Filtering** - Filter by fuel type (Benzina, Gasolio, GPL, Metano) with auto-search
+- 📏 **Radius Control** - Adjustable search radius (1-50 km)
 - 🌐 **Multi-language** - Support for Italian and English (i18n with i18next)
 - 📱 **Responsive Design** - Works seamlessly on desktop and mobile devices
-- ⚡ **Fast & Efficient** - Async operations with connection pooling and caching
-- 🎨 **Modern UI** - Clean, accessible interface with Alpine.js
+- ⚡ **Fast & Efficient** - Async operations with connection pooling and local caching
+- 🎨 **Modern UI** - Clean, accessible interface with Alpine.js, resizable layout
+- 🔄 **Data Management** - CSV data status indicator with manual reload capability
+- 📊 **Recent Searches** - Quick access to previous searches
 
 ## 🏗️ Architecture
 
@@ -51,7 +53,7 @@ BenzoApp is built with a modern, scalable architecture:
 ### External Services
 
 - **OpenStreetMap Nominatim** - Geocoding city names to coordinates
-- **MIMIT — Carburanti (open data CSV)** - Official CSV datasets for fuel prices and station registry (Italian Ministry of Enterprises and Made in Italy). Data is ingested directly from CSV exports.
+- **MIMIT — Carburanti (open data CSV)** - Official CSV datasets for fuel prices and station registry (Italian Ministry of Enterprises and Made in Italy). Data is downloaded directly and cached locally.
 
 ## 🚀 Quick Start
 
@@ -113,9 +115,9 @@ The application uses environment variables for configuration. See [.env.example]
 | Variable                    | Description                                  | Default                                                   |
 |-----------------------------|----------------------------------------------|-----------------------------------------------------------|
 | `NOMINATIM_API_URL`         | OpenStreetMap geocoding API endpoint         | `https://nominatim.openstreetmap.org/search`              |
-| `PREZZI_CARBURANTE_API_URL` | Fuel price API endpoint                      | `https://www.mimit.gov.it/it/open-data/elenco-dataset/carburanti-prezzi-praticati-e-anagrafica-degli-impianti` |
+| `PREZZI_CARBURANTE_CSV_URL` | Fuel price CSV download URL                  | `https://www.mimit.gov.it/it/open-data/elenco-dataset/carburanti-prezzi-praticati-e-anagrafica-degli-impianti` |
 | `CORS_ALLOWED_ORIGINS`      | Comma-separated list of allowed CORS origins | `http://127.0.0.1:8000`                                   |
-| `USER_AGENT`                | Custom user agent for external API requests  | `BenzoApp/1.0 (+https://example.com)`                     |
+| `USER_AGENT`                | Custom user agent for external API requests  | `BenzoApp/1.1 (+https://example.com)`                     |
 
 ## 📚 API Documentation
 
@@ -176,6 +178,35 @@ Health check endpoint.
 }
 ```
 
+#### `GET /api/csv-status`
+
+Returns CSV data freshness and source information.
+
+**Response:**
+
+```json
+{
+  "csv_status": {
+    "last_updated": "2026-02-12T10:00:00Z",
+    "source": "https://www.mimit.gov.it/...",
+    "cache_age_hours": 2
+  }
+}
+```
+
+#### `POST /api/reload-csv`
+
+Forces CSV download and cache refresh.
+
+**Response:**
+
+```json
+{
+  "message": "CSV reload started",
+  "status": "in_progress"
+}
+```
+
 ## 🛠️ Development
 
 ### Code Quality Tools
@@ -223,9 +254,10 @@ BenzoApp/
 │   ├── main.py                 # FastAPI application
 │   ├── models.py               # Pydantic models
 │   ├── services/               # Business logic
-│   │   ├── fuel_api.py         # Fuel price API integration
+│   │   ├── fuel_api.py         # Fuel price CSV integration
 │   │   ├── fuel_type_utils.py
-│   │   └── geocoding.py        # Geocoding service
+│   │   ├── geocoding.py        # Geocoding service
+│   │   └── prezzi_csv.py       # CSV download and parsing
 │   └── static/                 # Frontend assets
 │       ├── css/
 │       ├── js/
@@ -233,6 +265,7 @@ BenzoApp/
 │       └── templates/          # HTML templates
 ├── tests/                      # Test suite
 ├── docs/                       # Documentation
+├── data/                       # Cached CSV data
 ├── pyproject.toml              # Project metadata & dependencies
 ├── .env.example                # Environment variables template
 └── README.md
@@ -252,6 +285,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [MIMIT — Carburanti (open data)](https://www.mimit.gov.it/it/open-data/elenco-dataset/carburanti-prezzi-praticati-e-anagrafica-degli-impianti) — Official open dataset for fuel prices and station registry (Italian Ministry of Enterprises and Made in Italy)
 - [FastAPI](https://fastapi.tiangolo.com/) for the amazing web framework
 - [Leaflet](https://leafletjs.com/) for interactive maps
+- [Alpine.js](https://alpinejs.dev/) for reactive frontend components
+- [Bun](https://bun.sh/) for fast JavaScript tooling
 
 ## 📧 Support
 
