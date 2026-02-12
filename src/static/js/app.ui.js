@@ -428,6 +428,7 @@ window.appUiMixin = {
      */
     setLanguage(lang) {
         this.safeSetItem("lang", lang);
+        this.currentLang = lang;
         if (window.setLang) {
             window.setLang(lang);
         }

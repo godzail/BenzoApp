@@ -47,6 +47,10 @@ class DummyClient:
 
 def test_geocoding_country_bias_and_alias() -> None:
     """Test that geocoding uses country bias and city name aliases."""
+    # Clear global cache to force actual API call (not cached)
+    from src.services.geocoding import geocoding_cache
+    geocoding_cache.clear()
+
     client = DummyClient()
     settings = Settings()
 

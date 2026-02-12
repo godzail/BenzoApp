@@ -4,8 +4,8 @@
     "private": true,
     "scripts": {
         "test:e2e": "playwright test",
-        "build:ts": "tsc",
-        "watch:ts": "tsc --watch",
+        "build:ts": "bun x tsc",
+        "watch:ts": "bun x tsc --watch",
         "lint:ts": "biome check src/static",
         "format:ts": "biome check src/static --write"
     },

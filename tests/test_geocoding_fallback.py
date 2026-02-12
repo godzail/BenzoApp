@@ -24,6 +24,11 @@ class DummyClient:
 @pytest.mark.asyncio
 async def test_geocode_fallback_to_local_coords(tmp_path):
     """When the geocoding provider returns 509, local cities.json coordinates are used as fallback."""
+    # Reset global caches to ensure clean state
+    import src.services.geocoding as geo
+    geo._LOCAL_CITY_COORDS = None
+    geo.geocoding_cache.clear()
+
     settings = Settings()
     # Point cache path parent to tmp so _load_local_city_coords will look here
     settings.prezzi_cache_path = str(tmp_path / "prezzi_cache.json")
@@ -48,6 +53,11 @@ async def test_geocode_fallback_to_local_coords(tmp_path):
 @pytest.mark.asyncio
 async def test_geocode_raises_503_when_rate_limited_and_no_fallback(tmp_path):
     """When provider is rate-limited and no local fallback exists, a 503 HTTPException is raised."""
+    # Reset global caches to ensure clean state
+    import src.services.geocoding as geo
+    geo._LOCAL_CITY_COORDS = None
+    geo.geocoding_cache.clear()
+
     settings = Settings()
     # Use a tmp path without writing a cities.json so no fallback is available
     settings.prezzi_cache_path = str(tmp_path / "prezzi_cache.json")

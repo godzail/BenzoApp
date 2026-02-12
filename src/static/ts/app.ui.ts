@@ -559,6 +559,7 @@ window.appUiMixin = {
    */
   setLanguage(lang: string): void {
     this.safeSetItem("lang", lang);
+    this.currentLang = lang;
     if (window.setLang) {
       window.setLang(lang as "it" | "en");
     } else if (window.i18next?.changeLanguage) {
