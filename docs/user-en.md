@@ -12,7 +12,8 @@ BenzoApp provides real-time fuel price data from official sources, displayed thr
 
 ### Main View
 
-Figure 1: The main interface of BenzoApp showing the search input, filters, and interactive map
+![Main Interface](screenshots/main.jpg)
+*Figure 1: The main interface of BenzoApp showing the search input, filters, and interactive map*
 
 ---
 

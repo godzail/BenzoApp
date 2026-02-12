@@ -12,7 +12,8 @@ BenzoApp fornisce dati sui prezzi in tempo reale da fonti ufficiali, mostrati at
 
 ### Vista principale
 
-Figura 1: L'interfaccia principale di BenzoApp che mostra il campo di ricerca, i filtri e la mappa interattiva
+![Interfaccia principale](screenshots/main.jpg)
+*Figura 1: L'interfaccia principale di BenzoApp che mostra il campo di ricerca, i filtri e la mappa interattiva*
 
 ---
 
