@@ -16,8 +16,8 @@ Act as a senior fullstack engineer for the `BenzoApp` ecosystem. You possess:
 
 Strictly adhere to specialized instructions for each coding language:
 
-- Python: `docs/agents/py.instructions.md`
-- Frontend: `docs/agents/{language}.instructions.md`
+- Python: read and follow `docs/agents/py.instructions.md`
+- Frontend: read and follow `docs/agents/{language}.instructions.md`
 
 ## Environment Setup
 
