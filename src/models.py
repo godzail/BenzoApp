@@ -8,8 +8,9 @@ This module defines data models and configuration settings for the Gas Station F
 """
 
 import os
+import re
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -53,7 +54,42 @@ class Settings(BaseSettings):
         ).split(","),
         description="A list of allowed origins for CORS.",
     )
-    user_agent: str = Field("GasStationFinder/1.0", description="User-Agent header for external API requests.")
+    user_agent: str = Field(
+        "GasStationFinder/1.0 (contact@example.com)",
+        description=(
+            "User-Agent header for external API requests. "
+            "Must include app name and contact info per Nominatim policy."
+        ),
+        min_length=10,
+    )
+
+    @field_validator("user_agent")
+    @classmethod
+    def validate_user_agent(cls, v: str) -> str:
+        """Validate User-Agent follows Nominatim policy: must include contact info."""
+        if not v or not isinstance(v, str):
+            err_msg = "User-Agent must be a non-empty string"
+            raise ValueError(err_msg)
+
+        # Check for email pattern (simple but effective) and URL pattern
+        email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+        url_pattern = r"https?://[^\s]+"
+
+        has_email = bool(re.search(email_pattern, v))
+        has_url = bool(re.search(url_pattern, v))
+
+        if not has_email and not has_url:
+            examples = (
+                "'MyApp/1.0 (myemail@example.com)' or "
+                "'MyApp/1.0 https://myapp.example.com'"
+            )
+            msg = (
+                "User-Agent must include contact information (email or URL) "
+                "per Nominatim usage policy. Examples: " + examples
+            )
+            raise ValueError(msg)
+
+        return v
 
     # Prezzi CSV source and cache configuration
     prezzi_csv_anagrafica_url: str = Field(
@@ -65,7 +101,8 @@ class Settings(BaseSettings):
         description="CSV URL for prezzi (prezzo_alle_8.csv).",
     )
     prezzi_cache_path: str = Field(
-        "src/static/data/prezzi_data.json", description="Path to cached combined prezzi JSON file."
+        "src/static/data/prezzi_data.json",
+        description="Path to cached combined prezzi JSON file.",
     )
     prezzi_cache_hours: int = Field(24, description="Number of hours to consider the cache fresh.")
     prezzi_csv_delimiter: str = Field(
@@ -79,7 +116,9 @@ class Settings(BaseSettings):
         None,
         description=(
             "Optional directory to read/write Prezzi CSV files. "
-            "If None, falls back first to 'src/static/data' (project-level), then to 'src/services/static/data' (service-local), and finally to project 'data'."
+            "If None, falls back first to 'src/static/data' (project-level), "
+            "then to 'src/services/static/data' (service-local), "
+            "and finally to project 'data'."
         ),
     )
     prezzi_keep_versions: int = Field(
@@ -88,7 +127,10 @@ class Settings(BaseSettings):
     )
     prezzi_preload_on_startup: bool = Field(
         default=True,
-        description="If true, preload the latest local CSVs into cache on application startup (non-blocking).",
+        description=(
+            "If true, preload the latest local CSVs into cache "
+            "on application startup (non-blocking)."
+        ),
     )
 
     # Server configuration

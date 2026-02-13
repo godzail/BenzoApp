@@ -1,7 +1,7 @@
 """Unit tests for geocoding service."""
 
-import asyncio
-from typing import TYPE_CHECKING, Any, cast
+import pytest
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import httpx
@@ -45,7 +45,8 @@ class DummyClient:
         return DummyResponse([{"lat": "43.7696", "lon": "11.2558"}], text='[{"lat":"43.7696","lon":"11.2558"}]')
 
 
-def test_geocoding_country_bias_and_alias() -> None:
+@pytest.mark.asyncio
+async def test_geocoding_country_bias_and_alias() -> None:
     """Test that geocoding uses country bias and city name aliases."""
     # Clear global cache to force actual API call (not cached)
     from src.services.geocoding import geocoding_cache
@@ -54,7 +55,7 @@ def test_geocoding_country_bias_and_alias() -> None:
     client = DummyClient()
     settings = Settings()
 
-    result = asyncio.run(geocode_city("Florence", settings, cast("httpx.AsyncClient", client)))
+    result = await geocode_city("Florence", settings, client)
 
     assert client.called_with is not None
     params = client.called_with["params"]
