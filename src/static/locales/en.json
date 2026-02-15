@@ -37,5 +37,8 @@
   "user_docs": "User Documentation",
   "data_loading": "Loading data...",
   "no_data": "No data available",
-  "reload_data": "Reload data"
+  "reload_data": "Reload data",
+  "reloading": "Reloading...",
+  "data_reloading_startup": "Reloading data (startup)",
+  "data_reloaded_success": "Data reloaded"
 }

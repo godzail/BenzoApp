@@ -5,7 +5,48 @@ interface Window {
   setLang: (lang: "it" | "en") => void;
   t: (key: string, fallback?: string) => string;
   updateI18nTexts: () => void;
-  gasStationApp: () => { debugMode?: boolean };
+  gasStationApp: {
+    formData: {
+      city: string;
+      radius: string;
+      fuel: string;
+      results: string;
+    };
+    recentSearches: Array<{
+      city: string;
+      radius: string;
+      fuel: string;
+      results?: string;
+      timestamp?: number;
+    }>;
+    loading: boolean;
+    results: Array<{
+      id?: string | number;
+      gestore?: string;
+      address?: string;
+      latitude?: number;
+      longitude?: number;
+      fuel_prices?: Array<{ price?: number }>;
+      distance?: string | number;
+    }>;
+    error: string;
+    searched: boolean;
+    currentTheme: string;
+    currentLang: string | null;
+    map: unknown;
+    mapInitialized: boolean;
+    mapMarkers: Record<string, unknown>;
+    showCitySuggestions: boolean;
+    cityList: string[];
+    filteredCities: string[];
+    debugMode: boolean;
+    csvLastUpdated: string | null;
+    csvReloading: boolean;
+    csvStatusLoading: boolean;
+    csvStatusInterval: ReturnType<typeof setInterval> | null;
+    init: () => Promise<void>;
+  } | null;
+  initApp: () => Promise<void>;
   translateFuel: (type: string) => string;
   CONFIG: {
     DEFAULT_MAP_CENTER: [number, number];
@@ -93,5 +134,3 @@ declare const i18next: {
     callback?: (err: unknown) => void,
   ) => void;
 };
-
-

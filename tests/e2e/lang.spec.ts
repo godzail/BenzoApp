@@ -37,6 +37,11 @@ test('updates title and recent searches when changing language', async ({ page }
   const recentIt = await page.textContent('#recent-searches-i18n');
   expect(recentIt?.trim()).toBe('Ricerche Recenti:');
 
+  // fuel button label should be Italian
+  await page.waitForSelector('#fuel-benzina-text');
+  const fuelIt = await page.textContent('#fuel-benzina-text');
+  expect(fuelIt?.trim()).toBe('Benzina');
+
   // Click English button and verify translations
   await page.click('button:has-text("EN")');
   await page.waitForTimeout(250);
@@ -46,4 +51,12 @@ test('updates title and recent searches when changing language', async ({ page }
 
   const recentEn = await page.textContent('#recent-searches-i18n');
   expect(recentEn?.trim()).toBe('Recent Searches:');
+
+  // fuel button label should switch to English
+  await page.waitForSelector('#fuel-benzina-text');
+  const fuelEn = await page.textContent('#fuel-benzina-text');
+  // also assert translate helper returns expected label (debug / spec)
+  const tf = await page.evaluate(() => (window.translateFuel ? window.translateFuel('benzina') : null));
+  expect(tf).toBe('Gasoline');
+  expect(fuelEn?.trim()).toBe('Gasoline');
 });

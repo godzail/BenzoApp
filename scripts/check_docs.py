@@ -1,9 +1,10 @@
 """Documentation page checker utility for BenzoApp.
 
-Verifies that documentation pages are accessible and contain expected elements.
+Verifies that documentation pages are accessible and contains expected elements.
 """
 
 from fastapi.testclient import TestClient
+from loguru import logger
 
 from src.main import app
 
@@ -29,12 +30,14 @@ def check_docs_pages(pages: list[str]) -> list[dict[str, str | int | bool]]:
         start_idx = response.text.find("<h1")
         snippet = response.text[start_idx : start_idx + 200] if start_idx != -1 else ""
 
-        results.append({
-            "page": page,
-            "status_code": response.status_code,
-            "toggle_present": toggle_present,
-            "snippet": snippet,
-        })
+        results.append(
+            {
+                "page": page,
+                "status_code": response.status_code,
+                "toggle_present": toggle_present,
+                "snippet": snippet,
+            },
+        )
 
     return results
 
@@ -50,9 +53,9 @@ def main() -> None:
         toggle = result["toggle_present"]
         snippet = result["snippet"]
 
-        print(f"{page} {status} docs-toggle-present {toggle}")  # noqa: T201
-        print(f"snippet: {snippet}")  # noqa: T201
-        print("---")  # noqa: T201
+        logger.info("{} {} docs-toggle-present {}", page, status, toggle)
+        logger.info("snippet: {}", snippet)
+        logger.info("---")
 
 
 if __name__ == "__main__":

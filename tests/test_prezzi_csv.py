@@ -772,6 +772,7 @@ def test_save_logs_filenames(tmp_path, monkeypatch):
 
     # Mock logger.info from csv_fetcher module (where saving occurs)
     from unittest.mock import MagicMock
+
     from src.services import csv_fetcher
     mock_logger = MagicMock()
     monkeypatch.setattr(csv_fetcher, "logger", mock_logger)
@@ -810,6 +811,7 @@ def test_check_preferred_local_dir_writable_warns(monkeypatch):
 
     # Mock logger.warning from csv_cache module
     from unittest.mock import MagicMock
+
     from src.services import csv_cache
     mock_logger = MagicMock()
     monkeypatch.setattr(csv_cache, "logger", mock_logger)

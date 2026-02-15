@@ -78,11 +78,6 @@ input:focus:not(:focus-visible) {
   border-width: 0;
 }
 
-/* Alpine.js Cloak */
-[x-cloak] {
-  display: none;
-}
-
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   *,

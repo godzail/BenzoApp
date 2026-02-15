@@ -1,10 +1,8 @@
 """Unit tests for geocoding service."""
 
-import pytest
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-if TYPE_CHECKING:
-    import httpx
+import pytest
 
 from src.models import Settings
 from src.services.geocoding import geocode_city
@@ -50,12 +48,13 @@ async def test_geocoding_country_bias_and_alias() -> None:
     """Test that geocoding uses country bias and city name aliases."""
     # Clear global cache to force actual API call (not cached)
     from src.services.geocoding import geocoding_cache
+
     geocoding_cache.clear()
 
     client = DummyClient()
     settings = Settings()
 
-    result = await geocode_city("Florence", settings, client)
+    result = await geocode_city("Florence", settings, client)  # type: ignore[arg-type]
 
     assert client.called_with is not None
     params = client.called_with["params"]

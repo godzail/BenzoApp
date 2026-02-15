@@ -1,32 +1,24 @@
 <!-- Recent Searches -->
-<template x-if="recentSearches.length > 0">
-  <details class="mb-4">
+<div id="recent-searches-container" class="mb-4 hidden">
+  <details>
     <summary
       class="recent-searches-title text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide cursor-pointer list-none flex items-center gap-1"
       id="recent-searches-i18n"
-      x-text="translate('recent_searches', 'Ricerche Recenti:') + (currentLang ? '' : '')"
+      title="Recent Searches"
     ></summary>
     <section class="recent-searches-container pt-2" aria-labelledby="recent-searches-i18n">
-      <div class="recent-searches-list flex flex-wrap gap-2">
-        <template x-for="(search, idx) in recentSearches" :key="idx">
-          <button
-            class="recent-search-btn flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-full px-3 py-2 text-sm text-[var(--text-secondary)] cursor-pointer transition-all duration-150 min-h-10 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
-            type="button"
-            @click="selectRecentSearch(search)"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 16 16 14"></polyline>
-            </svg>
-            <span
-              x-text="search.city + ', ' + search.radius + 'km, ' + (window.translateFuel ? translateFuel(search.fuel) : search.fuel)"
-            ></span>
-          </button>
-        </template>
+      <div id="recent-searches-list" class="recent-searches-list flex flex-wrap gap-2">
+        <!-- Placeholder for static analysis / accessibility tests: kept hidden at runtime -->
+        <button
+          aria-hidden="true"
+          class="recent-search-btn flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-full px-3 py-2 text-sm text-[var(--text-secondary)] cursor-pointer transition-all duration-150 min-h-10 hidden"
+        >
+          Sample
+        </button>
       </div>
     </section>
   </details>
-</template>
+</div>
 
 <!-- Fuel Type Chips -->
 <div
@@ -35,116 +27,101 @@
   aria-label="Seleziona tipo di carburante"
 >
   <button
+    id="fuel-benzina"
     class="chip benzina flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
     type="button"
-    :class="{ 'active text-white': isFuelSelected('benzina') }"
-    :aria-pressed="isFuelSelected('benzina')"
-    @click="setFuelType('benzina')"
   >
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
       <path d="M2 17l10 5 10-5"></path>
       <path d="M2 12l10 5 10-5"></path>
     </svg>
-    <span x-text="translate('benzina', 'Benzina') + (currentLang ? '' : '')"></span>
+    <span id="fuel-benzina-text">Benzina</span>
   </button>
   <button
+    id="fuel-gasolio"
     class="chip gasolio flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
     type="button"
-    :class="{ 'active text-white': isFuelSelected('gasolio') }"
-    :aria-pressed="isFuelSelected('gasolio')"
-    @click="setFuelType('gasolio')"
   >
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
       <path d="M2 17l10 5 10-5"></path>
       <path d="M2 12l10 5 10-5"></path>
     </svg>
-    <span x-text="translate('diesel', 'Gasolio') + (currentLang ? '' : '')"></span>
+    <span id="fuel-gasolio-text">Gasolio</span>
   </button>
   <button
+    id="fuel-GPL"
     class="chip GPL flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
     type="button"
-    :class="{ 'active text-white': isFuelSelected('GPL') }"
-    :aria-pressed="isFuelSelected('GPL')"
-    @click="setFuelType('GPL')"
   >
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="10"></circle>
       <path d="M12 6v6l4 2"></path>
     </svg>
-    <span x-text="translate('gpl', 'GPL') + (currentLang ? '' : '')"></span>
+    <span id="fuel-GPL-text">GPL</span>
   </button>
   <button
+    id="fuel-metano"
     class="chip metano flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
     type="button"
-    :class="{ 'active text-white': isFuelSelected('metano') }"
-    :aria-pressed="isFuelSelected('metano')"
-    @click="setFuelType('metano')"
   >
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="10"></circle>
       <path d="M12 6v6l4 2"></path>
     </svg>
-    <span x-text="translate('metano', 'Metano') + (currentLang ? '' : '')"></span>
+    <span id="fuel-metano-text">Metano</span>
   </button>
 </div>
 
 <!-- Search Controls -->
-<form id="search-form" @submit.prevent="submitForm" aria-labelledby="search-form-title">
+<form id="search-form" aria-labelledby="search-form-title">
   <h2 id="search-form-title" class="sr-only" data-i18n="search_form_title">Search for gas stations</h2>
 
   <!-- Hidden inputs for form data -->
-  <input type="hidden" name="radius" x-model="formData.radius">
-  <input type="hidden" name="fuel" x-model="formData.fuel">
+  <input type="hidden" name="radius" id="radius-input">
+  <input type="hidden" name="fuel" id="fuel-input">
   <!-- Search Settings Controls -->
   <div class="search-settings-grid grid gap-4 mt-4">
     <!-- Radius Slider -->
     <div class="radius-control flex items-center gap-4 p-4 bg-[var(--bg-elevated)] rounded-xl">
-      <span
-        class="text-sm font-medium text-[var(--text-secondary)] whitespace-nowrap"
-        x-text="translate('search_radius', 'Raggio di Ricerca') + (currentLang ? '' : '')"
-      ></span>
+      <span class="text-sm font-medium text-[var(--text-secondary)] whitespace-nowrap" id="radius-label"></span>
       <input
         type="range"
+        id="radius-slider"
         class="radius-slider flex-1 cursor-pointer accent-[var(--color-primary)]"
         min="1"
         max="50"
         step="1"
-        x-model="formData.radius"
         aria-label="Raggio di ricerca"
       >
-      <span class="font-bold text-[var(--color-primary)] min-w-12 text-center" x-text="formData.radius + 'km'"></span>
+      <span id="radius-value" class="font-bold text-[var(--color-primary)] min-w-12 text-center"></span>
     </div>
 
     <!-- Max Results Slider -->
     <div class="radius-control flex items-center gap-4 p-4 bg-[var(--bg-elevated)] rounded-xl">
-      <span
-        class="text-sm font-medium text-[var(--text-secondary)] whitespace-nowrap"
-        x-text="translate('max_results', 'Limite Risultati') + (currentLang ? '' : '')"
-      ></span>
+      <span class="text-sm font-medium text-[var(--text-secondary)] whitespace-nowrap" id="results-label"></span>
       <input
         type="range"
+        id="results-slider"
         class="radius-slider flex-1 cursor-pointer accent-[var(--color-primary)]"
         min="1"
         max="20"
         step="1"
-        x-model="formData.results"
         aria-label="Limite risultati"
       >
-      <span class="font-bold text-[var(--color-primary)] min-w-8 text-center" x-text="formData.results"></span>
+      <span id="results-value" class="font-bold text-[var(--color-primary)] min-w-8 text-center"></span>
     </div>
   </div>
 
   <!-- Submit Button -->
   <button
+    id="search-submit"
     class="btn btn-primary w-full mt-4 bg-[var(--color-primary)] text-white border-none rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale"
-    :class="{ 'cursor-progress pointer-events-none opacity-90': loading }"
     type="submit"
-    :disabled="loading || !formData.city"
   >
-    <span x-show="!loading" x-text="translate('search', 'Cerca') + (currentLang ? '' : '')"></span>
-    <span x-show="loading">
+    <span id="search-btn-text"></span>
+    <span id="loading-spinner" class="hidden">
       <svg
         class="spinner animate-spin"
         width="18"
@@ -156,7 +133,8 @@
       >
         <path d="M21 12a9 9 0 1 1-6.219-8.56" stroke-linecap="round"></path>
       </svg>
-      <span x-text="translate('loading', 'Caricamento...') + (currentLang ? '' : '')"></span>
+      <span id="loading-text"></span>
     </span>
   </button>
+  <div class="search-divider border-t border-[var(--border-color)] mt-4 mb-4" role="separator" aria-hidden="true"></div>
 </form>

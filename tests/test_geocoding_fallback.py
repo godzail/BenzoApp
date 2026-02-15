@@ -15,9 +15,15 @@ class DummyClient:
     """Minimal async client that raises a pre-configured exception from get()."""
 
     def __init__(self, exc: Exception) -> None:
+        """Initialize the dummy client with an exception to raise.
+
+        Parameters:
+        - exc: The exception to raise when get() is called.
+        """
         self._exc = exc
 
     async def get(self, *_: Any, **__: Any):
+        """Mock get method that always raises the configured exception."""
         raise self._exc
 
 
@@ -26,6 +32,7 @@ async def test_geocode_fallback_to_local_coords(tmp_path):
     """When the geocoding provider returns 509, local cities.json coordinates are used as fallback."""
     # Reset global caches to ensure clean state
     import src.services.geocoding as geo
+
     geo._LOCAL_CITY_COORDS = None
     geo.geocoding_cache.clear()
 
@@ -44,7 +51,7 @@ async def test_geocode_fallback_to_local_coords(tmp_path):
 
     client = DummyClient(exc)
 
-    result = await geocode_city("Firenze", settings, client)
+    result = await geocode_city("Firenze", settings, client)  # type: ignore[arg-type]
     assert isinstance(result, dict)
     assert round(result["latitude"], 2) == 43.77
     assert round(result["longitude"], 2) == 11.25
@@ -55,6 +62,7 @@ async def test_geocode_raises_503_when_rate_limited_and_no_fallback(tmp_path):
     """When provider is rate-limited and no local fallback exists, a 503 HTTPException is raised."""
     # Reset global caches to ensure clean state
     import src.services.geocoding as geo
+
     geo._LOCAL_CITY_COORDS = None
     geo.geocoding_cache.clear()
 
@@ -69,5 +77,5 @@ async def test_geocode_raises_503_when_rate_limited_and_no_fallback(tmp_path):
     client = DummyClient(exc)
 
     with pytest.raises(HTTPException) as ei:
-        await geocode_city("NowhereCity", settings, client)
+        await geocode_city("NowhereCity", settings, client)  # type: ignore[arg-type]
     assert ei.value.status_code == 503
