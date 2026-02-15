@@ -32,6 +32,13 @@
   "data_loading": "Caricamento dati...",
   "no_data": "Nessun dato disponibile",
   "reload_data": "Ricarica dati",
+  "reloading": "Ricaricamento...",
+  "data_reloading_startup": "Ricaricamento dati (avvio)",
+  "data_reloaded_success": "Ricaricamento completato",
+  "coords_missing": "Coordinate non disponibili per questo distributore",
+  "max_results": "Limite Risultati",
+  "location": "Posizione",
+  "user_docs": "Documentazione Utente",
   "translation": {
     "loading": "Caricamento...",
     "best_price_short": "Miglior"

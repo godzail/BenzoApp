@@ -40,7 +40,6 @@ interface AppMapMixin {
     address?: string;
   }): string;
   submitForm(): Promise<void>;
-  $nextTick?: (callback: () => void) => void;
   updateMap?: () => void;
 }
 
@@ -209,7 +208,7 @@ window.appMapMixin = {
         );
       }
     }
-    this.$nextTick?.(() => {
+    Promise.resolve().then(() => {
       this.updateMap?.();
     });
   },

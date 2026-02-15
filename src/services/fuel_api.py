@@ -1,6 +1,5 @@
 """Fuel station API service."""
 
-import math
 from typing import Any
 
 import httpx
@@ -15,28 +14,8 @@ from src.models import (
     Station,
     StationSearchParams,
 )
+from src.services.distance_utils import calculate_distance
 from src.services.prezzi_csv import fetch_and_combine_csv_data
-
-
-def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculate distance between two coordinates using Haversine formula.
-
-    Parameters:
-    - lat1, lon1: First coordinate (search location).
-    - lat2, lon2: Second coordinate (station location).
-
-    Returns:
-    - Distance in kilometers.
-    """
-    earth_radius_km = 6371
-    lat1_rad = math.radians(lat1)
-    lat2_rad = math.radians(lat2)
-    delta_lat = math.radians(lat2 - lat1)
-    delta_lon = math.radians(lon2 - lon1)
-
-    a = math.sin(delta_lat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return earth_radius_km * c
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)

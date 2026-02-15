@@ -1,18 +1,10 @@
-# Project Context
+# AGENTS.md
 
-- Name: BenzoApp
-- Description: A web application designed for searching and analyzing gas stations built with FastAPI and Python.
-- Primary Language: Python
+## System Role
 
-## Agent Role
+**ROLE:**: senior architect and software engineer
 
-Act as a senior fullstack engineer for the `BenzoApp` ecosystem. You possess:
-
-- Deep expertise in Python frameworks, design patterns, and best practices
-- Proficiency in frontend technologies (HTML/CSS/JS/TS)
-- Strong understanding of system architecture, performance, and security
-
-### Code Guidelines
+## Code Guidelines
 
 Strictly adhere to specialized instructions for each coding language:
 
@@ -27,7 +19,7 @@ Strictly adhere to specialized instructions for each coding language:
   - `ruff`: Linting and formatting
   - `ty`: Static type checking
 - Frontend:
-  - `bun`: package management and script execution (alternative to node/npm)
+  - `bun`: package management and script execution instead of node/npm
   - `biome`: linting and formatting
 - Search
   - `rg`: ripgrep, fast codebase searching
@@ -37,34 +29,29 @@ Strictly adhere to specialized instructions for each coding language:
 - Location: `.venv/` (Python 3.13+)
 - Always use `uv run` to execute Python scripts within the virtualenv
 
-## Essential Commands
+## Commands
 
-### Navigation & Search
+Navigation & Search:
 
-```powershell
-rg <pattern>              # Search codebase
-rg <pattern> -t py        # Search Python files only
-```
+- Search codebase: `rg <pattern>`
+- Search Python files: `rg <pattern> -t py`
+- Search frontend files: `rg <pattern> -t js,ts,tsx`
 
-### Python Workflow
+Python Commands:
 
-```powershell
-uv run _main.py        # Run application
-uv tool list           # List available tools
-uv run pytest tests/   # Run all tests
-ruff check .           # Lint codebase
-ruff check . --fix     # Auto-fix issues
-ty check .             # Type checking
-```
+- Run application: `uv run _main.py`
+- List available tools: `uv tool list`
+- Run all tests: `uv run pytest tests/`
+- Lint codebase: `ruff check .`
+- Auto-fix issues: `ruff check . --fix`
+- Type checking: `ty check .`
 
-### Frontend Workflow
+Frontend Commands:
 
-```powershell
-bun install                      # Install dependencies
-bun run <script>                 # Run package.json scripts
-biome check src/static/          # Lint frontend
-biome check src/static/ --write   # Auto-fix issues
-```
+- Install dependencies: `bun install`
+- Run package.json scripts: `bun run <script>`
+- Lint frontend: `biome check src/static/`
+- Auto-fix issues: `biome check src/static/ --write`
 
 ## Project Structure
 
@@ -72,11 +59,13 @@ biome check src/static/ --write   # Auto-fix issues
 - Documentation: `docs/`
 - Tests: `tests/`
 - Python Project Configuration: `pyproject.toml`
+- Frontend Project Configuration: `package.json`
 
 ## Problem-Solving Approach
 
-  A verification chain is mandatory and must be completed prior to delivery.
-  This process ensures that all solutions are thoroughly vetted from multiple perspectives, leading to robust and maintainable code.
+- **Simplicity is king** — the simplest solution that works is the best solution
+- **Functional over OOP** — pure functions, composition, immutability
+- **Verification chain** — a verification chain is mandatory and must be completed prior to delivery.
 
 ### 1. Problem Analysis
 
@@ -90,23 +79,9 @@ biome check src/static/ --write   # Auto-fix issues
 
 Evaluate every proposed solution through three lenses:
 
-**Senior Engineer**:
-
-- Propose clear, implementable solutions
-- Consider trade-offs between approaches
-- Break complex problems into manageable subproblems
-
-**Code Reviewer**:
-
-- Identify edge cases and potential bugs
-- Ensure error handling and input validation
-- Check for code smells and anti-patterns
-
-**System Architect**:
-
-- Assess performance and scalability implications
-- Evaluate maintainability and future extensibility
-- Consider memory efficiency and resource utilization
+- **System Architect**: Solution aligned with overall system design and architecture principles? Is it scalable, maintainable, and extensible?
+- **Senior Software Engineer**: Solution follows best practices, coding standards, and design patterns? Is it efficient, reliable, and testable?
+- **Code Reviewer**: Solution meets quality standards, handles edge cases, and provides clear documentation?
 
 ## Security & Restrictions
 

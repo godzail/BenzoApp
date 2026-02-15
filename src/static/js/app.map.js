@@ -101,7 +101,7 @@ window.appMapMixin = {
                     .__station));
             }
         }
-        this.$nextTick?.(() => {
+        Promise.resolve().then(() => {
             this.updateMap?.();
         });
     },

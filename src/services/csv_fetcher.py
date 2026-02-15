@@ -31,7 +31,16 @@ async def _fetch_csvs(
 ) -> tuple[str, str]:
     """Fetch CSVs from remote URLs.
 
-    If network fetch fails, attempt to load from local data directory (LOCAL_DATA_DIR) as fallback.
+    Parameters:
+    - http_client: The HTTP client to use for fetching.
+    - settings: Application settings containing CSV URLs.
+
+    Returns:
+    - A tuple of (anagrafica_csv_text, prezzi_csv_text).
+
+    Raises:
+    - httpx.HTTPStatusError: If the remote API returns an HTTP error.
+    - httpx.RequestError: If there's a network error.
     """
     try:
         resp_anag, resp_prezzi = await asyncio.gather(
@@ -82,11 +91,21 @@ async def _fetch_csvs(
 
 
 async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
-    """Load CSV data from candidate local directories (configurable via settings).
+    """Load CSV data from candidate local directories.
 
-    If CSVs are found in a fallback directory (e.g., project-level `data/` or service `static/data`),
-    migrate them to the preferred project `src/static/data` directory (best-effort) so future loads
-    prefer the project-level static data location.
+    Parameters:
+    - settings: Application settings containing local data directory configuration.
+
+    Returns:
+    - A tuple of (anagrafica_csv_text, prezzi_csv_text).
+
+    Raises:
+    - FileNotFoundError: If no CSV files are found in any candidate directory.
+
+    Notes:
+    - If CSVs are found in a fallback directory (e.g., project-level `data/` or service `static/data`),
+      migrate them to the preferred project `src/static/data` directory (best-effort) so future loads
+      prefer the project-level static data location.
     """
     candidates = _candidate_local_csv_dirs(settings)
     missing = []
@@ -142,10 +161,17 @@ async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
 def _candidate_local_csv_dirs(settings: Settings) -> list[Path]:
     """Return ordered list of directories to look for local CSV files.
 
-    Preference order when `prezzi_local_data_dir` is None:
-      1. `src/static/data` (project-level)
-      2. `src/services/static/data` (service-local)
-      3. project `data/` (fallback)
+    Parameters:
+    - settings: Application settings containing local data directory configuration.
+
+    Returns:
+    - A list of Path objects representing candidate directories in preference order.
+
+    Notes:
+    - Preference order when `prezzi_local_data_dir` is None:
+        1. `src/static/data` (project-level)
+        2. `src/services/static/data` (service-local)
+        3. project `data/` (fallback)
     """
     candidates: list[Path] = []
     local_dir = getattr(settings, "prezzi_local_data_dir", None)
@@ -168,7 +194,13 @@ async def _save_csv_files(
 ) -> Path | None:
     """Save fetched CSV texts into local data directory with timestamped names.
 
-    Returns the directory where files were saved or None on failure.
+    Parameters:
+    - anag_text: The anagrafica CSV text content.
+    - prezzi_text: The prezzi CSV text content.
+    - settings: Application settings containing save configuration.
+
+    Returns:
+    - The directory where files were saved, or None on failure.
     """
     try:
         candidates = _candidate_local_csv_dirs(settings)
@@ -218,7 +250,13 @@ async def _save_csv_files(
 
 
 def _cleanup_old_csvs(directory: Path, prefix: str, keep: int = 1) -> None:
-    """Remove older timestamped CSVs keeping only the `keep` most recent."""
+    """Remove older timestamped CSVs keeping only the most recent files.
+
+    Parameters:
+    - directory: The directory containing CSV files to clean up.
+    - prefix: The filename prefix to match (e.g., "anagrafica_impianti_attivi_").
+    - keep: The number of most recent files to keep. Defaults to 1.
+    """
     try:
         files = sorted(directory.glob(f"{prefix}*.csv"), key=lambda p: p.name, reverse=True)
         to_remove = files[keep:]

@@ -19,6 +19,14 @@ if TYPE_CHECKING:
 
 
 async def _read_json_file(path: str) -> dict[str, Any] | None:
+    """Read a JSON file asynchronously.
+
+    Parameters:
+    - path: The file path to read from.
+
+    Returns:
+    - The parsed JSON data as a dictionary, or None if the file doesn't exist or parsing fails.
+    """
     p = Path(path)
     exists = await asyncio.to_thread(p.exists)
     if not exists:
@@ -26,7 +34,12 @@ async def _read_json_file(path: str) -> dict[str, Any] | None:
 
     try:
         content = await asyncio.to_thread(p.read_text, "utf-8")
+        if not content.strip():
+            return None
         return json.loads(content)
+    except json.JSONDecodeError as err:
+        logger.warning("Failed to parse cache file {}: {}", path, err)
+        return None
     except Exception as err:
         logger.warning("Failed to read cache file {}: {}", path, err)
         logger.exception(err)
@@ -34,6 +47,12 @@ async def _read_json_file(path: str) -> dict[str, Any] | None:
 
 
 async def _write_json_file(path: str, payload: dict[str, Any]) -> None:
+    """Write a dictionary to a JSON file asynchronously.
+
+    Parameters:
+    - path: The file path to write to.
+    - payload: The dictionary to serialize as JSON.
+    """
     try:
         p = Path(path)
         if parent := p.parent:
@@ -47,6 +66,15 @@ async def _write_json_file(path: str, payload: dict[str, Any]) -> None:
 
 
 async def _is_cache_fresh(cache_path: str, cache_hours: float) -> bool:
+    """Check if the cache file is fresh based on its modification time.
+
+    Parameters:
+    - cache_path: The path to the cache file.
+    - cache_hours: The number of hours to consider the cache fresh.
+
+    Returns:
+    - True if the cache is fresh, False otherwise.
+    """
     p = Path(cache_path)
     exists = await asyncio.to_thread(p.exists)
     if not exists:
@@ -56,7 +84,7 @@ async def _is_cache_fresh(cache_path: str, cache_hours: float) -> bool:
         mtime = st.st_mtime
         now_ts = datetime.now(tz=UTC).timestamp()
         hours_old = (now_ts - mtime) / 3600.0
-    except Exception:
+    except OSError:
         logger.exception("Failed to stat cache file {}", cache_path)
         return False
     else:
@@ -64,14 +92,22 @@ async def _is_cache_fresh(cache_path: str, cache_hours: float) -> bool:
 
 
 async def _load_cached_combined(cache_path: str) -> dict[str, Any] | None:
+    """Load the cached combined station data from a JSON file.
+
+    Parameters:
+    - cache_path: The path to the cache file.
+
+    Returns:
+    - The cached data as a dictionary, or None if not available.
+    """
     return await _read_json_file(cache_path)
 
 
 async def preload_local_csv_cache(settings: Settings) -> None:
     """Attempt to load latest local CSVs and refresh combined cache (non-blocking)."""
     try:
-        from src.services.csv_parser import _parse_and_combine_sync
-        from src.services.csv_fetcher import _load_local_csvs
+        from src.services.csv_fetcher import _load_local_csvs  # noqa: PLC0415
+        from src.services.csv_parser import _parse_and_combine_sync  # noqa: PLC0415
 
         anag_text, prezzi_text = await _load_local_csvs(settings)
         combined = await asyncio.to_thread(lambda: _parse_and_combine_sync(anag_text, prezzi_text, None))
@@ -90,7 +126,7 @@ def check_preferred_local_dir_writable(settings: Settings) -> bool:
     If `settings.prezzi_local_data_dir` is set, this check is skipped (returns True).
     Returns True if writable, False otherwise (and logs a warning).
     """
-    from src.services.csv_fetcher import PROJECT_ROOT
+    from src.services.csv_fetcher import PROJECT_ROOT  # noqa: PLC0415
 
     if getattr(settings, "prezzi_local_data_dir", None):
         return True
@@ -112,7 +148,7 @@ def check_preferred_local_dir_writable(settings: Settings) -> bool:
         return True
 
 
-def get_latest_csv_timestamp(settings: Settings) -> str | None:
+def get_latest_csv_timestamp(settings: Settings) -> str | None:  # noqa: C901, PLR0912
     """Extract timestamp from the most recent CSV filename.
 
     Looks for timestamped CSV files in candidate directories and extracts
@@ -126,7 +162,7 @@ def get_latest_csv_timestamp(settings: Settings) -> str | None:
     Returns:
         ISO timestamp string (YYYY-MM-DDTHH:MM:SS) or None if no files found.
     """
-    from src.services.csv_fetcher import _candidate_local_csv_dirs
+    from src.services.csv_fetcher import _candidate_local_csv_dirs  # noqa: PLC0415
 
     try:
         candidates = _candidate_local_csv_dirs(settings)

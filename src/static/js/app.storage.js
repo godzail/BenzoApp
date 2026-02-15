@@ -26,7 +26,16 @@ window.appStorageMixin = {
     loadRecentSearches() {
         try {
             const stored = this.safeGetItem("recentSearches");
-            this.recentSearches = stored ? JSON.parse(stored) : [];
+            const parsed = stored ? JSON.parse(stored) : [];
+            // Deduplicate case-insensitively (city|radius|fuel) and preserve order (most-recent first)
+            const seen = new Set();
+            this.recentSearches = (Array.isArray(parsed) ? parsed : []).filter((s) => {
+                const key = `${(s.city || "").toString().trim().toLowerCase()}|${s.radius}|${(s.fuel || "").toString().trim().toLowerCase()}`;
+                if (seen.has(key))
+                    return false;
+                seen.add(key);
+                return true;
+            });
         }
         catch {
             this.recentSearches = [];
@@ -38,10 +47,16 @@ window.appStorageMixin = {
      * @param search - Search object containing `city`, `radius`, `fuel`, and optional `results`.
      */
     saveRecentSearch(search) {
-        this.recentSearches = this.recentSearches.filter((s) => !(s.city === search.city &&
-            s.radius === search.radius &&
-            s.fuel === search.fuel));
-        this.recentSearches = [search, ...this.recentSearches].slice(0, window.CONFIG.RECENT_SEARCHES_LIMIT);
+        // Normalize keys for case-insensitive deduplication but keep original casing for display
+        const incomingCity = (search.city || "").toString().trim();
+        const incomingFuel = (search.fuel || "").toString().trim();
+        this.recentSearches = this.recentSearches.filter((s) => {
+            const sameCity = (s.city || "").toString().trim().toLowerCase() === incomingCity.toLowerCase();
+            const sameFuel = (s.fuel || "").toString().trim().toLowerCase() === incomingFuel.toLowerCase();
+            return !(sameCity && s.radius === search.radius && sameFuel);
+        });
+        const entry = { ...search, timestamp: Date.now() };
+        this.recentSearches = [entry, ...this.recentSearches].slice(0, window.CONFIG.RECENT_SEARCHES_LIMIT);
         this.safeSetItem("recentSearches", JSON.stringify(this.recentSearches));
     },
     /**
@@ -54,6 +69,10 @@ window.appStorageMixin = {
         this.formData.radius = search.radius;
         this.formData.fuel = search.fuel;
         this.formData.results = search.results || "5";
+        // Update the visible form inputs immediately, then submit.
+        if (typeof this.updateSearchFormUI === "function") {
+            this.updateSearchFormUI();
+        }
         this.submitForm();
     },
     safeGetItem(key) {

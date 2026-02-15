@@ -9,8 +9,9 @@ Usage:
 
 import csv
 import json
-import re
 from pathlib import Path
+
+from loguru import logger
 
 PROJECT_ROOT = Path(__file__).parent.parent
 DATA_DIR = PROJECT_ROOT / "src" / "static" / "data"
@@ -19,6 +20,7 @@ OUTPUT_PATH = DATA_DIR / "cities.json"
 ADDR_IDX_START = 5
 ADDR_IDX_END = 8
 MIN_CITY_LENGTH = 2
+MIN_ADDRESS_PARTS = 2
 
 MAJOR_ITALIAN_CITIES = [
     "Agrigento",
@@ -130,6 +132,14 @@ MAJOR_ITALIAN_CITIES = [
 
 
 def detect_delimiter(csv_text: str) -> str:
+    """Detect the delimiter used in a CSV text.
+
+    Parameters:
+    - csv_text: The raw CSV text content.
+
+    Returns:
+    - The detected delimiter character (|, ;, ,, or tab).
+    """
     lines = [ln for ln in csv_text.splitlines() if ln.strip()]
     if not lines:
         return "|"
@@ -141,6 +151,14 @@ def detect_delimiter(csv_text: str) -> str:
 
 
 def extract_cities(csv_path: Path) -> list[str]:
+    """Extract unique city names from a CSV file.
+
+    Parameters:
+    - csv_path: Path to the CSV file containing address data.
+
+    Returns:
+    - A sorted list of unique city names extracted from the file.
+    """
     text = csv_path.read_text(encoding="iso-8859-1")
     if text.startswith("\ufeff"):
         text = text[1:]
@@ -156,7 +174,7 @@ def extract_cities(csv_path: Path) -> list[str]:
         if len(row) <= ADDR_IDX_END:
             continue
         address_parts = [row[i].strip() for i in range(ADDR_IDX_START, ADDR_IDX_END) if i < len(row) and row[i].strip()]
-        if len(address_parts) >= 2:
+        if len(address_parts) >= MIN_ADDRESS_PARTS:
             city_candidate = address_parts[-1]
             if len(city_candidate) >= MIN_CITY_LENGTH and not city_candidate.isdigit():
                 cities.add(city_candidate)
@@ -165,24 +183,29 @@ def extract_cities(csv_path: Path) -> list[str]:
 
 
 def main() -> int:
+    """Generate cities.json from CSV data.
+
+    Returns:
+    - Exit code (0 for success, 1 for failure).
+    """
     csv_files = list(DATA_DIR.glob("anagrafica_impianti_attivi*.csv"))
 
     cities: set[str] = set(MAJOR_ITALIAN_CITIES)
 
     if csv_files:
         latest = sorted(csv_files)[-1]
-        print(f"Processing: {latest}")
+        logger.info("Processing: {}", latest)
         csv_cities = extract_cities(latest)
         cities.update(csv_cities)
-        print(f"Extracted {len(csv_cities)} cities from CSV")
+        logger.info("Extracted {} cities from CSV", len(csv_cities))
     else:
-        print(f"No anagrafica CSV found in {DATA_DIR}, using default cities")
+        logger.warning("No anagrafica CSV found in {}, using default cities", DATA_DIR)
 
     sorted_cities = sorted(cities)
-    print(f"Total cities: {len(sorted_cities)}")
+    logger.info("Total cities: {}", len(sorted_cities))
 
     OUTPUT_PATH.write_text(json.dumps(sorted_cities, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Written to: {OUTPUT_PATH}")
+    logger.success("Written to: {}", OUTPUT_PATH)
 
     return 0
 

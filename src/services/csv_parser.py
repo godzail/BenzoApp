@@ -7,12 +7,12 @@ including delimiter detection, date parsing, and distance calculations.
 from __future__ import annotations
 
 import csv
-import math
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from dateutil.parser import parse as dateutil_parse
 
+from src.services.distance_utils import calculate_distance
 from src.services.fuel_type_utils import normalize_fuel_type
 
 if TYPE_CHECKING:
@@ -31,29 +31,23 @@ ADDR_IDX_END = 8
 
 # Recency and distance constants
 DAYS_RECENCY = 7
-EARTH_R_KM = 6371.0
 MIN_CSV_COLUMNS = 2
 
 
-def _deg2rad(deg: float) -> float:
-    return deg * (math.pi / 180.0)
-
-
-def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    r = EARTH_R_KM
-    dlat = _deg2rad(lat2 - lat1)
-    dlon = _deg2rad(lon2 - lon1)
-    a = math.sin(dlat / 2) ** 2 + math.cos(_deg2rad(lat1)) * math.cos(_deg2rad(lat2)) * math.sin(dlon / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return r * c
-
-
 def _parse_date(date_string: str | None) -> datetime | None:
+    """Parse a date string into a datetime object.
+
+    Parameters:
+    - date_string: The date string to parse. Can be None or empty.
+
+    Returns:
+    - A timezone-aware datetime object, or None if parsing fails.
+    """
     if not date_string:
         return None
     for fmt in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%d/%m/%Y"):
         try:
-            dt = datetime.strptime(date_string, fmt)
+            dt = datetime.strptime(date_string, fmt)  # noqa: DTZ007
             return dt.replace(tzinfo=UTC)
         except ValueError:
             continue
@@ -63,6 +57,15 @@ def _parse_date(date_string: str | None) -> datetime | None:
 
 
 def _is_recent(dt: datetime | None, days: int = DAYS_RECENCY) -> bool:
+    """Check if a datetime is recent (within the specified number of days).
+
+    Parameters:
+    - dt: The datetime to check. Can be None.
+    - days: The number of days to consider recent. Defaults to DAYS_RECENCY.
+
+    Returns:
+    - True if the datetime is within the specified days, False otherwise.
+    """
     if not dt:
         return False
     now = datetime.now(tz=UTC)
@@ -70,13 +73,20 @@ def _is_recent(dt: datetime | None, days: int = DAYS_RECENCY) -> bool:
 
 
 def _detect_delimiter(csv_text: str, default: str = "|") -> str:
-    """Robust delimiter detection: prefer obvious header splits, fall back to csv.Sniffer.
+    """Detect the delimiter used in a CSV text.
 
-    As of February 10, 2026, MIMIT changed the CSV delimiter from semicolon (;) to pipe (|).
-    The default is now pipe, but we auto-detect for backwards compatibility.
+    Parameters:
+    - csv_text: The CSV text to analyze.
+    - default: The default delimiter to return if detection fails. Defaults to "|".
 
-    It tries simple header-splitting with common delimiters and picks the one that
-    yields the most columns (at least 2). If that fails, `csv.Sniffer` is used.
+    Returns:
+    - The detected delimiter character.
+
+    Notes:
+    - As of February 10, 2026, MIMIT changed the CSV delimiter from semicolon (;) to pipe (|).
+    - The default is now pipe, but we auto-detect for backwards compatibility.
+    - It tries simple header-splitting with common delimiters and picks the one that
+      yields the most columns (at least 2). If that fails, `csv.Sniffer` is used.
     """
     lines = [ln for ln in csv_text.splitlines() if ln.strip()]
     if not lines:
@@ -95,13 +105,22 @@ def _detect_delimiter(csv_text: str, default: str = "|") -> str:
     try:
         sample = "\n".join(lines[:5])
         dialect = csv.Sniffer().sniff(sample, delimiters="|;,\t")
-    except Exception:
+    except csv.Error:
         return default
     else:
         return dialect.delimiter
 
 
 def _parse_anagrafica(csv_text: str, force_delimiter: str | None = None) -> dict[str, dict[str, Any]]:
+    """Parse the anagrafica CSV and extract station information.
+
+    Parameters:
+    - csv_text: The raw CSV text content.
+    - force_delimiter: Optional delimiter to force use of. If None, auto-detects.
+
+    Returns:
+    - A dictionary mapping station IDs to their details (gestore, indirizzo, latitudine, longitudine, prezzi).
+    """
     if csv_text.startswith("\ufeff"):
         csv_text = csv_text[1:]
     elif csv_text.startswith("ï»¿"):
@@ -120,7 +139,7 @@ def _parse_anagrafica(csv_text: str, force_delimiter: str | None = None) -> dict
         try:
             lat = float(row[LAT_IDX].replace(",", "."))
             lon = float(row[LON_IDX].replace(",", "."))
-        except Exception:
+        except ValueError:
             continue
         indirizzo = " ".join([row[i] for i in range(ADDR_IDX_START, ADDR_IDX_END) if i < len(row) and row[i]]).strip()
         data[id_impianto] = {
@@ -134,6 +153,13 @@ def _parse_anagrafica(csv_text: str, force_delimiter: str | None = None) -> dict
 
 
 def _parse_prezzi(csv_text: str, data: dict[str, dict[str, Any]], force_delimiter: str | None = None) -> None:
+    """Parse the prezzi CSV and populate station price data.
+
+    Parameters:
+    - csv_text: The raw CSV text content.
+    - data: The dictionary to populate with price data (modified in place).
+    - force_delimiter: Optional delimiter to force use of. If None, auto-detects.
+    """
     if csv_text.startswith("\ufeff"):
         csv_text = csv_text[1:]
     elif csv_text.startswith("ï»¿"):
@@ -186,8 +212,16 @@ def _parse_and_combine_sync(
     prezzi_text: str,
     force_delimiter: str | None = None,
 ) -> dict[str, Any]:
-    """Parse anagrafica and prezzi CSVs synchronously and return merged data."""
-    from src.services.fuel_type_utils import normalize_fuel_type  # late import to avoid circular
+    """Parse anagrafica and prezzi CSVs synchronously and return merged data.
+
+    Parameters:
+    - anag_text: The raw anagrafica CSV text.
+    - prezzi_text: The raw prezzi CSV text.
+    - force_delimiter: Optional delimiter to force use of. If None, auto-detects.
+
+    Returns:
+    - A dictionary mapping station IDs to their combined data including prices.
+    """
     data = _parse_anagrafica(anag_text, force_delimiter)
     _parse_prezzi(prezzi_text, data, force_delimiter)
     return data
@@ -197,6 +231,15 @@ def _filter_and_transform_combined(
     combined: dict[str, Any],
     params: StationSearchParams | None,
 ) -> list[dict[str, Any]]:
+    """Filter and transform combined station data based on search parameters.
+
+    Parameters:
+    - combined: The combined station data from anagrafica and prezzi CSVs.
+    - params: Optional search parameters for filtering (latitude, longitude, distance, fuel, results).
+
+    Returns:
+    - A list of station dictionaries filtered and sorted by price, limited to the requested number of results.
+    """
     stations: list[dict[str, Any]] = []
 
     search_lat = params.latitude if params else None
@@ -225,7 +268,7 @@ def _filter_and_transform_combined(
             excluded_invalid_coords += 1
             continue
         if search_lat is not None and search_lon is not None:
-            dist = _haversine_km(search_lat, search_lon, lat, lon)
+            dist = calculate_distance(search_lat, search_lon, lat, lon)
             if dist > distance_limit:
                 excluded_out_of_distance += 1
                 continue

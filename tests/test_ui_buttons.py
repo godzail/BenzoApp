@@ -75,3 +75,19 @@ def test_updateI18nTexts_sets_document_title() -> None:
         'document.title = t("title", "Gas Station Finder")' in i18n
         or "document.title = t('title', \"Gas Station Finder\")" in i18n
     ), "i18n.updateI18nTexts should set document.title to the translated title"
+
+
+def test_search_divider_present() -> None:
+    """Search form should include a divider element after the submit button."""
+    search_html = Path("src/static/templates/search.html").read_text()
+    assert "search-divider" in search_html or "border-t border-[var(--border-color)]" in search_html, (
+        "Expected search divider element or border utility in search.html"
+    )
+
+
+def test_stations_list_has_gap2() -> None:
+    """Results template should render `#stations-list` with `gap-2` for compact spacing."""
+    results = Path("src/static/templates/results.html").read_text()
+    assert 'id="stations-list"' in results and ("gap-2" in results or "flex flex-col gap-2" in results), (
+        "Expected #stations-list to include gap-2 (compact spacing)"
+    )

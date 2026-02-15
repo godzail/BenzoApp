@@ -42,17 +42,34 @@ function t(key: string, fallback = ""): string {
  * @param lang - The language code ('en' or 'it')
  */
 window.setLang = (lang: SupportedLang): void => {
-  const app =
-    typeof window.gasStationApp === "function" ? window.gasStationApp() : null;
+  const app = window.gasStationApp;
   if (app?.debugMode) {
     console.log("[DEBUG] i18next.changeLanguage called with lang:", lang);
   }
 
   if (typeof i18next !== "undefined" && i18next.reloadResources) {
+    // Try to reload resources (some i18next backends populate bundles via reloadResources),
+    // but if the bundle is still missing, fall back to fetch-based loader `loadTranslations`.
     i18next.reloadResources(lang, "translation", () => {
+      // If resources are not present after reloadResources, fetch them explicitly.
+      const i18nWithGetter = i18next as unknown as { getResourceBundle?: (lng: string, ns: string) => unknown };
+      const hasBundle = typeof i18nWithGetter.getResourceBundle === "function" && !!i18nWithGetter.getResourceBundle?.(lang, "translation");
+      if (!hasBundle) {
+        // best-effort fetch; do not block the UI if it fails
+        loadTranslations(lang).catch(() => { /* noop */ });
+      }
+
       if (i18next.changeLanguage) {
         i18next.changeLanguage(lang, () => {
-          updateI18nTexts();
+          // Ensure texts are refreshed; if bundle still missing, load then update.
+          const i18nWithGetter2 = i18next as unknown as { getResourceBundle?: (lng: string, ns: string) => unknown };
+          const bundleNow = typeof i18nWithGetter2.getResourceBundle === "function" && !!i18nWithGetter2.getResourceBundle?.(lang, "translation");
+          if (!bundleNow) {
+            loadTranslations(lang).then(() => updateI18nTexts()).catch(() => updateI18nTexts());
+          } else {
+            updateI18nTexts();
+          }
+
           const statusEl = document.getElementById("status-messages");
           if (statusEl) {
             const langName = lang === "it" ? "Italian" : "English";
@@ -61,12 +78,36 @@ window.setLang = (lang: SupportedLang): void => {
               statusEl.textContent = "";
             }, STATUS_MESSAGE_DURATION);
           }
-          window.dispatchEvent(
-            new CustomEvent("languageChanged", { detail: { lang } }),
-          );
+          window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
         });
       }
     });
+  } else {
+    // No reloadResources support — explicitly load the JSON bundle then change language
+    loadTranslations(lang)
+      .then(() => {
+        if (i18next.changeLanguage) {
+          i18next.changeLanguage(lang, () => {
+            updateI18nTexts();
+            window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
+          });
+        } else {
+          updateI18nTexts();
+          window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
+        }
+      })
+      .catch(() => {
+        // If loading translations fails, still set language and update texts (best-effort)
+        if (i18next.changeLanguage) {
+          i18next.changeLanguage(lang, () => {
+            updateI18nTexts();
+            window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
+          });
+        } else {
+          updateI18nTexts();
+          window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
+        }
+      });
   }
   try {
     localStorage.setItem("lang", lang);

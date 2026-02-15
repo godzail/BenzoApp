@@ -57,8 +57,7 @@ class Settings(BaseSettings):
     user_agent: str = Field(
         "GasStationFinder/1.0 (contact@example.com)",
         description=(
-            "User-Agent header for external API requests. "
-            "Must include app name and contact info per Nominatim policy."
+            "User-Agent header for external API requests. Must include app name and contact info per Nominatim policy."
         ),
         min_length=10,
     )
@@ -79,10 +78,7 @@ class Settings(BaseSettings):
         has_url = bool(re.search(url_pattern, v))
 
         if not has_email and not has_url:
-            examples = (
-                "'MyApp/1.0 (myemail@example.com)' or "
-                "'MyApp/1.0 https://myapp.example.com'"
-            )
+            examples = "'MyApp/1.0 (myemail@example.com)' or 'MyApp/1.0 https://myapp.example.com'"
             msg = (
                 "User-Agent must include contact information (email or URL) "
                 "per Nominatim usage policy. Examples: " + examples
@@ -127,9 +123,14 @@ class Settings(BaseSettings):
     )
     prezzi_preload_on_startup: bool = Field(
         default=True,
+        description=("If true, preload the latest local CSVs into cache on application startup (non-blocking)."),
+    )
+
+    prezzi_reload_on_startup: bool = Field(
+        default=True,
         description=(
-            "If true, preload the latest local CSVs into cache "
-            "on application startup (non-blocking)."
+            "If true, trigger a full remote CSV reload on application startup "
+            "(non-blocking). This clears/refreshes the on-disk cache and saves new CSVs."
         ),
     )
 
