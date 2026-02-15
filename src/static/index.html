@@ -24,8 +24,6 @@
     <script defer src="/static/js/app.map.js"></script>
     <script defer src="/static/js/app.ui.js"></script>
     <script defer src="/static/js/app.js"></script>
-    <!-- Alpine.js - Load last after app functions are defined -->
-    <script defer src="https://unpkg.com/alpinejs@latest/dist/cdn.min.js"></script>
     <!-- Styles -->
     <link rel="stylesheet" href="/static/css/styles.split.css">
     <!-- Leaflet -->
@@ -123,12 +121,7 @@
     </script>
   </head>
 
-  <body
-    x-data="window.gasStationApp()"
-    x-init="init()"
-    x-cloak
-    class="bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen font-sans transition-colors duration-250"
-  >
+  <body class="bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen font-sans transition-colors duration-250">
     <!-- Skip links for keyboard navigation -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <a href="#search-container" class="skip-link">Skip to search</a>
@@ -176,10 +169,15 @@
         ></div>
 
         <!-- Right Column: Map -->
-        <div id="map-column" class="hidden lg:block lg:sticky lg:top-[100px] lg:h-[calc(100vh-120px)] lg:pl-4">
+        <div id="map-column" class="lg:sticky lg:top-[100px] lg:h-[calc(100vh-120px)] lg:pl-4">
           <div id="map-container" role="region" aria-label="Map view" class="h-full"></div>
         </div>
       </div>
     </main>
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      window.initApp();
+    });
+    </script>
   </body>
 </html>

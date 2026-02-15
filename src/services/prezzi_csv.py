@@ -14,56 +14,86 @@ Behavior:
 from __future__ import annotations
 
 import asyncio
-import httpx
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
-from src.models import Settings, StationSearchParams
+from src.services.csv_cache import (
+    _is_cache_fresh,
+    _load_cached_combined,
+    _read_json_file,
+    _write_json_file,
+    check_preferred_local_dir_writable,
+    get_latest_csv_timestamp,
+    preload_local_csv_cache,
+)
 
-# Import submodules and pull all needed symbols into module namespace for backward compatibility
+if TYPE_CHECKING:
+    import httpx
+
+    from src.models import Settings, StationSearchParams
+from src.services.csv_fetcher import (
+    LOCAL_DATA_DIR,
+    MIN_CONTENT_LENGTH,
+    PROJECT_ROOT,
+    _candidate_local_csv_dirs,
+    _cleanup_old_csvs,
+    _fetch_csvs,
+    _load_local_csvs,
+    _save_csv_files,
+)
 from src.services.csv_parser import (
-    _detect_delimiter,
-    _parse_anagrafica,
-    _parse_prezzi,
-    _parse_and_combine_sync,
-    _filter_and_transform_combined,
+    ADDR_IDX_END,
+    ADDR_IDX_START,
+    DATE_IDX,
+    DAYS_RECENCY,
+    GESTORE_IDX,
+    LAT_IDX,
+    LON_IDX,
+    MIN_CSV_COLUMNS,
     PREZZI_MIN_COLS,
     PRICE_IDX,
     SELF_IDX,
-    DATE_IDX,
-    LAT_IDX,
-    LON_IDX,
-    GESTORE_IDX,
-    ADDR_IDX_START,
-    ADDR_IDX_END,
-    DAYS_RECENCY,
-    EARTH_R_KM,
-    MIN_CSV_COLUMNS,
-    _deg2rad,
-    _haversine_km,
-    _parse_date,
+    _filter_and_transform_combined,
     _is_recent,
+    _parse_and_combine_sync,
+    _parse_date,
 )
-from src.services.csv_fetcher import (
-    PROJECT_ROOT,
-    LOCAL_DATA_DIR,
-    MIN_CONTENT_LENGTH,
-    _fetch_csvs,
-    _load_local_csvs,
-    _candidate_local_csv_dirs,
-    _save_csv_files,
-    _cleanup_old_csvs,
-)
-from src.services.csv_cache import (
-    _read_json_file,
-    _write_json_file,
-    _is_cache_fresh,
-    _load_cached_combined,
-    preload_local_csv_cache,
-    check_preferred_local_dir_writable,
-    get_latest_csv_timestamp,
-)
+
+# Re-export for backward compatibility
+__all__ = [
+    "ADDR_IDX_END",
+    "ADDR_IDX_START",
+    "DATE_IDX",
+    "DAYS_RECENCY",
+    "GESTORE_IDX",
+    "LAT_IDX",
+    "LOCAL_DATA_DIR",
+    "LON_IDX",
+    "MIN_CONTENT_LENGTH",
+    "MIN_CSV_COLUMNS",
+    "PREZZI_MIN_COLS",
+    "PRICE_IDX",
+    "PROJECT_ROOT",
+    "SELF_IDX",
+    "_candidate_local_csv_dirs",
+    "_cleanup_old_csvs",
+    "_fetch_csvs",
+    "_filter_and_transform_combined",
+    "_is_cache_fresh",
+    "_is_recent",
+    "_load_cached_combined",
+    "_load_local_csvs",
+    "_parse_and_combine_sync",
+    "_parse_date",
+    "_read_json_file",
+    "_save_csv_files",
+    "_write_json_file",
+    "check_preferred_local_dir_writable",
+    "fetch_and_combine_csv_data",
+    "get_latest_csv_timestamp",
+    "preload_local_csv_cache",
+]
 
 
 async def fetch_and_combine_csv_data(
@@ -71,7 +101,16 @@ async def fetch_and_combine_csv_data(
     http_client: httpx.AsyncClient,
     params: StationSearchParams | None = None,
 ) -> list[dict[str, Any]]:
-    """Fetch CSVs, merge them and return a list of stations filtered by params."""
+    """Fetch CSVs, merge them and return a list of stations filtered by params.
+
+    Parameters:
+    - settings: Application settings containing cache and CSV configuration.
+    - http_client: The HTTP client to use for fetching remote CSVs.
+    - params: Optional search parameters for filtering results.
+
+    Returns:
+    - A list of station dictionaries filtered and sorted by price.
+    """
     combined: dict[str, Any] | None = None
 
     try:

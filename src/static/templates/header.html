@@ -1,41 +1,28 @@
 <div class="header-content">
   <!-- Logo/Title -->
   <div class="title-row">
-    <h1
-      id="title-i18n"
-      x-text="translate('title','Gas Station Finder') + (currentLang ? '' : '')"
-      class="app-title text-xl font-semibold text-[var(--text-primary)]"
-    ></h1>
+    <h1 id="title-i18n" class="app-title text-xl font-semibold text-[var(--text-primary)]"></h1>
     <div class="csv-status flex items-center gap-2 text-sm text-[var(--text-secondary)]">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
       </svg>
-      <span x-show="csvStatusLoading" x-text="translate('data_loading', 'Loading data...')"></span>
-      <span x-show="!csvStatusLoading && csvLastUpdated" x-text="formatTimestamp(csvLastUpdated)"></span>
-      <span x-show="!csvStatusLoading && !csvLastUpdated" x-text="translate('no_data', 'No data available')"></span>
+      <span id="csv-loading" class="hidden"></span>
+      <span id="csv-updated" class="hidden"></span>
+      <span id="csv-no-data" class="hidden"></span>
+      <span id="csv-reload-done" class="hidden ml-2 text-sm text-[var(--text-secondary)]"></span>
       <button
-        x-show="!csvStatusLoading"
-        @click="reloadCsv()"
-        :disabled="csvReloading"
-        class="reload-btn p-1 rounded hover:bg-[var(--bg-elevated)] transition-colors"
-        :aria-label="translate('reload_data', 'Reload data')"
+        id="reload-btn"
+        class="reload-btn p-1 rounded hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         type="button"
       >
-        <svg
-          x-show="!csvReloading"
-          class="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          viewBox="0 0 24 24"
-        >
+        <svg id="reload-icon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path
             d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
           />
         </svg>
         <svg
-          x-show="csvReloading"
-          class="w-4 h-4 animate-spin"
+          id="reload-spinner"
+          class="w-4 h-4 animate-spin hidden"
           fill="none"
           stroke="currentColor"
           stroke-width="2"
@@ -49,12 +36,29 @@
     </div>
   </div>
 
+  <!-- Floating toast for reload completion (appears top-right) -->
+  <div id="csv-toast" class="hidden fixed top-4 right-4 z-50">
+    <div
+      role="status"
+      aria-live="polite"
+      class="bg-[var(--bg-surface)] border border-[var(--border-color)] text-[var(--text-primary)] px-4 py-2 rounded shadow-md flex items-center gap-3"
+    >
+      <svg
+        class="w-5 h-5 text-[var(--color-primary)]"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+      <span id="csv-toast-msg" class="text-sm"></span>
+    </div>
+  </div>
+
   <!-- Floating Search Bar -->
-  <div
-    class="search-container flex-1 max-w-xl"
-    x-data="{ highlightedIndex: -1 }"
-    @keydown.escape="showCitySuggestions = false"
-  >
+  <div class="search-container flex-1 max-w-xl">
     <div
       class="search-bar flex items-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-full p-1 shadow-md transition-all duration-150"
     >
@@ -70,80 +74,46 @@
         id="city"
         name="city"
         class="search-input flex-1 bg-transparent border-none text-[var(--text-primary)] text-base outline-none p-2 placeholder:text-[var(--text-muted)]"
-        :placeholder="translate('search_placeholder', 'Search city...') + (currentLang ? '' : '')"
+        placeholder="Search city..."
         required
-        x-model="formData.city"
-        @input="onCityInput"
-        @focus="showCitySuggestions = true"
-        @blur="hideCitySuggestions"
-        @keydown.arrow-down.prevent="if (showCitySuggestions && filteredCities.length > 0) { highlightedIndex = Math.min(highlightedIndex + 1, filteredCities.length - 1); }"
-        @keydown.arrow-up.prevent="if (showCitySuggestions && filteredCities.length > 0) { highlightedIndex = Math.max(highlightedIndex - 1, 0); }"
-        @keydown.enter.prevent="if (showCitySuggestions && highlightedIndex >= 0 && filteredCities[highlightedIndex]) { selectCity(filteredCities[highlightedIndex]); highlightedIndex = -1; } else if (formData.city) { submitForm(); }"
         autocomplete="off"
         aria-labelledby="city-label-i18n"
         aria-autocomplete="list"
         aria-controls="city-suggestions"
-        :aria-expanded="showCitySuggestions && filteredCities.length > 0"
       >
 
       <!-- Location Pill Button -->
       <button
+        id="location-btn"
         class="location-pill flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-full px-3 py-1 text-sm text-[var(--text-secondary)] cursor-pointer transition-all duration-150 hover:bg-[var(--color-primary-light)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary-dark)]"
         type="button"
-        @click="locateUser()"
-        :aria-label="translate('use_current_location', 'Use current location') + (currentLang ? '' : '')"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
         </svg>
-        <span x-text="formData.city || translate('current_location', 'Location') + (currentLang ? '' : '')"></span>
+        <span id="location-text">Location</span>
       </button>
     </div>
 
     <!-- Autocomplete Dropdown -->
-    <template x-if="showCitySuggestions && filteredCities.length > 0">
-      <ul
-        class="autocomplete-list absolute left-0 right-0 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl z-50"
-        id="city-suggestions"
-        role="listbox"
-        x-ref="suggestionsList"
-      >
-        <template x-for="(city, index) in filteredCities" :key="city">
-          <li
-            class="autocomplete-item px-4 py-2 cursor-pointer transition-colors duration-150 text-[var(--text-primary)]"
-            :class="{ 'bg-[var(--bg-elevated)]': highlightedIndex === index }"
-            role="option"
-            :aria-selected="highlightedIndex === index"
-            @mousedown.prevent="selectCity(city); highlightedIndex = -1"
-            @mouseover="highlightedIndex = index"
-            x-text="city"
-            tabindex="-1"
-          ></li>
-        </template>
-      </ul>
-    </template>
+    <ul
+      id="city-suggestions"
+      class="autocomplete-list absolute left-0 right-0 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl z-50 hidden"
+      role="listbox"
+    ></ul>
   </div>
 
   <!-- Theme & Language Controls -->
   <div class="controls-row flex items-center gap-4">
     <!-- Theme Toggle -->
     <button
+      id="theme-toggle"
       class="theme-toggle inline-flex items-center justify-center w-10 h-9 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] cursor-pointer p-0 transition-all duration-150 hover:bg-[var(--bg-elevated)] hover:border-[var(--color-primary)]"
       type="button"
-      @click="toggleTheme()"
-      :aria-label="currentTheme === 'dark' ? translate('switch_to_light', 'Switch to light mode') : translate('switch_to_dark', 'Switch to dark mode')"
     >
       <!-- Sun Icon (Light Mode) -->
-      <svg
-        x-show="currentTheme === 'dark'"
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
+      <svg id="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="5"></circle>
         <path
           d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
@@ -151,7 +121,8 @@
       </svg>
       <!-- Moon Icon (Dark Mode) -->
       <svg
-        x-show="currentTheme === 'light'"
+        id="moon-icon"
+        class="hidden"
         width="20"
         height="20"
         viewBox="0 0 24 24"
@@ -166,20 +137,16 @@
     <!-- Language Switcher -->
     <div class="lang-switcher flex gap-1">
       <button
+        id="lang-en"
         class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--text-primary)]"
         type="button"
-        @click="setLanguage('en')"
-        :class="{ 'bg-[var(--color-primary)] text-white border-[var(--color-primary)] font-bold': currentLang === 'en' }"
-        aria-label="Switch to English"
       >
         EN
       </button>
       <button
+        id="lang-it"
         class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--text-primary)]"
         type="button"
-        @click="setLanguage('it')"
-        :class="{ 'bg-[var(--color-primary)] text-white border-[var(--color-primary)] font-bold': currentLang === 'it' }"
-        aria-label="Switch to Italian"
       >
         IT
       </button>
@@ -187,9 +154,9 @@
 
     <!-- API Documentation Link -->
     <a
-      :href="'/help/user-' + currentLang"
+      id="docs-link"
+      title="User Documentation"
       class="theme-toggle inline-flex items-center justify-center w-10 h-9 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] cursor-pointer p-0 hover:bg-[var(--bg-elevated)] hover:border-[var(--color-primary)]"
-      :title="translate('user_docs','User Documentation') + (currentLang ? '' : '')"
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>

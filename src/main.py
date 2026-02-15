@@ -29,10 +29,10 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from markdown import markdown as py_markdown
-from tenacity import RetryError
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+from tenacity import RetryError
 
 from src.models import (
     DEFAULT_RESULTS_COUNT,
@@ -43,7 +43,8 @@ from src.models import (
     Settings,
     StationSearchParams,
 )
-from src.services.fuel_api import fetch_gas_stations, parse_and_normalize_stations
+from src.services import fuel_api
+from src.services.csv_fetcher import _candidate_local_csv_dirs, _cleanup_old_csvs
 from src.services.fuel_type_utils import normalize_fuel_type
 from src.services.geocoding import geocode_city
 from src.services.prezzi_csv import (
@@ -54,24 +55,22 @@ from src.services.prezzi_csv import (
     _save_csv_files,
     _write_json_file,
     check_preferred_local_dir_writable,
+    fetch_and_combine_csv_data,
     get_latest_csv_timestamp,
     preload_local_csv_cache,
 )
-from src.services.csv_fetcher import _candidate_local_csv_dirs, _cleanup_old_csvs
 
 
 def get_settings() -> Settings:
-    """Returns application settings instance.
+    """Get application settings instance.
 
     This function is used as a FastAPI dependency to provide configuration
     settings loaded from environment variables.
 
     Returns:
-        Settings: The application settings object.
+    - The application settings object.
     """
     return Settings()
-
-
 
 
 # --- Lifespan Management ---
@@ -105,6 +104,45 @@ async def lifespan(_app: FastAPI):
                 task.add_done_callback(lambda _: logger.debug("Prezzi preload task finished"))
             except Exception as err:
                 logger.warning("Failed to start prezzi preload task: {}", err)
+
+        # Optionally trigger a full remote CSV reload on startup.
+        # If the on-disk cache is missing or stale we perform a blocking reload
+        # so the first-run experience has data available immediately. Otherwise
+        # we schedule a non-blocking background refresh (preserve previous behavior).
+        if getattr(settings, "prezzi_reload_on_startup", False):
+            try:
+                cache_fresh = False
+                try:
+                    cache_fresh = await _is_cache_fresh(settings.prezzi_cache_path, settings.prezzi_cache_hours)
+                except Exception as _err:
+                    # If cache check fails treat it as missing/stale so we attempt a reload
+                    cache_fresh = False
+
+                if not cache_fresh:
+                    # Blocking reload on first run (cache missing/stale)
+                    logger.info("Prezzi cache missing or stale — running blocking CSV reload on startup")
+                    try:
+                        await fetch_and_combine_csv_data(settings, client)  # type: ignore[arg-type]
+                        logger.info("Blocking startup CSV reload completed successfully")
+                    except Exception as e:
+                        logger.warning("Blocking startup CSV reload failed: {}", e)
+                        logger.exception(e)
+                else:
+                    # Previous non-blocking behavior: schedule background refresh
+                    async def _startup_reload():
+                        logger.info("Starting prezzi CSV reload on startup (background)")
+                        try:
+                            # Reuse existing service function to fetch/parse/save and refresh cache
+                            await fetch_and_combine_csv_data(settings, client)  # type: ignore[arg-type]
+                            logger.info("Startup CSV reload completed successfully")
+                        except Exception as e:
+                            logger.warning("Startup CSV reload failed: {}", e)
+                            logger.exception(e)
+
+                    task = asyncio.create_task(_startup_reload())
+                    _app.state._startup_reload_task = task  # noqa: SLF001
+            except Exception as err:
+                logger.warning("Failed to schedule startup CSV reload: {}", err)
         try:
             yield
         except (asyncio.CancelledError, KeyboardInterrupt):
@@ -121,7 +159,10 @@ app = FastAPI(title="Gas Station Finder API", lifespan=lifespan)
 # Configure rate limiter
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(
+    RateLimitExceeded,
+    _rate_limit_exceeded_handler,  # ty:ignore
+)
 
 # Configure Loguru logger
 logger.remove()
@@ -174,7 +215,7 @@ async def favicon_ico() -> FileResponse:
 async def search_gas_stations(
     request: SearchRequest,
     settings: Annotated[Settings, Depends(get_settings)],
-    fastapi_request: Request,  # for rate limiting
+    _request: Request,  # for rate limiting
 ) -> SearchResponse:
     """Search for gas stations near a city within a given radius.
 
@@ -202,6 +243,8 @@ async def search_gas_stations(
     radius: int = min(max(request.radius or 1, 1), MAX_SEARCH_RADIUS_KM)
 
     # Geocode city (with timeout)
+    location: dict[str, float] | None = None
+    geo_error: str | None = None
     try:
         location = await asyncio.wait_for(
             geocode_city(city, settings, app.state.http_client),
@@ -209,52 +252,50 @@ async def search_gas_stations(
         )
     except TimeoutError:
         logger.warning("Search timed out during geocoding for city: {}", city)
-        return SearchResponse(
-            stations=[],
-            warning="Search timed out. Please try again later.",
-            error=True,
-        )
+        geo_error = "Search timed out. Please try again later."
     except RetryError:
-        return SearchResponse(
-            stations=[],
-            warning="City geocoding service is temporarily unavailable. Please try again later.",
-            error=True,
-        )
+        geo_error = "City geocoding service is temporarily unavailable. Please try again later."
     except HTTPException:
-        return SearchResponse(stations=[], warning="City not found. Please check the city name and try again.")
+        geo_error = "City not found. Please check the city name and try again."
+
+    if geo_error:
+        return SearchResponse(stations=[], warning=geo_error, error=True)
+
+    if location is None:
+        return SearchResponse(stations=[], warning="Unexpected error during geocoding.", error=True)
 
     # Fetch stations (with timeout)
+    normalized_fuel = normalize_fuel_type(request.fuel)
+    params = StationSearchParams(
+        latitude=location["latitude"],
+        longitude=location["longitude"],
+        distance=radius,
+        fuel=normalized_fuel,
+        results=min(results, MAX_RESULTS_COUNT),
+    )
+    stations_payload: dict | list | None = None
+    fetch_error: str | None = None
     try:
-        normalized_fuel = normalize_fuel_type(request.fuel)
-        params = StationSearchParams(
-            latitude=location["latitude"],
-            longitude=location["longitude"],
-            distance=radius,
-            fuel=normalized_fuel,
-            results=min(results, MAX_RESULTS_COUNT),
-        )
         stations_payload = await asyncio.wait_for(
-            fetch_gas_stations(params, settings, app.state.http_client),
+            fuel_api.fetch_gas_stations(params, settings, app.state.http_client),
             timeout=settings.search_timeout_seconds,
         )
     except TimeoutError:
         logger.warning("Search timed out while fetching stations for city: {}", city)
-        return SearchResponse(
-            stations=[],
-            warning="Search timed out while fetching station data. Please try again later.",
-            error=True,
-        )
+        fetch_error = "Search timed out while fetching station data. Please try again later."
     except RetryError:
-        return SearchResponse(
-            stations=[],
-            warning="Gas station data is temporarily unavailable. Please try again later.",
-            error=True,
-        )
+        fetch_error = "Gas station data is temporarily unavailable. Please try again later."
     except HTTPException:
-        return SearchResponse(stations=[], warning="Failed to fetch gas station data. Please try again later.")
+        fetch_error = "Failed to fetch gas station data. Please try again later."
+
+    if fetch_error:
+        return SearchResponse(stations=[], warning=fetch_error, error=True)
+
+    if stations_payload is None:
+        return SearchResponse(stations=[], warning="Unexpected error fetching station data.", error=True)
 
     # Parse and normalize stations
-    stations, skipped_count = parse_and_normalize_stations(
+    stations, skipped_count = fuel_api.parse_and_normalize_stations(
         stations_payload,
         normalized_fuel,
         results,
@@ -325,8 +366,16 @@ async def render_docs(page: str) -> HTMLResponse:
             <base href='/docs-static/'>
             <title>Documentation</title>
             <script src='https://cdn.tailwindcss.com'></script>
-            <script>tailwind.config={{darkMode:'class',theme:{{extend:{{colors:
-            {{primary:{{'DEFAULT':'#00c853'}}}},fontFamily:{{sans:['Inter','system-ui']}}}}}}
+            <script>
+            tailwind.config = {{
+              darkMode: 'class',
+              theme: {{
+                extend: {{
+                  colors: {{ primary: {{ DEFAULT: '#00c853' }} }},
+                  fontFamily: {{ sans: ['Inter', 'system-ui'] }},
+                }},
+              }},
+            }};
             </script>
         </head>
         <body class='bg-[var(--bg-primary)] text-[var(--text-primary)]
@@ -379,10 +428,10 @@ async def get_csv_status(settings: Annotated[Settings, Depends(get_settings)]) -
     """Get the current status of CSV data.
 
     Returns:
-        dict with:
-        - last_updated: ISO timestamp string or null
-        - source: "local" | "remote" | "cache" | "unknown"
-        - is_stale: boolean indicating if cache is older than cache_hours
+    - dict with:
+      - last_updated: ISO timestamp string or null
+      - source: "local" | "remote" | "cache" | "unknown"
+      - is_stale: boolean indicating if cache is older than cache_hours
     """
     last_updated = get_latest_csv_timestamp(settings)
 
@@ -409,10 +458,19 @@ async def get_csv_status(settings: Annotated[Settings, Depends(get_settings)]) -
     except Exception as err:
         logger.debug("Failed to check cache status: {}", err)
 
+    # Indicate whether a reload (manual or startup) is currently in progress
+    reload_in_progress = False
+    for task_name in ("_reload_task", "_startup_reload_task"):
+        task = getattr(app.state, task_name, None)
+        if task is not None and hasattr(task, "done") and not task.done():
+            reload_in_progress = True
+            break
+
     return {
         "last_updated": last_updated,
         "source": source,
         "is_stale": is_stale,
+        "reload_in_progress": reload_in_progress,
     }
 
 
@@ -423,19 +481,29 @@ async def reload_csv(
     """Force reload of CSV data by clearing cache and triggering async fetch.
 
     Returns:
-        dict with status message and new CSV status.
+    - dict with status message and new CSV status.
     """
     logger.info("Manual CSV reload requested via API")
+    logger.debug("reload_csv endpoint called")
 
     try:
         cache_path = Path(settings.prezzi_cache_path)
         cache_exists = await asyncio.to_thread(cache_path.exists)
+        logger.debug("Cache exists: {}", cache_exists)
         if cache_exists:
-            await asyncio.to_thread(cache_path.unlink)
-            logger.info("Cleared cache file: {}", settings.prezzi_cache_path)
+            try:
+                await asyncio.to_thread(cache_path.unlink)
+                logger.info("Cleared cache file: {}", settings.prezzi_cache_path)
+            except Exception as e:
+                logger.warning(
+                    "Could not remove cache file (it may be in use); continuing reload: {} - {}",
+                    settings.prezzi_cache_path,
+                    e,
+                )
 
         async def trigger_fetch():
             try:
+                logger.debug("Starting CSV fetch...")
                 async with httpx.AsyncClient(
                     timeout=httpx.Timeout(60.0, connect=15.0),
                     headers={"User-Agent": settings.user_agent, "Accept": "text/csv"},
@@ -461,6 +529,7 @@ async def reload_csv(
                             if d.exists():
                                 _cleanup_old_csvs(d, "anagrafica_impianti_attivi_", keep)
                                 _cleanup_old_csvs(d, "prezzo_alle_8_", keep)
+
                     await asyncio.to_thread(_cleanup_all_candidates)
                     logger.info("Cleaned up old CSV files across all candidate directories")
             except Exception as err:
@@ -468,13 +537,15 @@ async def reload_csv(
                 logger.exception(err)
 
         task = asyncio.create_task(trigger_fetch())
-        app.state._reload_task = task  # store reference to avoid GC
-        task.add_done_callback(lambda _: logger.debug("Async CSV reload task finished"))
+        app.state._reload_task = task  # noqa: SLF001
+
+        # Await the task completion so client sees real-time logs
+        await task
 
         last_updated = get_latest_csv_timestamp(settings)
         return {
-            "status": "reload_started",
-            "message": "CSV reload has been triggered. Data will be available shortly.",
+            "status": "success",
+            "message": "CSV reload completed successfully",
             "last_updated": last_updated,
         }
     except Exception as err:

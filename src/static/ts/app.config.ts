@@ -57,7 +57,7 @@ window.CONFIG = {
   CITY_SUGGESTION_HIDE_DELAY: 150,
   FALLBACK_CITIES: ["Rome", "Milan", "Naples"],
   THEME_STORAGE_KEY: "app-theme",
-  DEFAULT_THEME: "dark",
+  DEFAULT_THEME: "light",
   DEBOUNCE_DELAY_MS: 100,
   CSV_STATUS_ENDPOINT: "/api/csv-status",
   CSV_RELOAD_ENDPOINT: "/api/reload-csv",
@@ -125,12 +125,22 @@ window.themeManager = {
    */
   init(): void {
     const storedTheme = this.getStoredTheme();
-    const theme: "light" | "dark" = (storedTheme ||
-      this.getSystemPreference()) as "light" | "dark";
+    // Apply stored preference when present. When none exists, start with
+    // the configured DEFAULT_THEME so headless/test environments remain
+    // deterministic. If there is no stored preference we still listen to
+    // system changes and update accordingly.
+    const theme: "light" | "dark" = (
+      storedTheme === "dark" || storedTheme === "light"
+        ? storedTheme
+        : (window.CONFIG.DEFAULT_THEME as "light" | "dark")
+    ) as "light" | "dark";
     this.applyTheme(theme);
+
     if (window.matchMedia) {
       const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
       mediaQuery.addEventListener("change", (e) => {
+        // Only react to system changes when the user hasn't explicitly
+        // chosen a theme (no stored preference).
         if (!this.getStoredTheme()) {
           this.applyTheme(e.matches ? "light" : "dark");
         }
