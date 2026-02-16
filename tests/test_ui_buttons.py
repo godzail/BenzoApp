@@ -34,10 +34,11 @@ def test_submit_button_loading_binding() -> None:
 
 def test_set_fuel_type_triggers_submit_when_city_present() -> None:
     """Test that setFuelType triggers submit when city is present."""
-    app_ui = Path("src/static/js/app.ui.js").read_text()
-    assert "setFuelType(fuel)" in app_ui
-    assert "if (this.formData.city)" in app_ui
-    assert "this.submitForm()" in app_ui
+    # `setFuelType` may be split across `app.ui.*.js` after refactor
+    combined = "\n".join(p.read_text() for p in Path("src/static/js").glob("app.ui*.js"))
+    assert "setFuelType(fuel)" in combined
+    assert "if (this.formData.city)" in combined
+    assert "this.submitForm()" in combined
 
 
 def test_results_use_translate_fuel() -> None:
