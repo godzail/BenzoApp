@@ -19,7 +19,7 @@ Strictly adhere to specialized instructions for each coding language:
   - `ruff`: Linting and formatting
   - `ty`: Static type checking
 - Frontend:
-  - `bun`: package management and script execution instead of node/npm
+  - `bun`: package management and script execution instead of node/npm/npmx
   - `biome`: linting and formatting
 - Search
   - `rg`: ripgrep, fast codebase searching
@@ -63,25 +63,19 @@ Frontend Commands:
 
 ## Problem-Solving Approach
 
+Reference this document and relevant guidelines first
+
 - **Simplicity is king** — the simplest solution that works is the best solution
 - **Functional over OOP** — pure functions, composition, immutability
 - **Verification chain** — a verification chain is mandatory and must be completed prior to delivery.
-
-### 1. Problem Analysis
-
-- Reference this document and relevant guidelines first
 - Clarify ambiguities before proceeding
-- Check for existing patterns in codebase (`rg` for similar implementations)
+- Adhere to existing patterns in codebase
 - Identify constraints and success criteria
 - Restate the problem to confirm understanding
-
-### 2. Multi-Perspective Review
-
-Evaluate every proposed solution through three lenses:
-
-- **System Architect**: Solution aligned with overall system design and architecture principles? Is it scalable, maintainable, and extensible?
-- **Senior Software Engineer**: Solution follows best practices, coding standards, and design patterns? Is it efficient, reliable, and testable?
-- **Code Reviewer**: Solution meets quality standards, handles edge cases, and provides clear documentation?
+- **Multi-Perspective view** — evaluate solutions from multiple perspectives:
+  - **System Architect**: Solution aligned with overall system design and architecture principles? Is it scalable, maintainable, and extensible?
+  - **Senior Software Engineer**: Solution follows best practices, coding standards, and design patterns? Is it efficient, reliable, and testable?
+  - **Code Reviewer**: Solution meets quality standards, handles edge cases, and provides clear documentation?
 
 ## Security & Restrictions
 

@@ -1,3 +1,3 @@
 # CLAUDE.md — Assistant Environment Guide
 
-Read and follow AGENTS.md .
+Read and follow instructions in `AGENTS.md`.
