@@ -1,7 +1,6 @@
 """Tests for geocoding fallback behavior when provider is rate-limited."""
 
 import json
-from typing import Any
 
 import httpx
 import pytest
@@ -9,47 +8,35 @@ from fastapi import HTTPException
 
 from src.models import Settings
 from src.services.geocoding import geocode_city
+from tests.conftest import DummyClientException
 
 
-class DummyClient:
-    """Minimal async client that raises a pre-configured exception from get()."""
+@pytest.fixture(autouse=True)
+def clear_geocoding_cache():
+    """Clear geocoding cache before each test."""
+    import src.services.geocoding as geo
 
-    def __init__(self, exc: Exception) -> None:
-        """Initialize the dummy client with an exception to raise.
-
-        Parameters:
-        - exc: The exception to raise when get() is called.
-        """
-        self._exc = exc
-
-    async def get(self, *_: Any, **__: Any):
-        """Mock get method that always raises the configured exception."""
-        raise self._exc
+    geo._LOCAL_CITY_COORDS = None
+    geo.geocoding_cache.clear()
+    yield
+    geo._LOCAL_CITY_COORDS = None
+    geo.geocoding_cache.clear()
 
 
 @pytest.mark.asyncio
 async def test_geocode_fallback_to_local_coords(tmp_path):
     """When the geocoding provider returns 509, local cities.json coordinates are used as fallback."""
-    # Reset global caches to ensure clean state
-    import src.services.geocoding as geo
-
-    geo._LOCAL_CITY_COORDS = None
-    geo.geocoding_cache.clear()
-
     settings = Settings()
-    # Point cache path parent to tmp so _load_local_city_coords will look here
     settings.prezzi_cache_path = str(tmp_path / "prezzi_cache.json")
 
-    # write a cities.json with firenze coords
     cities = {"firenze": {"latitude": 43.77, "longitude": 11.25}}
     (tmp_path / "cities.json").write_text(json.dumps(cities), encoding="utf-8")
 
-    # Build an HTTPStatusError that simulates a 509 response
     req = httpx.Request("GET", "https://nominatim.openstreetmap.org/search")
     resp = httpx.Response(509, request=req, headers={"Retry-After": "1"})
     exc = httpx.HTTPStatusError("bandwidth", request=req, response=resp)
 
-    client = DummyClient(exc)
+    client = DummyClientException(exc)
 
     result = await geocode_city("Firenze", settings, client)  # type: ignore[arg-type]
     assert isinstance(result, dict)
@@ -60,21 +47,14 @@ async def test_geocode_fallback_to_local_coords(tmp_path):
 @pytest.mark.asyncio
 async def test_geocode_raises_503_when_rate_limited_and_no_fallback(tmp_path):
     """When provider is rate-limited and no local fallback exists, a 503 HTTPException is raised."""
-    # Reset global caches to ensure clean state
-    import src.services.geocoding as geo
-
-    geo._LOCAL_CITY_COORDS = None
-    geo.geocoding_cache.clear()
-
     settings = Settings()
-    # Use a tmp path without writing a cities.json so no fallback is available
     settings.prezzi_cache_path = str(tmp_path / "prezzi_cache.json")
 
     req = httpx.Request("GET", "https://nominatim.openstreetmap.org/search")
     resp = httpx.Response(509, request=req)
     exc = httpx.HTTPStatusError("bandwidth", request=req, response=resp)
 
-    client = DummyClient(exc)
+    client = DummyClientException(exc)
 
     with pytest.raises(HTTPException) as ei:
         await geocode_city("NowhereCity", settings, client)  # type: ignore[arg-type]

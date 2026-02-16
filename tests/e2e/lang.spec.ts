@@ -1,18 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { skipIfServerUnavailable } from './helpers';
 
 test('updates title and recent searches when changing language', async ({ page }) => {
-  // If the app server is not available, skip E2E test to avoid false failures in local runs.
-  const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-  try {
-    const resp = await page.request.get(base);
-    if (resp.status() !== 200) {
-      test.skip('E2E server not available');
-    }
-  } catch {
-    test.skip('E2E server not available');
-  }
+  await skipIfServerUnavailable(page);
 
-  // Ensure there is at least one recent search so the UI shows the Recent Searches element
   await page.addInitScript(() => {
     try {
       localStorage.setItem('recentSearches', JSON.stringify([{ city: 'Firenze', radius: '5', fuel: 'benzina' }]));
@@ -22,14 +13,11 @@ test('updates title and recent searches when changing language', async ({ page }
   });
 
   await page.goto('/');
-  // Wait for header to load
   await page.waitForSelector('#title-i18n');
-  // Ensure the recent searches summary appears
   await page.waitForSelector('#recent-searches-i18n');
 
-  // Click Italian button and verify translations
   await page.click('button:has-text("IT")');
-  await page.waitForTimeout(250); // small delay for language change
+  await page.waitForTimeout(250);
 
   const titleIt = await page.title();
   expect(titleIt).toBe('Ricerca Distributori Benzina');
@@ -37,12 +25,10 @@ test('updates title and recent searches when changing language', async ({ page }
   const recentIt = await page.textContent('#recent-searches-i18n');
   expect(recentIt?.trim()).toBe('Ricerche Recenti:');
 
-  // fuel button label should be Italian
   await page.waitForSelector('#fuel-benzina-text');
   const fuelIt = await page.textContent('#fuel-benzina-text');
   expect(fuelIt?.trim()).toBe('Benzina');
 
-  // Click English button and verify translations
   await page.click('button:has-text("EN")');
   await page.waitForTimeout(250);
 
@@ -52,10 +38,8 @@ test('updates title and recent searches when changing language', async ({ page }
   const recentEn = await page.textContent('#recent-searches-i18n');
   expect(recentEn?.trim()).toBe('Recent Searches:');
 
-  // fuel button label should switch to English
   await page.waitForSelector('#fuel-benzina-text');
   const fuelEn = await page.textContent('#fuel-benzina-text');
-  // also assert translate helper returns expected label (debug / spec)
   const tf = await page.evaluate(() => (window.translateFuel ? window.translateFuel('benzina') : null));
   expect(tf).toBe('Gasoline');
   expect(fuelEn?.trim()).toBe('Gasoline');

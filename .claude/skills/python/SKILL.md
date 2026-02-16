@@ -4,4 +4,4 @@ description: Analyze Python code for adherence to project design principles (sin
 allowed-tools: [Read, Grep, Glob]
 ---
 
-Read and Follow from workspace folder `docs/agents/py.instructions.md`
+Read and Follow instructions in `docs/agents/py.instructions.md` from workspace folder.

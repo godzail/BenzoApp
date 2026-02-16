@@ -70,19 +70,15 @@ class Settings(BaseSettings):
             err_msg = "User-Agent must be a non-empty string"
             raise ValueError(err_msg)
 
-        # Check for email pattern (simple but effective) and URL pattern
-        email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
         url_pattern = r"https?://[^\s]+"
 
+        email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
         has_email = bool(re.search(email_pattern, v))
         has_url = bool(re.search(url_pattern, v))
 
         if not has_email and not has_url:
             examples = "'MyApp/1.0 (myemail@example.com)' or 'MyApp/1.0 https://myapp.example.com'"
-            msg = (
-                "User-Agent must include contact information (email or URL) "
-                "per Nominatim usage policy. Examples: " + examples
-            )
+            msg = f"User-Agent must include contact information (email or URL) per Nominatim usage policy. Examples: {examples}"
             raise ValueError(msg)
 
         return v

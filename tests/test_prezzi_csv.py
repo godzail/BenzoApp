@@ -49,7 +49,6 @@ def cleanup_project_csv_files():
 
 
 # Test constants
-HTTP_ERROR_THRESHOLD = 400
 EXPECTED_PRICE_A = 1.5
 EXPECTED_PRICE_B = 1.4
 EXPECTED_PRICE_C = 1.6
@@ -59,49 +58,7 @@ FLOAT_TOLERANCE = 1e-6
 MIN_EXPECTED_CALLS = 2
 
 # Use typing.cast when passing dummy clients to async function to satisfy typecheckers
-
-
-class DummyResponse:
-    """Simple response stub mimicking httpx.Response for tests."""
-
-    def __init__(
-        self,
-        content: bytes,
-        status_code: int = 200,
-        url: str = "http://test",
-        headers: dict | None = None,
-    ):
-        """Initialize a dummy response with raw content, status code, url, and headers."""
-        self.content = content
-        self.status_code = status_code
-        self.url = url
-        self.headers = headers or {"content-type": "text/csv"}
-
-    def raise_for_status(self):
-        """Raise a RuntimeError for non-success HTTP status codes."""
-        if self.status_code >= HTTP_ERROR_THRESHOLD:
-            msg = "HTTP error"
-            raise RuntimeError(msg)
-
-
-class DummyClient:
-    """Test-double for an AsyncClient that returns predefined CSV bytes."""
-
-    def __init__(self, anag_text: bytes, prezzi_text: bytes):
-        """Store CSV payloads for subsequent `get` calls."""
-        self._anag = anag_text
-        self._prezzi = prezzi_text
-        self.calls = 0
-
-    async def get(self, url, _params=None):
-        """Return the appropriate dummy response based on the requested URL path."""
-        self.calls += 1
-        if url.endswith("anagrafica_impianti_attivi.csv"):
-            return DummyResponse(self._anag, url=url)
-        if url.endswith("prezzo_alle_8.csv"):
-            return DummyResponse(self._prezzi, url=url)
-        msg = "Unexpected URL"
-        raise RuntimeError(msg)
+from tests.conftest import DummyClientCsv as DummyClient
 
 
 def _make_anagrafica_row(id_: str, lat: str, lon: str) -> str:
@@ -233,6 +190,7 @@ def test_fetch_csvs_raises_on_http_error(monkeypatch):
         raise FileNotFoundError(msg)
 
     from src.services import csv_fetcher
+
     monkeypatch.setattr(csv_fetcher, "_load_local_csvs", raise_missing)
 
     class ErrResp:
@@ -496,9 +454,24 @@ def test_fetch_and_save_csvs_and_cleanup(tmp_path):
     assert len(anag_files) == 1
     assert len(prezzi_files) == 1
 
-    # Wait to ensure timestamp difference then fetch again -> should save a new set and cleanup old one
-    time.sleep(1)
-    asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
+    # Mock datetime to return different timestamps for each fetch
+    call_count = {"val": 0}
+
+    def mock_datetime_now(*args, **kwargs):
+        call_count["val"] += 1
+        if call_count["val"] == 1:
+            return datetime(2026, 2, 15, 10, 0, 0, tzinfo=UTC)
+        return datetime(2026, 2, 15, 10, 0, 1, tzinfo=UTC)
+
+    from src.services import csv_fetcher
+
+    original_datetime = csv_fetcher.datetime
+    csv_fetcher.datetime = type("MockDatetime", (), {"now": mock_datetime_now})()
+
+    try:
+        asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
+    finally:
+        csv_fetcher.datetime = original_datetime
     anag_files2 = list(tmp_path.glob("anagrafica_impianti_attivi_*.csv"))
     prezzi_files2 = list(tmp_path.glob("prezzo_alle_8_*.csv"))
     assert len(anag_files2) == 1
@@ -546,6 +519,7 @@ def test_save_uses_preferred_candidate_when_unset(tmp_path, monkeypatch):
         return [preferred, other]
 
     from src.services import csv_fetcher
+
     monkeypatch.setattr(csv_fetcher, "_candidate_local_csv_dirs", fake_candidates)
 
     now = datetime.now(tz=UTC)
@@ -747,6 +721,7 @@ def test_save_logs_filenames(tmp_path, monkeypatch):
         return [preferred]
 
     from src.services import csv_fetcher
+
     monkeypatch.setattr(csv_fetcher, "_candidate_local_csv_dirs", fake_candidates)
 
     now = datetime.now(tz=UTC)
@@ -774,6 +749,7 @@ def test_save_logs_filenames(tmp_path, monkeypatch):
     from unittest.mock import MagicMock
 
     from src.services import csv_fetcher
+
     mock_logger = MagicMock()
     monkeypatch.setattr(csv_fetcher, "logger", mock_logger)
 
@@ -813,6 +789,7 @@ def test_check_preferred_local_dir_writable_warns(monkeypatch):
     from unittest.mock import MagicMock
 
     from src.services import csv_cache
+
     mock_logger = MagicMock()
     monkeypatch.setattr(csv_cache, "logger", mock_logger)
 
