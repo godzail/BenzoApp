@@ -13,6 +13,14 @@ import re
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Configuration constants
+# Search radius limits (kilometers)
+MAX_SEARCH_RADIUS_KM = 200
+MIN_SEARCH_RADIUS_KM = 1
+# Results pagination
+DEFAULT_RESULTS_COUNT = 5
+MAX_RESULTS_COUNT = 20
+
 
 # --- Search Parameters Model ---
 class StationSearchParams(BaseModel):
@@ -26,11 +34,11 @@ class StationSearchParams(BaseModel):
     - results: Number of results to return (default: 5).
     """
 
-    latitude: float
-    longitude: float
-    distance: int
+    latitude: float = Field(..., ge=-90.0, le=90.0)
+    longitude: float = Field(..., ge=-180.0, le=180.0)
+    distance: int = Field(default=MIN_SEARCH_RADIUS_KM, ge=MIN_SEARCH_RADIUS_KM, le=MAX_SEARCH_RADIUS_KM)
     fuel: str
-    results: int = 5
+    results: int = Field(default=DEFAULT_RESULTS_COUNT, ge=1, le=MAX_RESULTS_COUNT)
 
 
 # --- Settings and Configuration ---
@@ -47,11 +55,11 @@ class Settings(BaseSettings):
         "https://prezzi-carburante.onrender.com/api/distributori",
         description="The base URL for the Prezzi Carburante API.",
     )
-    cors_allowed_origins: list[str] = Field(
+    cors_allowed_origins: list[str] | str = Field(
         default_factory=lambda: os.getenv(
             "CORS_ALLOWED_ORIGINS",
             "http://localhost:3000,http://127.0.0.1:3000",  # Frontend dev server
-        ).split(","),
+        ),
         description="A list of allowed origins for CORS.",
     )
     user_agent: str = Field(
@@ -67,20 +75,29 @@ class Settings(BaseSettings):
     def validate_user_agent(cls, v: str) -> str:
         """Validate User-Agent follows Nominatim policy: must include contact info."""
         if not v or not isinstance(v, str):
-            err_msg = "User-Agent must be a non-empty string"
-            raise ValueError(err_msg)
-
-        url_pattern = r"https?://[^\s]+"
+            msg = "User-Agent must be a non-empty string"
+            raise ValueError(msg)
 
         email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
         has_email = bool(re.search(email_pattern, v))
+        url_pattern = r"https?://[^\s]+"
         has_url = bool(re.search(url_pattern, v))
 
         if not has_email and not has_url:
-            examples = "'MyApp/1.0 (myemail@example.com)' or 'MyApp/1.0 https://myapp.example.com'"
+            examples = "'MyApp/1.0 (me@example.com)' or 'MyApp/1.0 https://example.com'"
             msg = f"User-Agent must include contact information (email or URL) per Nominatim usage policy. Examples: {examples}"
             raise ValueError(msg)
 
+        return v
+
+    @field_validator("cors_allowed_origins", mode="after")
+    @classmethod
+    def _normalize_cors_allowed_origins(cls, v):
+        """Trim whitespace and drop empty origins provided via env or list."""
+        if isinstance(v, str):
+            return [s.strip() for s in v.split(",") if s.strip()]
+        if isinstance(v, (list, tuple)):
+            return [s.strip() for s in v if isinstance(s, str) and s.strip()]
         return v
 
     # Prezzi CSV source and cache configuration
@@ -143,9 +160,9 @@ class SearchRequest(BaseModel):
     """Represents a search request for gas stations."""
 
     city: str = Field(min_length=2)
-    radius: int = Field(ge=1, le=200)
+    radius: int = Field(default=MIN_SEARCH_RADIUS_KM, ge=MIN_SEARCH_RADIUS_KM, le=MAX_SEARCH_RADIUS_KM)
     fuel: str = Field(min_length=3)
-    results: int = Field(default=5, ge=1, le=20)
+    results: int = Field(default=DEFAULT_RESULTS_COUNT, ge=1, le=MAX_RESULTS_COUNT)
 
     model_config = {
         "json_schema_extra": {
@@ -165,7 +182,7 @@ class FuelPrice(BaseModel):
     """Represents the price of a specific fuel type."""
 
     type: str
-    price: float
+    price: float = Field(..., ge=0.0)
 
     model_config = {
         "json_schema_extra": {
@@ -188,10 +205,10 @@ class Station(BaseModel):
 
     id: str
     address: str
-    latitude: float
-    longitude: float
-    fuel_prices: list[FuelPrice]
-    distance: float | None = None
+    latitude: float = Field(..., ge=-90.0, le=90.0)
+    longitude: float = Field(..., ge=-180.0, le=180.0)
+    fuel_prices: list[FuelPrice] = Field(default_factory=list)
+    distance: float | None = Field(None, ge=0.0)
 
     model_config = {
         "json_schema_extra": {
@@ -218,13 +235,6 @@ class Station(BaseModel):
         return f"{self.address} - {', '.join(str(fp) for fp in self.fuel_prices)}"
 
 
-# Configuration constants
-# Search radius limits (kilometers)
-MAX_SEARCH_RADIUS_KM = 200
-MIN_SEARCH_RADIUS_KM = 1
-# Results pagination
-DEFAULT_RESULTS_COUNT = 5
-MAX_RESULTS_COUNT = 20
 # Map configuration
 MAX_ZOOM_LEVEL = 14  # Maximum zoom level for map tiles
 MAP_PADDING_PX = 50  # Padding around map bounds when fitting stations
@@ -233,6 +243,6 @@ MAP_PADDING_PX = 50  # Padding around map bounds when fitting stations
 class SearchResponse(BaseModel):
     """Represents the response of a gas station search."""
 
-    stations: list[Station]
+    stations: list[Station] = Field(default_factory=list)
     warning: str | None = None
     error: bool = False
