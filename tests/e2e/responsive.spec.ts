@@ -1,13 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { skipIfServerUnavailable } from './helpers';
 
 test('search divider is present after search button', async ({ page }) => {
-  const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-  try {
-    const resp = await page.request.get(base);
-    if (resp.status() !== 200) test.skip('E2E server not available');
-  } catch {
-    test.skip('E2E server not available');
-  }
+  await skipIfServerUnavailable(page);
 
   await page.goto('/');
   await page.waitForSelector('#title-i18n');
@@ -16,18 +11,11 @@ test('search divider is present after search button', async ({ page }) => {
 });
 
 test('stations list has vertical gap when results render', async ({ page }) => {
-  const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-  try {
-    const resp = await page.request.get(base);
-    if (resp.status() !== 200) test.skip('E2E server not available');
-  } catch {
-    test.skip('E2E server not available');
-  }
+  await skipIfServerUnavailable(page);
 
   await page.goto('/');
   await page.waitForSelector('#title-i18n');
 
-  // Trigger a real search (server-backed) — fallback to existing behavior in other e2e tests
   await page.fill('#city', 'Bologna');
   await page.click('#search-submit');
   await page.waitForSelector('#stations-list article');
@@ -37,13 +25,7 @@ test('stations list has vertical gap when results render', async ({ page }) => {
 });
 
 test('header controls wrap and language/docs buttons do not overlap (tablet)', async ({ page }) => {
-  const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-  try {
-    const resp = await page.request.get(base);
-    if (resp.status() !== 200) test.skip('E2E server not available');
-  } catch {
-    test.skip('E2E server not available');
-  }
+  await skipIfServerUnavailable(page);
 
   await page.setViewportSize({ width: 768, height: 800 });
   await page.goto('/');
@@ -55,13 +37,11 @@ test('header controls wrap and language/docs buttons do not overlap (tablet)', a
   const en = await page.locator('#lang-en').boundingBox();
   const it = await page.locator('#lang-it').boundingBox();
   const docs = await page.locator('#docs-link').boundingBox();
-  // boundingBox can be null in headless failure; guard against that
   expect(en).toBeTruthy();
   expect(it).toBeTruthy();
   expect(docs).toBeTruthy();
 
   const boxes = [en!, it!, docs!];
-  // ensure no pair overlaps horizontally
   for (let i = 0; i < boxes.length; i++) {
     for (let j = i + 1; j < boxes.length; j++) {
       const a = boxes[i];
@@ -73,15 +53,8 @@ test('header controls wrap and language/docs buttons do not overlap (tablet)', a
 });
 
 test('map becomes visible on mobile after search', async ({ page }) => {
-  const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-  try {
-    const resp = await page.request.get(base);
-    if (resp.status() !== 200) test.skip('E2E server not available');
-  } catch {
-    test.skip('E2E server not available');
-  }
+  await skipIfServerUnavailable(page);
 
-  // Mock search response for deterministic results
   await page.route('**/search', async (route) => {
     await route.fulfill({
       status: 200,
@@ -102,14 +75,11 @@ test('map becomes visible on mobile after search', async ({ page }) => {
   await page.click('#search-submit');
   await page.waitForSelector('#results-section:not(.hidden)');
 
-  // Map should be visible on mobile and have reasonable height
   await page.waitForSelector('#map');
   expect(await page.isVisible('#map')).toBe(true);
   const h = await page.$eval('#map', (el) => (el as HTMLElement).clientHeight);
   expect(h).toBeGreaterThan(200);
 
-  // Map must be rendered *after* the search controls (after the divider)
-  // and *before* the results list on mobile.
   const mapBox = await page.locator('#map').boundingBox();
   const dividerBox = await page.locator('.search-divider').boundingBox();
   const resultsBox = await page.locator('#results-section').boundingBox();

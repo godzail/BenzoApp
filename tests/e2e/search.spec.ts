@@ -1,13 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { skipIfServerUnavailable } from './helpers';
 
 test('defaults to configured theme when no stored preference', async ({ page }) => {
-  const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-  try {
-    const resp = await page.request.get(base);
-    if (resp.status() !== 200) test.skip('E2E server not available');
-  } catch {
-    test.skip('E2E server not available');
-  }
+  await skipIfServerUnavailable(page);
 
   await page.addInitScript(() => {
     try {
@@ -24,13 +19,7 @@ test('defaults to configured theme when no stored preference', async ({ page }) 
 });
 
 test('clicking a recent search updates the form and shows results', async ({ page }) => {
-  const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-  try {
-    const resp = await page.request.get(base);
-    if (resp.status() !== 200) test.skip('E2E server not available');
-  } catch {
-    test.skip('E2E server not available');
-  }
+  await skipIfServerUnavailable(page);
 
   await page.addInitScript(() => {
     try {
@@ -41,14 +30,11 @@ test('clicking a recent search updates the form and shows results', async ({ pag
   await page.goto('/');
   await page.waitForSelector('#recent-searches-list button');
 
-  // Click the recent-search button
   await page.click('#recent-searches-list button');
 
-  // Form should reflect the selected recent search
   const cityVal = await page.inputValue('#city');
   expect(cityVal).toBe('Firenze');
 
-  // Results should appear
   await page.waitForSelector('#results-section:not(.hidden)');
   await page.waitForSelector('#stations-list article');
   const count = await page.$$eval('#stations-list article', (els) => els.length);
@@ -56,13 +42,7 @@ test('clicking a recent search updates the form and shows results', async ({ pag
 });
 
 test('search form submission displays results in the UI', async ({ page }) => {
-  const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-  try {
-    const resp = await page.request.get(base);
-    if (resp.status() !== 200) test.skip('E2E server not available');
-  } catch {
-    test.skip('E2E server not available');
-  }
+  await skipIfServerUnavailable(page);
 
   await page.goto('/');
   await page.waitForSelector('#title-i18n');
@@ -77,13 +57,7 @@ test('search form submission displays results in the UI', async ({ page }) => {
 });
 
 test('pressing Enter in city input starts search', async ({ page }) => {
-  const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-  try {
-    const resp = await page.request.get(base);
-    if (resp.status() !== 200) test.skip('E2E server not available');
-  } catch {
-    test.skip('E2E server not available');
-  }
+  await skipIfServerUnavailable(page);
 
   await page.goto('/');
   await page.waitForSelector('#title-i18n');
@@ -98,15 +72,8 @@ test('pressing Enter in city input starts search', async ({ page }) => {
 });
 
 test('language switch updates station card aria-label (EN/IT)', async ({ page }) => {
-  const base = process.env.E2E_BASE_URL || 'http://127.0.0.1:8000';
-  try {
-    const resp = await page.request.get(base);
-    if (resp.status() !== 200) test.skip('E2E server not available');
-  } catch {
-    test.skip('E2E server not available');
-  }
+  await skipIfServerUnavailable(page);
 
-  // Force initial language to Italian and mock search result with no 'gestore' so fallback is used
   await page.addInitScript(() => {
     try {
       localStorage.setItem('lang', 'it');
@@ -139,13 +106,11 @@ test('language switch updates station card aria-label (EN/IT)', async ({ page })
   await page.click('#search-submit');
   await page.waitForSelector('#stations-list article');
 
-  // With Italian active, fallback text should be the Italian translation
   const ariaIt = await page.getAttribute('#stations-list article', 'aria-label');
   expect(ariaIt).toContain('Distributore');
 
-  // Switch to English and expect the result card to update to English
   await page.click('#lang-en');
-  await page.waitForTimeout(100); // small wait for UI update
+  await page.waitForTimeout(100);
   const ariaEn = await page.getAttribute('#stations-list article', 'aria-label');
   expect(ariaEn).toContain('Gas Station');
 });
