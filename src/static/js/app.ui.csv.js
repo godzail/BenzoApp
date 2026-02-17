@@ -43,23 +43,36 @@ Object.assign(window.appUiMixin, {
      */
     async reloadCsv() {
         if (this.csvReloading) {
-            return { status: "already_reloading", message: "CSV reload already in progress" };
+            return {
+                status: "already_reloading",
+                message: "CSV reload already in progress",
+            };
         }
         this.csvReloading = true;
+        let lastUpdated = null;
         this.updateReloadButtonUI?.();
         this.updateCsvStatusUI?.();
         try {
-            const response = await fetch(window.CONFIG.CSV_RELOAD_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" } });
+            const response = await fetch(window.CONFIG.CSV_RELOAD_ENDPOINT, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+            });
             if (!response.ok)
                 throw new Error(`HTTP error! status: ${response.status}`);
             const result = (await response.json());
-            if (result.last_updated)
+            if (result.last_updated) {
                 this.csvLastUpdated = result.last_updated;
-            this.updateCsvStatusUI?.();
+                lastUpdated = result.last_updated;
+                this.updateCsvStatusUI?.({
+                    last_updated: result.last_updated,
+                    source: result.source || "manual",
+                    is_stale: false,
+                });
+            }
             setTimeout(() => {
                 this.fetchCsvStatus().then((status) => {
                     this.csvLastUpdated = status.last_updated;
-                    this.updateCsvStatusUI?.();
+                    this.updateCsvStatusUI?.(status);
                 });
             }, 2000);
             return result;
@@ -71,6 +84,13 @@ Object.assign(window.appUiMixin, {
         finally {
             this.csvReloading = false;
             this.updateReloadButtonUI?.();
+            if (lastUpdated) {
+                this.updateCsvStatusUI?.({
+                    last_updated: lastUpdated,
+                    source: "manual",
+                    is_stale: false,
+                });
+            }
         }
     },
     updateReloadButtonUI() {
@@ -97,7 +117,9 @@ Object.assign(window.appUiMixin, {
     },
     showReloadCompletedBanner() {
         try {
-            const msg = window.t ? window.t("data_reloaded_success", "Data reloaded") : "Data reloaded";
+            const msg = window.t
+                ? window.t("data_reloaded_success", "Data reloaded")
+                : "Data reloaded";
             const doneEl = document.getElementById("csv-reload-done");
             if (doneEl) {
                 doneEl.textContent = msg;

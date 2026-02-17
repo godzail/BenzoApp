@@ -13,7 +13,8 @@ Object.assign(window.appUiMixin, {
     const prev = !!this.csvRemoteReloadInProgress;
     try {
       const response = await fetch(window.CONFIG.CSV_STATUS_ENDPOINT);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
       const status = (await response.json()) as CsvStatus;
       this.csvRemoteReloadInProgress = !!status.reload_in_progress;
 
@@ -28,7 +29,10 @@ Object.assign(window.appUiMixin, {
 
       return status;
     } catch {
-      this.debug("Failed to fetch CSV status:", (window.appUiMixin as AppUiMixin & { error?: string }).error);
+      this.debug(
+        "Failed to fetch CSV status:",
+        (window.appUiMixin as AppUiMixin & { error?: string }).error,
+      );
       this.csvRemoteReloadInProgress = false;
       return { last_updated: null, source: "unknown", is_stale: false };
     } finally {
@@ -40,23 +44,40 @@ Object.assign(window.appUiMixin, {
    * Trigger a server-side CSV reload and update UI state accordingly.
    * Returns the server ReloadResponse or an error-like object.
    */
-  async reloadCsv(): Promise<ReloadResponse | { status: string; message: string }> {
+  async reloadCsv(): Promise<
+    ReloadResponse | { status: string; message: string }
+  > {
     if (this.csvReloading) {
-      return { status: "already_reloading", message: "CSV reload already in progress" };
+      return {
+        status: "already_reloading",
+        message: "CSV reload already in progress",
+      };
     }
     this.csvReloading = true;
+    let lastUpdated: string | null = null;
     this.updateReloadButtonUI?.();
     this.updateCsvStatusUI?.();
     try {
-      const response = await fetch(window.CONFIG.CSV_RELOAD_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" } });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const response = await fetch(window.CONFIG.CSV_RELOAD_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
       const result = (await response.json()) as ReloadResponse;
-      if (result.last_updated) this.csvLastUpdated = result.last_updated;
-      this.updateCsvStatusUI?.();
+      if (result.last_updated) {
+        this.csvLastUpdated = result.last_updated;
+        lastUpdated = result.last_updated;
+        this.updateCsvStatusUI?.({
+          last_updated: result.last_updated,
+          source: result.source || "manual",
+          is_stale: false,
+        });
+      }
       setTimeout(() => {
         this.fetchCsvStatus().then((status) => {
           this.csvLastUpdated = status.last_updated;
-          this.updateCsvStatusUI?.();
+          this.updateCsvStatusUI?.(status);
         });
       }, 2000);
       return result;
@@ -66,6 +87,13 @@ Object.assign(window.appUiMixin, {
     } finally {
       this.csvReloading = false;
       this.updateReloadButtonUI?.();
+      if (lastUpdated) {
+        this.updateCsvStatusUI?.({
+          last_updated: lastUpdated,
+          source: "manual",
+          is_stale: false,
+        });
+      }
     }
   },
 
@@ -93,7 +121,9 @@ Object.assign(window.appUiMixin, {
 
   showReloadCompletedBanner(): void {
     try {
-      const msg = window.t ? window.t("data_reloaded_success", "Data reloaded") : "Data reloaded";
+      const msg = window.t
+        ? window.t("data_reloaded_success", "Data reloaded")
+        : "Data reloaded";
 
       const doneEl = document.getElementById("csv-reload-done");
       if (doneEl) {
@@ -124,7 +154,9 @@ Object.assign(window.appUiMixin, {
     const csvNoData = document.getElementById("csv-no-data");
     const reloadIcon = document.getElementById("reload-icon");
     const reloadSpinner = document.getElementById("reload-spinner");
-    const reloadBtn = document.getElementById("reload-btn") as HTMLButtonElement | null;
+    const reloadBtn = document.getElementById(
+      "reload-btn",
+    ) as HTMLButtonElement | null;
 
     if (this.csvStatusLoading) {
       csvLoading?.classList.remove("hidden");
