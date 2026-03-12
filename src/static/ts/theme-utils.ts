@@ -45,7 +45,9 @@ function updateThemeIcons(theme: string): void {
 }
 
 function toggleTheme(): string {
-  const currentTheme = document.documentElement.getAttribute("data-theme") || getSystemPreference();
+  const currentTheme =
+    document.documentElement.getAttribute("data-theme") ||
+    getSystemPreference();
   const newTheme = currentTheme === "light" ? "dark" : "light";
   applyTheme(newTheme);
   setStoredTheme(newTheme);

@@ -124,7 +124,7 @@ def run(
 
     saved: list[Path] = []
     ts = timestamp_str(opts.ts_fmt)
-    with httpx.Client(follow_redirects=True) as client:
+    with httpx.Client(timeout=60.0, follow_redirects=True) as client:
         for url in urls_to_fetch:
             logger.info("Downloading %s", url)
             for attempt in range(1, opts.retries + 1):

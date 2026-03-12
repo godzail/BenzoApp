@@ -40,5 +40,9 @@
   "reload_data": "Reload data",
   "reloading": "Reloading...",
   "data_reloading_startup": "Reloading data (startup)",
-  "data_reloaded_success": "Data reloaded"
+  "data_reloaded_success": "Data reloaded",
+  "update_csv_popup_title": "Data Update Required",
+  "update_csv_popup_body": "Fuel price data is missing or outdated. Click the button below to fetch the latest data.",
+  "update_csv_popup_btn": "Update data",
+  "update_csv_popup_loading": "Updating data, please wait\u2026"
 }

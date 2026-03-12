@@ -3,6 +3,11 @@
 import re
 from pathlib import Path
 
+from src.utils.color_contrast import contrast_ratio as _contrast_ratio_hex
+from src.utils.color_contrast import hex_to_rgb as _hex_to_rgb
+from src.utils.color_contrast import linearize
+from src.utils.color_contrast import luminance as _luminance
+
 BASE_CSS = "src/static/css/base.css"
 CUSTOM_CSS = "src/static/css/custom.css"
 
@@ -11,34 +16,27 @@ RGBA_RE = re.compile(r"rgba\((\d+),\s*(\d+),\s*(\d+),\s*([0-9.]+)\)")
 
 
 def hex_to_rgb(hex_str: str):
-    """Convert a hex color string to an RGB tuple."""
-    h = hex_str.lstrip("#")
-    return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
+    """Convert a hex color string to an RGB tuple (0-255)."""
+    normalized = _hex_to_rgb(hex_str)
+    return tuple(int(c * 255) for c in normalized)
 
 
 def srgb_to_linear(c: float) -> float:
-    """Convert sRGB color component to linear value."""
-    threshold = 0.04045
-    c = c / 255.0
-    return c / 12.92 if c <= threshold else ((c + 0.055) / 1.055) ** 2.4
+    """Convert sRGB color component (0-255) to linear value."""
+    return linearize(c / 255.0)
 
 
 def luminance(rgb: tuple):
-    """Calculate the relative luminance of an RGB color."""
-    r, g, b = rgb
-    lr = srgb_to_linear(r)
-    lg = srgb_to_linear(g)
-    lb = srgb_to_linear(b)
-    return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb
+    """Calculate the relative luminance of an RGB color (0-255)."""
+    normalized = tuple(c / 255.0 for c in rgb)
+    return _luminance(normalized)
 
 
 def contrast_ratio(rgb1: tuple, rgb2: tuple) -> float:
-    """Calculate the contrast ratio between two RGB colors."""
-    l1 = luminance(rgb1)
-    l2 = luminance(rgb2)
-    lighter = max(l1, l2)
-    darker = min(l1, l2)
-    return (lighter + 0.05) / (darker + 0.05)
+    """Calculate the contrast ratio between two RGB color tuples (0-255)."""
+    hex1 = "#{:02x}{:02x}{:02x}".format(*rgb1)
+    hex2 = "#{:02x}{:02x}{:02x}".format(*rgb2)
+    return _contrast_ratio_hex(hex1, hex2)
 
 
 def blend_rgba_over(bg_rgb: tuple, fg_rgba: tuple) -> tuple:

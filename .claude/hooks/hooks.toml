@@ -1,0 +1,227 @@
+# =============================================================================
+# Claude Code — Hook Rules Configuration
+# =============================================================================
+# Consumed by:
+#   .claude/hooks/pre-bash-check.py       → [[bash_rules]]
+#   .claude/hooks/file-rules-reminder.py  → [[file_rules]]
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# [[file_rules]]
+#
+# Inject a reminder message when Claude writes/edits a file matching a path
+# pattern. Useful for pointing Claude to project-specific instruction files.
+#
+# Fields:
+#   id               - unique identifier
+#   description      - human-readable label (comments/logs only)
+#   tools            - Claude Code tools that trigger this rule
+#                      allowed: Write, Edit, MultiEdit, NotebookEdit
+#   file_pattern     - regex matched against the target file path
+#   once_per_session - (default: true) fire only on the first match per
+#                      project/session; false = fire on every matching call
+#   message          - text sent to Claude as feedback (exit 2)
+# -----------------------------------------------------------------------------
+
+[[file_rules]]
+id = "python-instructions"
+description = "Remind Claude to follow Python coding instructions"
+tools = ["Write", "Edit", "MultiEdit", "NotebookEdit"]
+file_pattern = '\.py$'
+once_per_session = false
+message = """
+[HOOK] Python file detected — follow project instructions first.
+
+Read and apply: docs/agents/py.instructions.md
+
+Then proceed with the requested operation.
+"""
+
+# Example: uncomment to add SQL file instructions
+# [[file_rules]]
+# id               = "sql-instructions"
+# description      = "Remind Claude to follow SQL coding instructions"
+# tools            = ["Write", "Edit", "MultiEdit"]
+# file_pattern     = '\.(sql|pgsql|plsql)$'
+# once_per_session = true
+# message          = """
+# [HOOK] SQL file detected — follow project instructions first.
+#
+# Read and apply: docs/agents/sql.instructions.md
+#
+# Then proceed with the requested operation.
+# """
+
+# Example: always remind on test files (once_per_session = false)
+# [[file_rules]]
+# id               = "test-instructions"
+# description      = "Remind Claude to follow testing conventions"
+# tools            = ["Write", "Edit", "MultiEdit"]
+# file_pattern     = '(^|/)tests?/.*\.py$|_test\.py$|test_.*\.py$'
+# once_per_session = false
+# message          = """
+# [HOOK] Test file detected — follow testing conventions.
+#
+# Read and apply: docs/agents/testing.instructions.md
+# """
+
+# -----------------------------------------------------------------------------
+# [[bash_rules]]
+#
+# Block Bash commands matching a pattern and redirect Claude to the correct
+# alternative. Rules are evaluated in order; first match wins.
+#
+# Fields:
+#   id              - unique identifier
+#   description     - human-readable label (comments/logs only)
+#   pattern         - regex that MUST match to trigger the block
+#   exclude_pattern - (optional) if this also matches, the rule is skipped
+#                     (use to allow already-correct commands through)
+#   use_raw         - (default: false) match the original multi-line command
+#                     instead of the normalized one — required for heredoc
+#                     patterns where newlines are significant
+#   message         - text sent to Claude as feedback (exit 2)
+# -----------------------------------------------------------------------------
+
+[[bash_rules]]
+id = "grep"
+description = "grep / egrep → rg (ripgrep)"
+pattern = '(^|[|;&$(]\s*)e?grep\b'
+message = """
+[HOOK] Command blocked: use 'rg' instead of 'grep'.
+
+'grep' is not available on this system. Use 'rg' (ripgrep).
+
+Migration reference:
+  grep "pat" file               ->  rg "pat" file
+  grep -r "pat" .               ->  rg "pat"
+  grep -rn "pat" dir/           ->  rg -n "pat" dir/
+  grep -rl "pat" .              ->  rg -l "pat"
+  grep -i "pat" file            ->  rg -i "pat" file
+  grep -v "pat" file            ->  rg -v "pat" file
+  grep -E "regex" file          ->  rg -e "regex" file
+  grep -r "pat" --include=*.py  ->  rg "pat" -g "*.py"
+
+Rewrite the command using 'rg'.
+"""
+
+[[bash_rules]]
+id = "pip"
+description = "pip / pip3 → uv"
+pattern = '(^|[|;&$(]\s*)pip3?\s'
+exclude_pattern = '\buv\s+(pip|add|remove)\b'
+message = """
+[HOOK] Command blocked: use 'uv' instead of 'pip'.
+
+This project uses 'uv' for Python package management. Do not invoke 'pip' directly.
+
+Migration reference:
+  pip install <pkg>          ->  uv add <pkg>
+  pip install -r req.txt     ->  uv pip install -r requirements.txt
+  pip uninstall <pkg>        ->  uv remove <pkg>
+  pip list                   ->  uv pip list
+  pip show <pkg>             ->  uv pip show <pkg>
+  pip freeze                 ->  uv pip freeze
+
+Rewrite the command using 'uv'.
+"""
+
+[[bash_rules]]
+id = "pytest"
+description = "pytest → uv run pytest"
+pattern = '(^|[|;&$(]\s*)pytest\b'
+exclude_pattern = '\buv\s+(run\s+pytest|tool\s+run\s+pytest)\b'
+message = """
+[HOOK] Command blocked: use 'uv run pytest' instead of 'pytest'.
+
+Always invoke pytest through uv to ensure the managed virtual environment is used.
+
+Migration reference:
+  pytest                     ->  uv run pytest
+  pytest tests/ -v           ->  uv run pytest tests/ -v
+  pytest -k "test_name" -x   ->  uv run pytest -k "test_name" -x
+  pytest --cov=src tests/    ->  uv run pytest --cov=src tests/
+
+Rewrite the command using 'uv run pytest'.
+"""
+
+[[bash_rules]]
+id = "ruff"
+description = "ruff → uv run ruff"
+pattern = '(^|[|;&$(]\s*)ruff\b'
+exclude_pattern = '\buv\s+(run\s+ruff|tool\s+run\s+ruff)\b'
+message = """
+[HOOK] Command blocked: use 'uv run ruff' instead of 'ruff'.
+
+Always invoke ruff through uv to ensure the managed virtual environment is used.
+
+Migration reference:
+  ruff check .           ->  uv run ruff check .
+  ruff check --fix .     ->  uv run ruff check --fix .
+  ruff format .          ->  uv run ruff format .
+  ruff format --check .  ->  uv run ruff format --check .
+
+Rewrite the command using 'uv run ruff'.
+"""
+
+[[bash_rules]]
+id = "ty"
+description = "ty → uv run ty"
+pattern = '(^|[|;&$(]\s*)ty\s+(check|run|version)\b'
+exclude_pattern = '\buv\s+(run\s+ty|tool\s+run\s+ty)\b'
+message = """
+[HOOK] Command blocked: use 'uv run ty' instead of 'ty'.
+
+Always invoke ty through uv to ensure the managed virtual environment is used.
+
+Migration reference:
+  ty check        ->  uv run ty check
+  ty check src/   ->  uv run ty check src/
+
+Rewrite the command using 'uv run ty'.
+"""
+
+[[bash_rules]]
+id = "python-heredoc"
+description = "python - <<'HEREDOC' → uv run python"
+pattern = '\bpython3?\s*(-\s*)?<<'
+use_raw = true
+message = """
+[HOOK] Command blocked: do not use Python heredoc syntax.
+
+Avoid 'python - <<HEREDOC'. Write the code to a file and execute it via 'uv run'.
+
+Alternatives:
+  # Option 1 — temporary script (preferred)
+  cat > /tmp/script.py << 'EOF'
+  # ... python code ...
+  EOF
+  uv run python /tmp/script.py
+
+  # Option 2 — short inline expression
+  uv run python -c "print('hello')"
+
+  # Option 3 — project script
+  uv run python src/myscript.py
+
+Rewrite using 'uv run python'.
+"""
+
+[[bash_rules]]
+id = "python-m"
+description = "python -m <tool> → uv"
+pattern = '\bpython3?\s+-m\s+(pip|pytest|ruff|ty)\b'
+exclude_pattern = '\buv\b'
+message = """
+[HOOK] Command blocked: use 'uv' instead of 'python -m <tool>'.
+
+Do not use 'python -m <tool>'. Invoke tools directly through 'uv'.
+
+Migration reference:
+  python -m pip install <pkg>  ->  uv add <pkg>
+  python -m pytest             ->  uv run pytest
+  python -m ruff check .       ->  uv run ruff check .
+  python -m ty check           ->  uv run ty check
+
+Rewrite the command using 'uv'.
+"""

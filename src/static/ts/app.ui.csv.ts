@@ -17,6 +17,8 @@ Object.assign(window.appUiMixin, {
         throw new Error(`HTTP error! status: ${response.status}`);
       const status = (await response.json()) as CsvStatus;
       this.csvRemoteReloadInProgress = !!status.reload_in_progress;
+      // ensure the reload button UI reflects remote reload-in-progress state
+      this.updateReloadButtonUI?.();
 
       if (prev && !this.csvRemoteReloadInProgress) {
         this.csvLastUpdated = status.last_updated;
@@ -34,6 +36,7 @@ Object.assign(window.appUiMixin, {
         (window.appUiMixin as AppUiMixin & { error?: string }).error,
       );
       this.csvRemoteReloadInProgress = false;
+      this.updateReloadButtonUI?.();
       return { last_updated: null, source: "unknown", is_stale: false };
     } finally {
       this.csvStatusLoading = false;
@@ -185,5 +188,87 @@ Object.assign(window.appUiMixin, {
         }
       }
     }
+  },
+
+  /**
+   * Show the CSV update startup popup when data is stale or missing.
+   * Wires the "Update data" button on first call only.
+   */
+  showCsvUpdatePopup(): void {
+    const popup = document.getElementById("csv-update-popup");
+    if (!popup) return;
+    popup.classList.remove("hidden");
+    this._updatePopupTexts?.();
+    const btn = document.getElementById(
+      "csv-popup-btn",
+    ) as HTMLButtonElement | null;
+    if (btn && !btn.dataset.popupListenerAttached) {
+      btn.addEventListener("click", () => this.handlePopupReload());
+      btn.dataset.popupListenerAttached = "1";
+    }
+  },
+
+  /**
+   * Hide the startup popup with a short fade-out animation.
+   */
+  hideCsvUpdatePopup(): void {
+    const popup = document.getElementById("csv-update-popup");
+    if (!popup) return;
+    popup.classList.add("fade-out");
+    setTimeout(() => {
+      popup.classList.add("hidden");
+      popup.classList.remove("fade-out");
+    }, 280);
+  },
+
+  /**
+   * Handle the "Update data" button click inside the startup popup.
+   * Disables the button, shows a spinner, starts reloadCsv(),
+   * then closes the popup when done (success or error).
+   */
+  async handlePopupReload(): Promise<void> {
+    const btn = document.getElementById(
+      "csv-popup-btn",
+    ) as HTMLButtonElement | null;
+    const statusEl = document.getElementById("csv-popup-status");
+    if (btn) btn.disabled = true;
+
+    const loadingMsg = window.t
+      ? window.t("update_csv_popup_loading", "Updating data, please wait\u2026")
+      : "Updating data, please wait\u2026";
+
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="csv-popup-spinner"></span><span>${loadingMsg}</span>`;
+    }
+
+    try {
+      await this.reloadCsv();
+    } finally {
+      this.hideCsvUpdatePopup();
+    }
+  },
+
+  /**
+   * Re-translate popup text elements when the active language changes.
+   */
+  _updatePopupTexts(): void {
+    if (!window.t) return;
+    const title = document.getElementById("csv-popup-title");
+    const body = document.getElementById("csv-popup-body");
+    const btn = document.getElementById(
+      "csv-popup-btn",
+    ) as HTMLButtonElement | null;
+    if (title)
+      title.textContent = window.t(
+        "update_csv_popup_title",
+        "Data Update Required",
+      );
+    if (body)
+      body.textContent = window.t(
+        "update_csv_popup_body",
+        "Fuel price data is missing or outdated. Click the button below to fetch the latest data.",
+      );
+    if (btn && !btn.disabled)
+      btn.textContent = window.t("update_csv_popup_btn", "Update data");
   },
 } as Partial<AppUiMixin>);

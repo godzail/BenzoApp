@@ -13,6 +13,9 @@ from pathlib import Path
 
 from loguru import logger
 
+from src.services.csv_parser import _detect_delimiter as detect_delimiter
+from src.services.csv_utils import strip_bom
+
 PROJECT_ROOT = Path(__file__).parent.parent
 DATA_DIR = PROJECT_ROOT / "src" / "static" / "data"
 OUTPUT_PATH = DATA_DIR / "cities.json"
@@ -131,25 +134,6 @@ MAJOR_ITALIAN_CITIES = [
 ]
 
 
-def detect_delimiter(csv_text: str) -> str:
-    """Detect the delimiter used in a CSV text.
-
-    Parameters:
-    - csv_text: The raw CSV text content.
-
-    Returns:
-    - The detected delimiter character (|, ;, ,, or tab).
-    """
-    lines = [ln for ln in csv_text.splitlines() if ln.strip()]
-    if not lines:
-        return "|"
-    header = lines[0]
-    for d in ["|", ";", ",", "\t"]:
-        if d in header:
-            return d
-    return "|"
-
-
 def extract_cities(csv_path: Path) -> list[str]:
     """Extract unique city names from a CSV file.
 
@@ -160,10 +144,7 @@ def extract_cities(csv_path: Path) -> list[str]:
     - A sorted list of unique city names extracted from the file.
     """
     text = csv_path.read_text(encoding="iso-8859-1")
-    if text.startswith("\ufeff"):
-        text = text[1:]
-    elif text.startswith("ï»¿"):
-        text = text[3:]
+    text = strip_bom(text)
 
     delimiter = detect_delimiter(text)
     reader = csv.reader(text.splitlines(), delimiter=delimiter)

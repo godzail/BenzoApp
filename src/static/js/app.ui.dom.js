@@ -6,7 +6,9 @@
 Object.assign(window.appUiMixin, {
     initializeComponents() {
         window.themeManager.init();
-        this.currentTheme = document.documentElement.getAttribute("data-theme") || window.CONFIG.DEFAULT_THEME;
+        this.currentTheme =
+            document.documentElement.getAttribute("data-theme") ||
+                window.CONFIG.DEFAULT_THEME;
         const progressEl = document.getElementById("loading-bar");
         if (progressEl)
             this.loadingBar = progressEl;
@@ -18,7 +20,8 @@ Object.assign(window.appUiMixin, {
                     window.clearTimeout(_resizeTimer);
                 _resizeTimer = window.setTimeout(() => {
                     this.placeMapAccordingToViewport?.();
-                    if (this.map && typeof this.map.invalidateSize === "function") {
+                    if (this.map &&
+                        typeof this.map.invalidateSize === "function") {
                         this.map.invalidateSize();
                     }
                     _resizeTimer = null;
@@ -52,7 +55,9 @@ Object.assign(window.appUiMixin, {
             percentage = Math.max(10, Math.min(90, percentage));
             layoutEl.style.gridTemplateColumns = `${percentage}% 4px 1fr`;
             resizer.setAttribute("aria-valuenow", String(Math.round(percentage)));
-            if (this.map && typeof this.map.invalidateSize === "function") {
+            if (this.map &&
+                typeof this.map.invalidateSize ===
+                    "function") {
                 this.map.invalidateSize();
             }
         });
@@ -64,7 +69,8 @@ Object.assign(window.appUiMixin, {
             document.body.classList.remove("is-resizing");
             if (this.map) {
                 setTimeout(() => {
-                    if (typeof this.map.invalidateSize === "function") {
+                    if (typeof this.map
+                        .invalidateSize === "function") {
                         this.map.invalidateSize();
                     }
                 }, window.CONFIG.MAP_RESIZE_DELAY);
@@ -87,7 +93,13 @@ Object.assign(window.appUiMixin, {
             sunIcon.classList.toggle("hidden", isDark);
         if (moonIcon)
             moonIcon.classList.toggle("hidden", !isDark);
-        themeToggle.setAttribute("aria-label", isDark ? (window.t ? window.t("switch_to_light", "Switch to light mode") : "Switch to light mode") : (window.t ? window.t("switch_to_dark", "Switch to dark mode") : "Switch to dark mode"));
+        themeToggle.setAttribute("aria-label", isDark
+            ? window.t
+                ? window.t("switch_to_light", "Switch to light mode")
+                : "Switch to light mode"
+            : window.t
+                ? window.t("switch_to_dark", "Switch to dark mode")
+                : "Switch to dark mode");
     },
     /**
      * Change the UI language.
@@ -142,35 +154,62 @@ Object.assign(window.appUiMixin, {
     attachEventListeners(container) {
         const reloadBtn = container.querySelector("#reload-btn");
         if (reloadBtn && !reloadBtn.hasAttribute("data-listener-attached")) {
-            reloadBtn.addEventListener("click", async (e) => { e.preventDefault(); e.stopPropagation(); await this.reloadCsv(); });
+            reloadBtn.addEventListener("click", async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                await this.reloadCsv();
+            });
             reloadBtn.setAttribute("data-listener-attached", "true");
         }
         const themeToggle = container.querySelector("#theme-toggle");
         if (themeToggle && !themeToggle.hasAttribute("data-listener-attached")) {
-            themeToggle.addEventListener("click", () => { this.toggleTheme(); });
+            themeToggle.addEventListener("click", () => {
+                this.toggleTheme();
+            });
             themeToggle.setAttribute("data-listener-attached", "true");
         }
         const langEn = container.querySelector("#lang-en");
         if (langEn && !langEn.hasAttribute("data-listener-attached")) {
-            langEn.addEventListener("click", () => { this.setLanguage("en"); });
+            langEn.addEventListener("click", () => {
+                this.setLanguage("en");
+            });
             langEn.setAttribute("data-listener-attached", "true");
         }
         const langIt = container.querySelector("#lang-it");
         if (langIt && !langIt.hasAttribute("data-listener-attached")) {
-            langIt.addEventListener("click", () => { this.setLanguage("it"); });
+            langIt.addEventListener("click", () => {
+                this.setLanguage("it");
+            });
             langIt.setAttribute("data-listener-attached", "true");
         }
         const locationBtn = container.querySelector("#location-btn");
         if (locationBtn && !locationBtn.hasAttribute("data-listener-attached")) {
-            locationBtn.addEventListener("click", () => { this.locateUser(); });
+            locationBtn.addEventListener("click", () => {
+                this.locateUser();
+            });
             locationBtn.setAttribute("data-listener-attached", "true");
         }
         const cityInput = container.querySelector("#city");
         if (cityInput && !cityInput.hasAttribute("data-listener-attached")) {
-            cityInput.addEventListener("input", () => { this.formData.city = cityInput.value; this.onCityInput(); this.updateSearchFormUI(); this.updateSearchButtonUI(); });
-            cityInput.addEventListener("focus", () => { this.showCitySuggestions = true; this.onCityInput(); });
-            cityInput.addEventListener("blur", () => { setTimeout(() => { this.showCitySuggestions = false; this.updateCitySuggestionsUI(); }, 200); });
-            cityInput.addEventListener("keydown", (e) => { this.handleCityKeydown(e); });
+            cityInput.addEventListener("input", () => {
+                this.formData.city = cityInput.value;
+                this.onCityInput();
+                this.updateSearchFormUI();
+                this.updateSearchButtonUI();
+            });
+            cityInput.addEventListener("focus", () => {
+                this.showCitySuggestions = true;
+                this.onCityInput();
+            });
+            cityInput.addEventListener("blur", () => {
+                setTimeout(() => {
+                    this.showCitySuggestions = false;
+                    this.updateCitySuggestionsUI();
+                }, 200);
+            });
+            cityInput.addEventListener("keydown", (e) => {
+                this.handleCityKeydown(e);
+            });
             cityInput.setAttribute("data-listener-attached", "true");
         }
         const docsLink = container.querySelector("#docs-link");
@@ -181,24 +220,39 @@ Object.assign(window.appUiMixin, {
         }
         const searchForm = container.querySelector("#search-form");
         if (searchForm && !searchForm.hasAttribute("data-listener-attached")) {
-            searchForm.addEventListener("submit", (e) => { e.preventDefault(); this.submitForm(); });
+            searchForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+                this.submitForm();
+            });
             searchForm.setAttribute("data-listener-attached", "true");
         }
         const radiusSlider = container.querySelector("#radius-slider");
         if (radiusSlider && !radiusSlider.hasAttribute("data-listener-attached")) {
-            radiusSlider.addEventListener("input", () => { this.formData.radius = radiusSlider.value; this.updateSearchFormUI(); });
+            radiusSlider.addEventListener("input", () => {
+                this.formData.radius = radiusSlider.value;
+                this.updateSearchFormUI();
+            });
             radiusSlider.setAttribute("data-listener-attached", "true");
         }
         const resultsSlider = container.querySelector("#results-slider");
-        if (resultsSlider && !resultsSlider.hasAttribute("data-listener-attached")) {
-            resultsSlider.addEventListener("input", () => { this.formData.results = resultsSlider.value; this.updateSearchFormUI(); });
+        if (resultsSlider &&
+            !resultsSlider.hasAttribute("data-listener-attached")) {
+            resultsSlider.addEventListener("input", () => {
+                this.formData.results = resultsSlider.value;
+                this.updateSearchFormUI();
+            });
             resultsSlider.setAttribute("data-listener-attached", "true");
         }
         const fuelButtons = ["benzina", "gasolio", "GPL", "metano"];
-        fuelButtons.forEach((fuel) => { const btn = container.querySelector(`#fuel-${fuel}`); if (btn && !btn.hasAttribute("data-listener-attached")) {
-            btn.addEventListener("click", () => { this.setFuelType(fuel); });
-            btn.setAttribute("data-listener-attached", "true");
-        } });
+        fuelButtons.forEach((fuel) => {
+            const btn = container.querySelector(`#fuel-${fuel}`);
+            if (btn && !btn.hasAttribute("data-listener-attached")) {
+                btn.addEventListener("click", () => {
+                    this.setFuelType(fuel);
+                });
+                btn.setAttribute("data-listener-attached", "true");
+            }
+        });
     },
     placeMapAccordingToViewport() {
         try {
@@ -211,7 +265,8 @@ Object.assign(window.appUiMixin, {
                 return;
             if (isMobile) {
                 if (mapContainer.parentElement !== searchColumn) {
-                    if (resultsContainer && resultsContainer.parentElement === searchColumn) {
+                    if (resultsContainer &&
+                        resultsContainer.parentElement === searchColumn) {
                         searchColumn.insertBefore(mapContainer, resultsContainer);
                     }
                     else {

@@ -48,10 +48,13 @@ def test_results_use_translate_fuel() -> None:
 
 
 def test_user_docs_title_is_reactive() -> None:
-    """Test that user docs title is reactive for translations."""
-    header = Path("src/static/templates/header.html").read_text()
-    assert ":title=\"translate('user_docs','User Documentation') + (currentLang ? '' : '')\"" in header, (
-        "Header docs link should include reactive currentLang dependency for translations"
+    """Test that user docs title/href are updated via JS (reinitializeComponents)."""
+    interactions = Path("src/static/ts/app.ui.interactions.ts").read_text()
+    assert 'docsLink.setAttribute("href", `/help/user-${this.currentLang || "it"}`)' in interactions, (
+        "Implementation should dynamically update docs-link href"
+    )
+    assert 'docsLink.setAttribute("title", title)' in interactions, (
+        "Implementation should dynamically update docs-link title"
     )
 
 

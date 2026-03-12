@@ -169,6 +169,25 @@ Object.assign(window.appUiMixin, {
             }
         });
     },
+    /**
+     * Update the language selector buttons' visual and ARIA state.
+     */
+    updateLanguageUI() {
+        try {
+            const en = document.getElementById("lang-en");
+            const it = document.getElementById("lang-it");
+            if (!(en && it))
+                return;
+            const enSelected = String(this.currentLang || "").startsWith("en");
+            en.classList.toggle("active", enSelected);
+            it.classList.toggle("active", !enSelected);
+            en.setAttribute("aria-pressed", enSelected ? "true" : "false");
+            it.setAttribute("aria-pressed", !enSelected ? "true" : "false");
+        }
+        catch (err) {
+            this.debug?.("updateLanguageUI failed:", err);
+        }
+    },
     updateSearchFormUI() {
         const cityInput = document.getElementById("city");
         const radiusInput = document.getElementById("radius-input");
@@ -379,6 +398,7 @@ Object.assign(window.appUiMixin, {
                 this.updateRecentSearchesUI?.();
                 this.updateResultsUI?.();
                 this.updateMap?.();
+                this._updatePopupTexts?.();
             });
             this.loadRecentSearches?.();
             this.updateRecentSearchesUI?.();
@@ -388,13 +408,24 @@ Object.assign(window.appUiMixin, {
                 this.updateSearchButtonUI?.();
             }
             this.initTranslateFuelHelper?.();
-            Promise.resolve().then(() => {
-                this.initializeComponents?.();
-                if (window.updateI18nTexts)
-                    window.updateI18nTexts();
+            await new Promise((resolve) => {
+                setTimeout(() => {
+                    this.initializeComponents?.();
+                    if (window.updateI18nTexts)
+                        window.updateI18nTexts();
+                    resolve();
+                }, 0);
             });
             this.fetchCsvStatus()?.then((status) => {
                 this.csvLastUpdated = status.last_updated;
+                try {
+                    if (!(status.reload_in_progress || this.csvReloading)) {
+                        this.showCsvUpdatePopup?.();
+                    }
+                }
+                catch (err) {
+                    this.debug("CSV popup check failed:", err);
+                }
             });
             if (this.csvStatusInterval)
                 clearInterval(this.csvStatusInterval);
@@ -530,6 +561,14 @@ Object.assign(window.appUiMixin, {
         this.clearMapMarkers?.();
         if (this.results?.length > 0)
             this.addMapMarkers?.();
+    },
+    reinitializeComponents() {
+        const docsLink = document.getElementById("docs-link");
+        if (docsLink) {
+            docsLink.setAttribute("href", `/help/user-${this.currentLang || "it"}`);
+            const title = this.translate("user_docs", "User Documentation");
+            docsLink.setAttribute("title", title);
+        }
     },
 });
 //# sourceMappingURL=app.ui.interactions.js.map

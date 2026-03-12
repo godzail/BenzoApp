@@ -73,6 +73,4 @@ interface AppUiMixin {
 // Ensure the global mixin object exists so the smaller modules can augment it.
 window.appUiMixin = (window.appUiMixin || {}) as AppUiMixin;
 
-export { };
-
-
+export {};

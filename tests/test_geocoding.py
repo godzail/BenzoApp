@@ -16,9 +16,13 @@ async def test_geocoding_country_bias_and_alias() -> None:
     geocoding_cache.clear()
 
     client = DummyClient()
-    settings = Settings()
+    settings = Settings(
+        photon_api_url="https://photon.komoot.io/api/",
+        geocoding_cache_maxsize=1000,
+        geocoding_cache_ttl_seconds=86400,
+    )
 
-    result = await geocode_city("Florence", settings, client)  # type: ignore[arg-type]
+    result = await geocode_city("Florence", settings, client)  # type: ignore[arg-type] - DummyClient is a test mock, not full AsyncClient
 
     assert client.called_with is not None
     params = client.called_with["params"]

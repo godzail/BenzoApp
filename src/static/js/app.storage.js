@@ -51,8 +51,10 @@ window.appStorageMixin = {
         const incomingCity = (search.city || "").toString().trim();
         const incomingFuel = (search.fuel || "").toString().trim();
         this.recentSearches = this.recentSearches.filter((s) => {
-            const sameCity = (s.city || "").toString().trim().toLowerCase() === incomingCity.toLowerCase();
-            const sameFuel = (s.fuel || "").toString().trim().toLowerCase() === incomingFuel.toLowerCase();
+            const sameCity = (s.city || "").toString().trim().toLowerCase() ===
+                incomingCity.toLowerCase();
+            const sameFuel = (s.fuel || "").toString().trim().toLowerCase() ===
+                incomingFuel.toLowerCase();
             return !(sameCity && s.radius === search.radius && sameFuel);
         });
         const entry = { ...search, timestamp: Date.now() };
