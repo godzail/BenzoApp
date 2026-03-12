@@ -3,6 +3,7 @@
 import asyncio
 import json
 import threading
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -43,21 +44,18 @@ def _parse_retry_after_header(value: str | None) -> float | None:
     try:
         return float(s)
     except Exception:
-        pass
+        logger.debug("Failed to parse Retry-After as float: {}", s)
 
     # Try parsing as an HTTP-date
     try:
-        from email.utils import parsedate_to_datetime
+        from email.utils import parsedate_to_datetime  # noqa: PLC0415
 
         dt = parsedate_to_datetime(s)
         # parsedate_to_datetime may return naive datetime — treat as UTC
         if dt.tzinfo is None:
-            from datetime import timezone
+            dt = dt.replace(tzinfo=UTC)
 
-            dt = dt.replace(tzinfo=timezone.utc)
-        from datetime import datetime, timezone
-
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         delta = (dt - now).total_seconds()
         return max(0.0, delta)
     except Exception:
@@ -244,7 +242,7 @@ def normalize_city_input(city: str) -> str:
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
-async def geocode_city(
+async def geocode_city(  # noqa: C901, PLR0912, PLR0915
     city: str,
     settings: Settings,
     http_client: httpx.AsyncClient,

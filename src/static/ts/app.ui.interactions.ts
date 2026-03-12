@@ -140,7 +140,7 @@ Object.assign(window.appUiMixin, {
     if (this.recentSearches.length > 0) {
       container.classList.remove("hidden");
       list.innerHTML = "";
-      this.recentSearches.forEach((search, idx) => {
+      this.recentSearches.forEach((search, _idx) => {
         const btn = document.createElement("button");
         btn.className =
           "recent-search-btn flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-full px-3 py-2 text-sm text-[var(--text-secondary)] cursor-pointer transition-all duration-150 min-h-10 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]";
@@ -226,7 +226,7 @@ Object.assign(window.appUiMixin, {
     if (fuelInput) fuelInput.value = this.formData.fuel;
     if (radiusSlider) radiusSlider.value = this.formData.radius;
     if (resultsSlider) resultsSlider.value = this.formData.results;
-    if (radiusValue) radiusValue.textContent = this.formData.radius + "km";
+    if (radiusValue) radiusValue.textContent = `${this.formData.radius}km`;
     if (resultsValue) resultsValue.textContent = this.formData.results;
     if (submitBtn) submitBtn.disabled = this.loading || !this.formData.city;
   },
@@ -315,6 +315,7 @@ Object.assign(window.appUiMixin, {
       article.className =
         "station-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-6 shadow-md transition-all duration-150 cursor-pointer relative min-h-[180px] hover:translate-y-[-2px] hover:shadow-xl hover:border-[var(--color-primary)]";
       article.setAttribute("tabindex", "0");
+      article.setAttribute("data-station-id", String(station.id ?? ""));
       article.setAttribute(
         "aria-label",
         `${station.gestore || this.translate("station", "Gas Station")}, ${this.formatCurrency(price)}`,

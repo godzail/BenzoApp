@@ -21,49 +21,55 @@ BenzoApp is a web application for searching and analyzing gas stations in Italy.
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Frontend (Browser)                  │
-│  • Alpine.js + Vanilla JS                                   │
-│  • Leaflet Maps                                            │
-│  • i18next (IT/EN)                                         │
-│  • Theme management (dark/light)                           │
-└─────────────────────────────┬───────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                         Frontend (Browser)                │
+│  • Alpine.js + Vanilla JS                                 │
+│  • Leaflet Maps                                           │
+│  • i18next (IT/EN)                                        │
+│  • Theme management (dark/light)                          │
+└─────────────────────────────┬─────────────────────────────┘
                               │ HTTPS/REST API
                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    FastAPI Backend                          │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  API Layer (main.py)                                 │  │
-│  │  • /search - main search endpoint                   │  │
-│  │  • /health - health check                           │  │
-│  │  • /api/reload-csv - manual data refresh            │  │
-│  │  • /api/csv-status - cache status                   │  │
-│  │  • Static file serving                              │  │
-│  └─────────────────────────┬───────────────────────────┘  │
-│                            │                               │
+┌───────────────────────────────────────────────────────────┐
+│                    FastAPI Backend                        │
+│  ┌──────────────────────────────────────────────────────┐ │
+│  │  API Layer (main.py)                                 │ │
+│  │  • /search - main search endpoint                    │ │
+│  │  • /health - health check                            │ │
+│  │  • /api/reload-csv - manual data refresh             │ │
+│  │  • /api/csv-status - cache status                    │ │
+│  │  • Static file serving                               │ │
+│  └─────────────────────────┬─────────────────────────── ┘ │
+│                            │                              │
 │  ┌─────────────────────────▼───────────────────────────┐  │
-│  │  Service Layer                                       │  │
+│  │  Service Layer                                      │  │
 │  │  • geocoding.py - city → coordinates via Nominatim  │  │
-│  │  • fuel_api.py - fetch gas stations from Prezzi API│  │
+│  │  • fuel_api.py - fetch gas stations from CSV data   │  │
 │  │  • prezzi_csv.py - CSV download, parse, cache       │  │
+│  │  • csv_cache.py - JSON cache read/write/freshness   │  │
+│  │  • csv_fetcher.py - CSV download management         │  │
+│  │  • csv_parser.py - CSV parsing and merging          │  │
+│  │  • csv_utils.py - CSV utility functions             │  │
+│  │  • distance_utils.py - Haversine calculation        │  │
 │  │  • fuel_type_utils.py - fuel normalization          │  │
 │  └─────────────────────────┬───────────────────────────┘  │
-│                            │                               │
+│                            │                              │
 │  ┌─────────────────────────▼───────────────────────────┐  │
-│  │  Data Layer                                          │  │
+│  │  Data Layer                                         │  │
 │  │  • Local caching (JSON files)                       │  │
 │  │  • In-memory TTLCache for geocoding                 │  │
 │  │  • CSV file management                              │  │
-│  └───────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+│  └─────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────┘
                               │
                  ┌────────────┴────────────┐
                  ▼                         ▼
-┌─────────────────────────────┐ ┌─────────────────────────────┐
-│ External APIs               │ │ Local Filesystem            │
-│ • Nominatim (geocoding)     │ │ • prezzi_cache.json        │
-│ • Prezzi Carburante (CSV)   │ │ • cities.json (fallback)   │
-└─────────────────────────────┘ └─────────────────────────────┘
+┌─────────────────────────────┐ ┌───────────────────────────┐
+│ External APIs               │ │ Local Filesystem          │
+│ • Nominatim (geocoding)     │ │ • prezzi_cache.json       │
+│ • Photon (fallback)         │ │ • cities.json (fallback)  │
+│ • MIMIT CSVs (fuel data)    │ │ • CSV file versions       │
+└─────────────────────────────┘ └───────────────────────────┘
 ```
 
 ---
@@ -94,54 +100,56 @@ Key endpoints:
 
 ### 2. Geocoding Service (`src/services/geocoding.py`)
 
-Converts city names to latitude/longitude coordinates using OpenStreetMap Nominatim.
+Converts city names to latitude/longitude coordinates using OpenStreetMap Nominatim, with Photon fallback.
 
 **Features**:
+
 - Async HTTP calls with httpx
 - Retry logic with exponential backoff (tenacity)
 - Multi-level caching:
-  - In-memory TTLCache (1 hour TTL, 1000 entries)
+  - In-memory TTLCache (24-hour TTL, 1000 entries)
   - Local `cities.json` fallback for rate-limit scenarios
+  - Built-in coordinates for 60+ major Italian cities
 - Alias mapping for common city names (Florence → Firenze)
 - Country bias to Italy (`countrycodes=it`)
 - Italian language preference (`accept-language=it`)
 - Rate limit handling (429, 509) with Retry-After support
+- Photon fallback on Nominatim errors (403, 502, 503)
 
 **Geocoding Flow**:
 
 ```
-1. Receive city name → normalize (lowercase, strip)
+1. Receive city name → normalize (lowercase, strip, resolve aliases)
 2. Check in-memory cache → hit? return immediately
-3. Call Nominatim API with User-Agent and settings
-4. On success: cache result and return
-5. On rate limit (429/509):
-   - Wait Retry-After seconds if present
-   - Try local cities.json fallback
+3. Acquire rate-limiter semaphore (max 1 req/sec)
+4. Call Nominatim API with User-Agent and settings
+5. On success: cache result and return
+6. On rate limit (429/509):
+   - Parse and respect Retry-After header (clamped to 60s max)
+   - Try local cities.json / built-in Italian cities fallback
    - If no fallback: raise 503
-6. On network error: try fallback, else raise 503
+7. On 403/502/503: try Photon fallback API
+8. On network error: try local fallback, else raise 503
 ```
 
 ### 3. Fuel API Service (`src/services/fuel_api.py`)
 
-Fetches gas station data from the Prezzi Carburante API.
+Fetches gas station data from MIMIT CSV sources.
 
 - Accepts `StationSearchParams` (lat, lon, distance, fuel type, results limit)
-- Uses the shared HTTP client with custom User-Agent
-- Returns raw JSON payload from the API
+- Delegates to `fetch_and_combine_csv_data` which downloads, parses, and combines CSV files
+- Returns normalized station data with prices
 - Implements retry with tenacity (3 attempts, exponential backoff)
+- Surfaces `CSVSchemaError` as HTTP 422 with detail to client
 
 ### 4. Prezzi CSV Service (`src/services/prezzi_csv.py`)
 
-Manages the Italian fuel price data from MIMIT official CSV feeds.
+Facade that coordinates CSV download, parsing, and caching. Delegates to specialized sub-modules:
 
-**Responsibilities**:
-- Download `anagrafica_impianti_attivi.csv` (station registry)
-- Download `prezzo_alle_8.csv` (fuel prices)
-- Parse and combine the two CSVs into a normalized JSON structure
-- Cache results to `prezzi_cache.json` with freshness TTL (default 24h)
-- Optional auto-preload on application startup
-- Manual reload via `/api/reload-csv` endpoint
-- Cleanup old CSV versions (keep N most recent)
+- **csv_cache.py** — JSON cache read/write (atomic), freshness checks, preload
+- **csv_fetcher.py** — CSV download from MIMIT, local file management, cleanup
+- **csv_parser.py** — CSV parsing (auto-delimiter detect), anagrafica+prezzi merging, date filtering
+- **csv_utils.py** — CSV utility functions
 
 **CSV Cache Flow**:
 
@@ -189,50 +197,50 @@ class Settings(BaseSettings):
 
 ```
 ┌─────────────┐
-│ User sends │
+│ User sends  │
 │ POST /search
 └──────┬──────┘
        │
        ▼
-┌─────────────────────────────────────────────────────┐
-│ 1. Validate request (Pydantic)                      │
+┌────────────────────────────────────────────────────┐
+│ 1. Validate request (Pydantic)                     │
 │    - city (min 2 chars)                            │
 │    - radius (1-200 km)                             │
 │    - fuel (min 3 chars)                            │
 │    - results (1-20)                                │
-└───────────────────────────┬─────────────────────────┘
+└───────────────────────────┬────────────────────────┘
                             │
                             ▼
-┌─────────────────────────────────────────────────────┐
-│ 2. Geocode city → coordinates                       │
-│    • Check cache                                    │
-│    • Call Nominatim (with retry)                   │
-│    • Fallback to cities.json if rate-limited       │
-└───────────────────────────┬─────────────────────────┘
+┌───────────────────────────────────────────────────┐
+│ 2. Geocode city → coordinates                     │
+│    • Check cache                                  │
+│    • Call Nominatim (with retry)                  │
+│    • Fallback to cities.json if rate-limited      │
+└───────────────────────────┬───────────────────────┘
                             │
                             ▼
-┌─────────────────────────────────────────────────────┐
+┌────────────────────────────────────────────────────┐
 │ 3. Fetch gas stations                              │
 │    • Build StationSearchParams                     │
-│    • Call fuel_api.fetch_gas_stations (with retry)│
+│    • Call fuel_api.fetch_gas_stations (with retry) │
 │    • Return raw station list                       │
-└───────────────────────────┬─────────────────────────┘
+└───────────────────────────┬────────────────────────┘
                             │
                             ▼
-┌─────────────────────────────────────────────────────┐
+┌────────────────────────────────────────────────────┐
 │ 4. Parse and normalize                             │
 │    • Filter by selected fuel type                  │
 │    • Calculate distance from search point          │
 │    • Sort by distance                              │
 │    • Limit to requested count                      │
 │    • Exclude incomplete records                    │
-└───────────────────────────┬─────────────────────────┘
+└───────────────────────────┬────────────────────────┘
                             │
                             ▼
-┌─────────────────────────────────────────────────────┐
+┌────────────────────────────────────────────────────┐
 │ 5. Return JSON response                            │
 │    { stations: [...], warning?: "..." }            │
-└─────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -248,7 +256,7 @@ Settings are read from `.env` file (if present) or environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NOMINATIM_API_URL` | `https://nominatim.openstreetmap.org/search` | Nominatim endpoint |
-| `PREZZI_CARBURANTE_API_URL` | `https://prezzi-carburante.onrender.com/api/distributori` | Prezzi API |
+| `PREZZI_CARBURANTE_API_URL` | `https://prezzi-carburante.onrender.com/api/distributori` | **(Deprecated)** Old API URL, no longer used by fuel_api.py |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Allowed CORS origins |
 | `USER_AGENT` | `GasStationFinder/1.0 (contact@example.com)` | **Must include contact** per Nominatim policy |
 | `PREZZI_CSV_ANAGRAFICA_URL` | MIMIT official CSV | Station registry URL |
@@ -275,7 +283,7 @@ Settings are read from `.env` file (if present) or environment variables:
 
 - **Type**: `TTLCache[str, dict[str, float]]`
 - **Size**: 1000 entries
-- **TTL**: 3600 seconds (1 hour)
+- **TTL**: 86400 seconds (24 hours)
 - **Key**: Normalized city name (lowercase, aliased)
 - **Value**: `{latitude: float, longitude: float}`
 
@@ -373,7 +381,7 @@ Two-level caching (memory + file) with graceful degradation:
 
 1. **Async I/O**: All external calls are async (httpx.AsyncClient)
 2. **Connection pooling**: Shared HTTP client with connection reuse
-3. **Response caching**: Geocoding results cached in memory (TTL 1h)
+3. **Response caching**: Geocoding results cached in memory (TTL 24h)
 4. **CSV caching**: Combined JSON cache avoids re-parsing CSVs
 5. **Background preload**: CSVs preloaded on startup without blocking
 6. **Timeout configuration**: Separate connect/read timeouts to prevent hangs
@@ -404,6 +412,7 @@ Current design is suitable for small-to-medium deployments:
 - **CSV reloads**: Manual or background, not blocking search requests
 
 For production scale:
+
 - Deploy behind reverse proxy (nginx) with multiple uvicorn workers
 - Use Redis for shared cache across workers
 - Monitor rate limit headers from Nominatim and adjust caching
@@ -416,6 +425,7 @@ For production scale:
 See [testing-guide.md](testing-guide.md) for detailed testing practices.
 
 Summary:
+
 - **Unit tests**: Services with mocked HTTP clients
 - **Integration tests**: End-to-end search using TestClient
 - **Async tests**: All async code tested with `pytest-asyncio`

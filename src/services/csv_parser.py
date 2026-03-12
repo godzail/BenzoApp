@@ -228,16 +228,13 @@ def _parse_price(value: str | None, *, prefer_decimal_three_frac: bool = False) 
         # only comma present — decide by digits after separator
         after = len(s) - last_comma - 1
         # treat comma as decimal if 1-2 digits after, or 3 when preferred
-        if after in (1, 2) or (after == 3 and prefer_decimal_three_frac):
-            s = s.replace(",", ".")
-        else:
-            s = s.replace(",", "")
+        s = s.replace(",", ".") if after in (1, 2) or (after == 3 and prefer_decimal_three_frac) else s.replace(",", "")  # noqa: PLR2004
     elif last_dot != -1:
         after = len(s) - last_dot - 1
         # treat dot as decimal when 1-2 digits follow, and when parsing prezzo
         # fields (`prefer_decimal_three_frac=True`) also accept 3 fractional
         # digits as a decimal separator (e.g. "1.519" -> 1.519).
-        if after in (1, 2) or (after == 3 and prefer_decimal_three_frac):
+        if after in (1, 2) or (after == 3 and prefer_decimal_three_frac):  # noqa: PLR2004
             # keep dot as decimal point
             pass
         else:
@@ -278,7 +275,8 @@ def _parse_anagrafica(csv_text: str, force_delimiter: str | None = None) -> dict
     if named:
         missing = [k for k in ("id", "lat", "lon") if k not in header_map]
         if missing:
-            raise CSVSchemaError(f"CSV schema error (anagrafica): missing required column(s): {', '.join(missing)}")
+            msg = f"CSV schema error (anagrafica): missing required column(s): {', '.join(missing)}"
+            raise CSVSchemaError(msg)
 
     # resolve indices (fall back to legacy constants)
     id_idx = header_map.get("id", 0)
@@ -298,13 +296,14 @@ def _parse_anagrafica(csv_text: str, force_delimiter: str | None = None) -> dict
             lat = float(row[lat_idx].replace(",", "."))
             lon = float(row[lon_idx].replace(",", "."))
         except Exception:
+            logger.debug("Skipping row with invalid coordinates: id={}", id_impianto)
             continue
 
         if address_idx is not None and address_idx < len(row):
             indirizzo = row[address_idx].strip()
         else:
             indirizzo = " ".join(
-                [row[i] for i in range(ADDR_IDX_START, ADDR_IDX_END) if i < len(row) and row[i]]
+                [row[i] for i in range(ADDR_IDX_START, ADDR_IDX_END) if i < len(row) and row[i]],
             ).strip()
 
         data[id_impianto] = {
@@ -347,7 +346,8 @@ def _parse_prezzi(csv_text: str, data: dict[str, dict[str, Any]], force_delimite
         if "id" not in header_map:
             missing.append("id")
         if missing:
-            raise CSVSchemaError(f"CSV schema error (prezzi): missing required column(s): {', '.join(missing)}")
+            msg = f"CSV schema error (prezzi): missing required column(s): {', '.join(missing)}"
+            raise CSVSchemaError(msg)
 
     price_idx = header_map.get("price", PRICE_IDX)
     self_idx = header_map.get("self", SELF_IDX)

@@ -49,13 +49,16 @@ async def _write_json_file(path: str, payload: dict[str, Any]) -> None:
 
     Strategy:
     - Serialize to a temporary file next to the final path (``<name>.part``).
-    - Atomically replace the final file with ``Path.replace``.
-    - On any error, leave the original file intact and ensure no temporary file leaks remain.
+    - Atomically replace the final file with ``Path.replace`` (with retries on Windows).
+    - Fall back to direct overwrite if atomic replace fails after retries.
+    - On any error, ensure no temporary file leaks remain.
 
     Parameters:
     - path: The file path to write to.
     - payload: The dictionary data to serialize and write.
     """
+    import shutil  # noqa: PLC0415
+
     p = Path(path)
     tmp: Path | None = None
     try:
@@ -69,9 +72,28 @@ async def _write_json_file(path: str, payload: dict[str, Any]) -> None:
         tmp = p.with_name(f"{p.name}.part")
         text = json.dumps(payload, ensure_ascii=False)
         await asyncio.to_thread(tmp.write_text, text, "utf-8")
-        await asyncio.to_thread(tmp.replace, p)
+
+        # Retry atomic replace (Windows may hold file locks briefly)
+        max_retries = 3
+        replace_ok = False
+        for attempt in range(max_retries):
+            try:
+                await asyncio.to_thread(tmp.replace, p)
+                replace_ok = True
+                break
+            except PermissionError:
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(0.1 * (attempt + 1))
+                else:
+                    logger.debug("Atomic replace failed after {} attempts, falling back to direct write", max_retries)
+
+        if not replace_ok:
+            # Fallback: copy over the existing file directly
+            await asyncio.to_thread(shutil.copy2, str(tmp), str(p))
+            await asyncio.to_thread(tmp.unlink)
+
     except Exception as err:
-        logger.warning("Failed to write cache file {} atomically: {}", path, err)
+        logger.warning("Failed to write cache file {}: {}", path, err)
         logger.exception(err)
         # best-effort cleanup of temporary file
         try:
@@ -207,6 +229,7 @@ def _find_latest_mtime(candidates: list[Path]) -> datetime | None:
                     if latest_ts is None or mtime_ts > latest_ts:
                         latest_ts = mtime_ts
                 except Exception:
+                    logger.debug("Failed to stat CSV file {}: {}", csv_file, csv_file.name)
                     continue
     return latest_ts
 

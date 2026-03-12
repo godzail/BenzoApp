@@ -17,7 +17,7 @@ def check_docs_pages(pages: list[str]) -> list[dict[str, str | int | bool]]:
     - List of dictionaries containing page check results with status code
       and toggle presence indicator.
     """
-    from src.main import app  # lazy import to avoid side effects
+    from src.main import app  # lazy import to avoid side effects  # noqa: PLC0415
 
     client = TestClient(app)
     results: list[dict[str, str | int | bool]] = []

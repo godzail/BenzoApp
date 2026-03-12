@@ -72,7 +72,7 @@ def test_recent_searches_is_reactive() -> None:
     )
 
 
-def test_updateI18nTexts_sets_document_title() -> None:
+def test_updateI18nTexts_sets_document_title() -> None:  # noqa: N802
     """Test that i18n.updateI18nTexts sets document.title to the translated title."""
     i18n = Path("src/static/ts/i18n.ts").read_text()
     assert (
@@ -92,6 +92,6 @@ def test_search_divider_present() -> None:
 def test_stations_list_has_gap2() -> None:
     """Results template should render `#stations-list` with `gap-2` for compact spacing."""
     results = Path("src/static/templates/results.html").read_text()
-    assert 'id="stations-list"' in results and ("gap-2" in results or "flex flex-col gap-2" in results), (
+    assert 'id="stations-list"' in results and ("gap-2" in results or "flex flex-col gap-2" in results), (  # noqa: PT018
         "Expected #stations-list to include gap-2 (compact spacing)"
     )

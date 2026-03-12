@@ -56,7 +56,7 @@ uv run pytest -v --cov=src
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `USER_AGENT` | **Critical**: Must include app name and contact email/URL per Nominatim policy | `BenzoApp/1.0 (ops@example.com)` |
+| `USER_AGENT` | **Critical**: Must include app name and contact email/URL per Nominatim policy | `GasStationFinder/1.0 (contact@example.com)` |
 | `PREZZI_CACHE_PATH` | Path to writable cache file | `/var/lib/benzoapp/prezzi_cache.json` |
 | `PREZZI_LOCAL_DATA_DIR` | Optional: directory for CSV storage | `/var/lib/benzoapp/csv` |
 
@@ -181,7 +181,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - USER_AGENT=BenzoApp/1.0 (ops@example.com)
+      - USER_AGENT=GasStationFinder/1.0 (contact@example.com)
       - PREZZI_CACHE_PATH=/data/prezzi_cache.json
     volumes:
       - ./data:/data
@@ -240,7 +240,7 @@ from src.services.prezzi_csv import preload_local_csv_cache
 from src.models import Settings
 import asyncio
 asyncio.run(preload_local_csv_cache(Settings()))
-)"
+"
 ```
 
 ### 4. Start Application

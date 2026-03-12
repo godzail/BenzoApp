@@ -40,7 +40,7 @@ def test_search_gas_stations_invalid_city(client: TestClient) -> None:
 
 def test_search_surfaces_csv_schema_error(client: TestClient, monkeypatch) -> None:
     """When upstream CSV parsing reports a schema error (422) surface that exact message to the client."""
-    from fastapi import HTTPException
+    from fastapi import HTTPException  # noqa: PLC0415
 
     def _raise_schema(_params, _settings, _http_client):
         raise HTTPException(status_code=422, detail="CSV schema error (prezzi): missing required column 'prezzo'")
@@ -49,7 +49,7 @@ def test_search_surfaces_csv_schema_error(client: TestClient, monkeypatch) -> No
 
     payload = {"city": "Florence", "radius": 5, "fuel": "benzina", "results": 2}
     response = client.post("/search", json=payload)
-    assert response.status_code == 200
+    assert response.status_code == 200  # noqa: PLR2004
     data = response.json()
     assert data["stations"] == []
     assert data["warning"] == "CSV schema error (prezzi): missing required column 'prezzo'"
@@ -74,12 +74,12 @@ def test_search_gas_stations_radius_bounds(client: TestClient) -> None:
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-def test_search_timeout_behavior(client: TestClient) -> None:
+def test_search_timeout_behavior(client: TestClient, monkeypatch) -> None:
     """Ensure server-side search timeout returns a warning instead of hanging."""
-    import asyncio
+    import asyncio  # noqa: PLC0415
 
-    from src.main import get_settings
-    from src.models import Settings
+    from src.main import get_settings  # noqa: PLC0415
+    from src.models import Settings  # noqa: PLC0415
 
     # Override dependency to use a very short timeout and patch fetch_gas_stations to be slow
     class FastTimeoutSettings(Settings):
@@ -89,22 +89,31 @@ def test_search_timeout_behavior(client: TestClient) -> None:
         await asyncio.sleep(5)
         return []
 
-    # Apply overrides
+    # Apply overrides - pass a lambda that returns an instance, not the class itself
+    # Use try/finally to ensure cleanup even if test fails
+    original_override = app.dependency_overrides.get(get_settings)
     app.dependency_overrides[get_settings] = lambda: FastTimeoutSettings()
 
-    # Monkeypatch the actual fetcher
+    # Monkeypatch the actual fetcher using monkeypatch for automatic cleanup
     import src.services.fuel_api as _fa
 
-    _fa.fetch_gas_stations = _slow_fetch  # type: ignore[assignment] - Monkeypatching for testing timeout behavior
+    monkeypatch.setattr(_fa, "fetch_gas_stations", _slow_fetch)
 
-    payload = {"city": "Rome", "radius": 5, "fuel": "benzina", "results": 2}
-    response = client.post("/search", json=payload)
+    try:
+        payload = {"city": "Rome", "radius": 5, "fuel": "benzina", "results": 2}
+        response = client.post("/search", json=payload)
 
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["stations"] == []
-    assert "warning" in data
-    assert "timed out" in data["warning"].lower()
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["stations"] == []
+        assert "warning" in data
+        assert "timed out" in data["warning"].lower()
+    finally:
+        # Restore original dependency override
+        if original_override is None:
+            app.dependency_overrides.pop(get_settings, None)
+        else:
+            app.dependency_overrides[get_settings] = original_override
 
 
 async def _fake_fetch_csvs(http_client, settings):
@@ -140,7 +149,7 @@ def test_reload_csv_triggers_fetch_and_saves(client: TestClient, monkeypatch) ->
     class _NoStartupSettings(_main.Settings):
         prezzi_reload_on_startup: bool = False
 
-    monkeypatch.setattr(_main, "get_settings", lambda: _NoStartupSettings())
+    monkeypatch.setattr(_main, "get_settings", _NoStartupSettings)
 
     monkeypatch.setattr(_main, "_fetch_csvs", _fake_fetch_csvs)
     monkeypatch.setattr(_main, "_parse_and_combine_sync", _fake_parse_and_combine_sync)
@@ -167,7 +176,7 @@ def test_startup_triggers_background_reload(monkeypatch) -> None:
         prezzi_preload_on_startup: bool = False
 
     # Ensure the lifespan uses our test settings
-    monkeypatch.setattr(_main, "get_settings", lambda: StartupSettings())
+    monkeypatch.setattr(_main, "get_settings", StartupSettings)
 
     started = {"val": False}
 
@@ -216,7 +225,7 @@ def test_startup_blocks_when_cache_missing(monkeypatch) -> None:
         prezzi_reload_on_startup: bool = True
         prezzi_preload_on_startup: bool = False
 
-    monkeypatch.setattr(_main, "get_settings", lambda: StartupSettings())
+    monkeypatch.setattr(_main, "get_settings", StartupSettings)
 
     started = {"val": False}
 
