@@ -29,7 +29,7 @@ BenzoApp provides real-time fuel price data from official sources, displayed thr
 ### 🔍 Smart Search
 
 - Search by any Italian city name
-- Adjustable search radius (1-50 km)
+- Adjustable search radius (1-200 km)
 - Filter by fuel type: Benzina, Gasolio, GPL, Metano
 - Limit results to show only the most relevant stations
 
@@ -89,7 +89,7 @@ BenzoApp provides real-time fuel price data from official sources, displayed thr
    - Examples: "Roma", "Milano", "Napoli", "Torino"
 
 2. **Adjust search parameters** (optional):
-   - **Radius**: Drag the slider to set search distance (1-50 km)
+   - **Radius**: Drag the slider to set search distance (1-200 km)
    - **Fuel Type**: Select your fuel preference from the fuel chips
      - Benzina (Gasoline)
      - Gasolio (Diesel)
@@ -200,12 +200,12 @@ View your recent search history:
 
 ## Understanding Fuel Types
 
-| Fuel Type | Italian Name | Description |
-|-----------|--------------|-------------|
-| Gasoline | Benzina | Standard unleaded gasoline |
-| Diesel | Gasolio | Diesel fuel for cars and trucks |
-| LPG | GPL | Liquefied Petroleum Gas (Autogas) |
-| Methane | Metano | Compressed Natural Gas (CNG) |
+| Fuel Type | Italian Name | Description                       |
+|-----------|--------------|-----------------------------------|
+| Gasoline  | Benzina      | Standard unleaded gasoline        |
+| Diesel    | Gasolio      | Diesel fuel for cars and trucks   |
+| LPG       | GPL          | Liquefied Petroleum Gas (Autogas) |
+| Methane   | Metano       | Compressed Natural Gas (CNG)      |
 
 **Note**: Not all stations carry all fuel types. Use the fuel filter to show only stations with your preferred fuel.
 
@@ -223,8 +223,8 @@ View your recent search history:
 
 - **Urban areas**: 5-10 km is usually sufficient
 - **Rural areas**: 20-50 km may be needed
-- **Road trips**: 50 km to plan fuel stops
-- **Maximum**: 50 km for regional planning
+- **Road trips**: 50-200 km to plan fuel stops
+- **Maximum**: 200 km for regional planning
 
 ### Reading Prices
 
@@ -301,12 +301,12 @@ BenzoApp downloads and caches fuel price data directly from the Italian Ministry
 
 ### Error Messages
 
-| Message | Meaning | Solution |
-|---------|---------|----------|
-| "City geocoding service temporarily unavailable" | External API issue | Wait a few minutes and retry |
-| "Gas station data temporarily unavailable" | CSV download or parsing issue | Check connection, retry later, or use reload button |
-| "CSV reload started" | Manual data refresh initiated | Wait for completion indicator |
-| "X stations were excluded due to incomplete data" | Some stations missing prices | Results are filtered; try different criteria |
+| Message                                           | Meaning                       | Solution                                            |
+|---------------------------------------------------|-------------------------------|-----------------------------------------------------|
+| "City geocoding service temporarily unavailable"  | External API issue            | Wait a few minutes and retry                        |
+| "Gas station data temporarily unavailable"        | CSV download or parsing issue | Check connection, retry later, or use reload button |
+| "CSV reload started"                              | Manual data refresh initiated | Wait for completion indicator                       |
+| "X stations were excluded due to incomplete data" | Some stations missing prices  | Results are filtered; try different criteria        |
 
 ---
 

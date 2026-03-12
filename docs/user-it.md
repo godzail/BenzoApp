@@ -29,7 +29,7 @@ BenzoApp fornisce dati sui prezzi in tempo reale da fonti ufficiali, mostrati at
 ### 🔍 Ricerca intelligente
 
 - Ricerca per qualsiasi nome di città italiana
-- Raggio di ricerca regolabile (1-50 km)
+- Raggio di ricerca regolabile (1-200 km)
 - Filtra per tipo di carburante: Benzina, Gasolio, GPL, Metano
 - Limita i risultati per mostrare solo le stazioni più rilevanti
 
@@ -89,7 +89,7 @@ BenzoApp fornisce dati sui prezzi in tempo reale da fonti ufficiali, mostrati at
    - Esempi: "Roma", "Milano", "Napoli", "Torino"
 
 2. **Regola i parametri di ricerca** (opzionale):
-   - **Raggio**: trascina lo slider per impostare la distanza di ricerca (1-50 km)
+   - **Raggio**: trascina lo slider per impostare la distanza di ricerca (1-200 km)
    - **Tipo di carburante**: seleziona la tua preferenza dai chip carburante
      - Benzina
      - Gasolio
@@ -194,12 +194,12 @@ Se una stazione non è visibile nella vista corrente:
 
 ## Comprendere i tipi di carburante
 
-| Tipo di carburante | Nome italiano | Descrizione |
-|--------------------|---------------|-------------|
-| Gasoline | Benzina | Benzina senza piombo standard |
-| Diesel | Gasolio | Carburante diesel per auto e camion |
-| LPG | GPL | Gas di petrolio liquefatto (Gpl autogas) |
-| Methane | Metano | Gas naturale compresso (CNG) |
+| Tipo di carburante | Nome italiano | Descrizione                              |
+|--------------------|---------------|------------------------------------------|
+| Gasoline           | Benzina       | Benzina senza piombo standard            |
+| Diesel             | Gasolio       | Carburante diesel per auto e camion      |
+| LPG                | GPL           | Gas di petrolio liquefatto (Gpl autogas) |
+| Methane            | Metano        | Gas naturale compresso (CNG)             |
 
 **Nota**: non tutte le stazioni forniscono tutti i tipi di carburante. Usa il filtro per mostrare solo le stazioni con il carburante desiderato.
 
@@ -217,8 +217,8 @@ Se una stazione non è visibile nella vista corrente:
 
 - **Aree urbane**: 5-10 km solitamente sufficienti
 - **Aree rurali**: 20-50 km potrebbero essere necessari
-- **Viaggi**: 50 km per pianificare le soste
-- **Massimo**: 50 km per pianificazioni regionali
+- **Viaggi**: 50-200 km per pianificare le soste
+- **Massimo**: 200 km per pianificazioni regionali
 
 ### Lettura dei prezzi
 
@@ -295,12 +295,12 @@ BenzoApp scarica e memorizza nella cache i dati sui prezzi direttamente dal sito
 
 ### Messaggi di errore
 
-| Messaggio | Significato | Soluzione |
-|-----------|------------|-----------|
-| "Servizio di geocoding temporaneamente non disponibile" | Problema con l'API esterna | Attendi qualche minuto e riprova |
-| "Dati delle stazioni temporaneamente non disponibili" | Problema con download CSV o parsing | Controlla la connessione e riprova, o usa il pulsante di ricarica |
-| "Ricarica CSV avviata" | Aggiornamento manuale dati iniziato | Attendi il completamento dell'indicatore |
-| "X stazioni escluse per dati incompleti" | Alcune stazioni non hanno prezzi | Prova criteri diversi |
+| Messaggio                                               | Significato                         | Soluzione                                                         |
+|---------------------------------------------------------|-------------------------------------|-------------------------------------------------------------------|
+| "Servizio di geocoding temporaneamente non disponibile" | Problema con l'API esterna          | Attendi qualche minuto e riprova                                  |
+| "Dati delle stazioni temporaneamente non disponibili"   | Problema con download CSV o parsing | Controlla la connessione e riprova, o usa il pulsante di ricarica |
+| "Ricarica CSV avviata"                                  | Aggiornamento manuale dati iniziato | Attendi il completamento dell'indicatore                          |
+| "X stazioni escluse per dati incompleti"                | Alcune stazioni non hanno prezzi    | Prova criteri diversi                                             |
 
 ---
 

@@ -38,6 +38,9 @@ window.appMapMixin = {
                 .addTo(this.map);
             marker.__station = station;
             marker.bindPopup(this.buildPopupContent(station));
+            marker.on("click", () => {
+                this.highlightStationCard?.(station.id);
+            });
             this.mapMarkers[station.id] = marker;
         }
         this.map?.invalidateSize?.();
@@ -122,6 +125,23 @@ window.appMapMixin = {
         if (station?.latitude && station?.longitude) {
             this.map.setView([station.latitude, station.longitude], 16);
             marker.openPopup();
+        }
+        this.highlightStationCard(stationId);
+    },
+    /**
+     * Highlight and scroll to the station card matching the given ID.
+     *
+     * @param stationId - Identifier of the station to highlight.
+     */
+    highlightStationCard(stationId) {
+        const cards = document.querySelectorAll(".station-card");
+        cards.forEach((card) => {
+            card.classList.remove("selected");
+        });
+        const targetCard = document.querySelector(`.station-card[data-station-id="${stationId}"]`);
+        if (targetCard) {
+            targetCard.classList.add("selected");
+            targetCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
     },
     /**

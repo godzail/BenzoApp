@@ -60,7 +60,6 @@ from src.services.prezzi_csv import (
     preload_local_csv_cache,
 )
 
-
 _cached_settings: Settings | None = None
 
 
@@ -81,7 +80,7 @@ def get_settings() -> Settings:
 
 # --- Lifespan Management ---
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI):  # noqa: PLR0915
     """Lifespan context manager to handle startup and shutdown events."""
     settings = get_settings()
     # Create a shared HTTP client for connection pooling with timeout
@@ -219,7 +218,7 @@ async def favicon_ico() -> FileResponse:
 
 @limiter.limit("10/minute")
 @app.post("/search", response_class=JSONResponse)
-async def search_gas_stations(
+async def search_gas_stations(  # noqa: PLR0912
     request: SearchRequest,
     settings: Annotated[Settings, Depends(get_settings)],
     _request: Request,  # for rate limiting
@@ -294,7 +293,7 @@ async def search_gas_stations(
         fetch_error = "Gas station data is temporarily unavailable. Please try again later."
     except HTTPException as he:
         # If upstream service returned a 422 for schema problems, surface its message
-        if getattr(he, "status_code", None) == 422:
+        if getattr(he, "status_code", None) == 422:  # noqa: PLR2004
             fetch_error = str(he.detail)
         else:
             fetch_error = "Failed to fetch gas station data. Please try again later."
@@ -393,7 +392,9 @@ async def render_docs(page: str) -> HTMLResponse:
         min-h-screen font-sans transition-colors duration-250'>
             <div class='max-w-3xl mx-auto px-6 py-12 relative'>
                 <div class='docs-content mt-4'>{rendered}</div>
-                <button onclick="(history.length > 1) ? history.back() : (window.location.href='/')" aria-label='Back to main page'
+                <button
+                onclick="(history.length > 1) ? history.back() : (window.location.href='/')"
+                aria-label='Back to main page'
                 class='absolute top-6 left-6 p-1.5 rounded-lg border border-[var(--border-color)]
                 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-colors
                 cursor-pointer text-[var(--text-primary)] shadow-sm'>
@@ -550,19 +551,19 @@ async def reload_csv(
         task = asyncio.create_task(trigger_fetch())
         app.state._reload_task = task  # noqa: SLF001
 
-        # Await the task completion so client sees real-time logs
         await task
-
-        last_updated = get_latest_csv_timestamp(settings)
-        return {
-            "status": "success",
-            "message": "CSV reload completed successfully",
-            "last_updated": last_updated,
-        }
+        # Await the task completion so client sees real-time logs
     except Exception as err:
         logger.error("Failed to trigger CSV reload: {}", err)
         logger.exception(err)
         return {
             "status": "error",
             "message": "Failed to trigger CSV reload",
+        }
+    else:
+        last_updated = get_latest_csv_timestamp(settings)
+        return {
+            "status": "success",
+            "message": "CSV reload completed successfully",
+            "last_updated": last_updated,
         }
