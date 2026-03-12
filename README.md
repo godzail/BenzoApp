@@ -23,7 +23,7 @@ BenzoApp is a fast, user-friendly web application that helps users find and comp
 - 🗺️ **Interactive Map** - Visualize station locations on an interactive map powered by Leaflet
 - 📍 **Location Services** - Navigate to stations, current location detection, or view them on the map
 - 🔍 **Smart Filtering** - Filter by fuel type (Benzina, Gasolio, GPL, Metano) with auto-search
-- 📏 **Radius Control** - Adjustable search radius (1-50 km)
+- 📏 **Radius Control** - Adjustable search radius (1-200 km)
 - 🌐 **Multi-language** - Support for Italian and English (i18n with i18next)
 - 📱 **Responsive Design** - Works seamlessly on desktop and mobile devices
 - ⚡ **Fast & Efficient** - Async operations with connection pooling and local caching
@@ -99,7 +99,7 @@ BenzoApp is built with a modern, scalable architecture:
 5. **Run the application**
 
    ```bash
-   uv run __run_app.py
+   uv run _main.py
    ```
 
 6. **Open your browser**
@@ -116,8 +116,8 @@ The application uses environment variables for configuration. See [.env.example]
 |-----------------------------|----------------------------------------------|-----------------------------------------------------------|
 | `NOMINATIM_API_URL`         | OpenStreetMap geocoding API endpoint         | `https://nominatim.openstreetmap.org/search`              |
 | `PREZZI_CARBURANTE_CSV_URL` | Fuel price CSV download URL                  | `https://www.mimit.gov.it/it/open-data/elenco-dataset/carburanti-prezzi-praticati-e-anagrafica-degli-impianti` |
-| `CORS_ALLOWED_ORIGINS`      | Comma-separated list of allowed CORS origins | `http://127.0.0.1:8000`                                   |
-| `USER_AGENT`                | Custom user agent for external API requests  | `BenzoApp/1.1 (+https://example.com)`                     |
+| `CORS_ALLOWED_ORIGINS`      | Comma-separated list of allowed CORS origins | `http://localhost:3000,http://127.0.0.1:3000`              |
+| `USER_AGENT`                | Custom user agent for external API requests  | `GasStationFinder/1.0 (contact@example.com)`              |
 
 ## 📚 API Documentation
 
@@ -257,12 +257,19 @@ BenzoApp/
 │   │   ├── fuel_api.py         # Fuel price CSV integration
 │   │   ├── fuel_type_utils.py
 │   │   ├── geocoding.py        # Geocoding service
-│   │   └── prezzi_csv.py       # CSV download and parsing
+│   │   ├── prezzi_csv.py       # CSV facade + combination
+│   │   ├── csv_cache.py        # JSON cache read/write/freshness
+│   │   ├── csv_fetcher.py      # CSV download and file management
+│   │   ├── csv_parser.py       # CSV parsing and record merging
+│   │   ├── csv_utils.py        # CSV utility functions
+│   │   ├── distance_utils.py   # Haversine distance calculation
+│   │   └── static/             # Service-local static data
 │   └── static/                 # Frontend assets
 │       ├── css/
 │       ├── js/
 │       ├── locales/            # i18n translations
-│       └── templates/          # HTML templates
+│       ├── templates/          # HTML templates
+│       └── data/               # Cached CSV/JSON data
 ├── tests/                      # Test suite
 ├── docs/                       # Documentation
 ├── data/                       # Cached CSV data

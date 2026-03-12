@@ -30,6 +30,7 @@ interface AppMapMixin {
   initMap(): void;
   refreshMapMarkersOnLanguageChange(): void;
   selectStationForMap(stationId: string | number): void;
+  highlightStationCard(stationId: string | number): void;
   getDirections(station: { latitude?: number; longitude?: number }): void;
   locateUser(): void;
   buildPopupContent(station: {
@@ -85,6 +86,7 @@ window.appMapMixin = {
             addTo: (map: unknown) => {
               __station?: unknown;
               bindPopup: (content: string) => void;
+              on: (event: string, handler: () => void) => void;
             };
           };
         }
@@ -93,6 +95,9 @@ window.appMapMixin = {
         .addTo(this.map);
       marker.__station = station;
       marker.bindPopup(this.buildPopupContent(station));
+      marker.on("click", () => {
+        this.highlightStationCard?.(station.id!);
+      });
       this.mapMarkers[station.id!] = marker;
     }
 
@@ -236,6 +241,27 @@ window.appMapMixin = {
         }
       ).setView([station.latitude, station.longitude], 16);
       (marker as { openPopup: () => void }).openPopup();
+    }
+    this.highlightStationCard(stationId);
+  },
+
+  /**
+   * Highlight and scroll to the station card matching the given ID.
+   *
+   * @param stationId - Identifier of the station to highlight.
+   */
+  highlightStationCard(stationId: string | number): void {
+    const cards = document.querySelectorAll(".station-card");
+    cards.forEach((card) => {
+      card.classList.remove("selected");
+    });
+
+    const targetCard = document.querySelector(
+      `.station-card[data-station-id="${stationId}"]`,
+    );
+    if (targetCard) {
+      targetCard.classList.add("selected");
+      targetCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   },
 

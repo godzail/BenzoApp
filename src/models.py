@@ -85,7 +85,10 @@ class Settings(BaseSettings):
 
         if not has_email and not has_url:
             examples = "'MyApp/1.0 (me@example.com)' or 'MyApp/1.0 https://example.com'"
-            msg = f"User-Agent must include contact information (email or URL) per Nominatim usage policy. Examples: {examples}"
+            msg = (
+                f"User-Agent must include contact information (email or URL) "
+                f"per Nominatim usage policy. Examples: {examples}"
+            )
             raise ValueError(msg)
 
         return v

@@ -8,14 +8,15 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
+from unittest.mock import MagicMock
 
 import pytest
+from fastapi import HTTPException
 
-if TYPE_CHECKING:
-    import httpx
-
+import src.services.fuel_api as fa
 from src.models import Settings, StationSearchParams
-from src.services import prezzi_csv
+from src.services import csv_cache, csv_fetcher, prezzi_csv
+from src.services.csv_parser import CSVSchemaError
 from src.services.prezzi_csv import (
     _fetch_csvs,
     _is_cache_fresh,
@@ -24,6 +25,9 @@ from src.services.prezzi_csv import (
     _read_json_file,
     fetch_and_combine_csv_data,
 )
+
+if TYPE_CHECKING:
+    import httpx
 
 
 @pytest.fixture(autouse=True)
@@ -58,7 +62,7 @@ FLOAT_TOLERANCE = 1e-6
 MIN_EXPECTED_CALLS = 2
 
 # Use typing.cast when passing dummy clients to async function to satisfy typecheckers
-from tests.conftest import DummyClientCsv as DummyClient
+from tests.conftest import DummyClientCsv as DummyClient  # noqa: E402
 
 
 def _make_anagrafica_row(id_: str, lat: str, lon: str) -> str:
@@ -184,7 +188,7 @@ def test_read_json_file_invalid(tmp_path):
 
 def test_write_json_file_atomic_replace(tmp_path):
     """_write_json_file should publish the new JSON atomically and remove any .part files."""
-    from src.services.csv_cache import _write_json_file
+    from src.services.csv_cache import _write_json_file  # noqa: PLC0415
 
     cache_path = tmp_path / "prezzi_cache.json"
     cache_path.write_text(json.dumps({"orig": True}), encoding="utf-8")
@@ -198,9 +202,9 @@ def test_write_json_file_atomic_replace(tmp_path):
 
 def test_write_json_file_does_not_corrupt_on_replace_failure(tmp_path, monkeypatch):
     """If replace() fails, the original cache must remain unchanged and no .part file should leak."""
-    import pathlib
+    import pathlib  # noqa: PLC0415
 
-    from src.services.csv_cache import _write_json_file
+    from src.services.csv_cache import _write_json_file  # noqa: PLC0415
 
     cache_path = tmp_path / "prezzi_cache.json"
     orig = {"orig": True}
@@ -211,7 +215,8 @@ def test_write_json_file_does_not_corrupt_on_replace_failure(tmp_path, monkeypat
     def fake_replace(self, target):
         # Simulate failure only when replacing a .part temporary file
         if str(self).endswith(".part"):
-            raise RuntimeError("simulated replace failure")
+            msg = "simulated replace failure"
+            raise RuntimeError(msg)
         return real_replace(self, target)
 
     monkeypatch.setattr(pathlib.Path, "replace", fake_replace)
@@ -236,7 +241,7 @@ def test_fetch_csvs_raises_on_http_error(monkeypatch):
         msg = "local CSVs missing for test"
         raise FileNotFoundError(msg)
 
-    from src.services import csv_fetcher
+    from src.services import csv_fetcher  # noqa: PLC0415
 
     monkeypatch.setattr(csv_fetcher, "_load_local_csvs", raise_missing)
 
@@ -363,7 +368,7 @@ def test_fuel_name_variants_match(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "price_str,expected",
+    ("price_str", "expected"),
     [
         ("1,50", 1.5),
         ("1.50", 1.5),
@@ -379,7 +384,7 @@ def test_fuel_name_variants_match(tmp_path):
         ("1234", 1234.0),
     ],
 )
-def test_price_parsing_various_locales(tmp_path, price_str, expected):
+def test_price_parsing_various_locales(tmp_path, price_str, expected):  # noqa: D103
     now = datetime.now(tz=UTC)
     date_str = now.strftime("%d/%m/%Y %H:%M:%S")
 
@@ -405,7 +410,7 @@ def test_price_parsing_various_locales(tmp_path, price_str, expected):
     assert abs(result[0]["prezzo"] - expected) < FLOAT_TOLERANCE
 
 
-def test_non_numeric_price_skips_station(tmp_path):
+def test_non_numeric_price_skips_station(tmp_path):  # noqa: D103
     now = datetime.now(tz=UTC)
     date_str = now.strftime("%d/%m/%Y %H:%M:%S")
 
@@ -432,10 +437,6 @@ def test_non_numeric_price_skips_station(tmp_path):
 
 def test_fetch_gas_stations_maps_schema_error_to_http_exception(tmp_path):
     """Ensure fuel_api.fetch_gas_stations converts CSV schema errors to an HTTP 422 exception with explicit detail."""
-    from fastapi import HTTPException
-
-    import src.services.fuel_api as fa
-
     now = datetime.now(tz=UTC)
     date_str = now.strftime("%d/%m/%Y %H:%M:%S")
 
@@ -603,7 +604,6 @@ def test_named_headers_reordered(tmp_path):
 
 def test_named_header_missing_required_field(tmp_path):
     """If a named header is present but required columns are missing, fail fast with CSVSchemaError."""
-    from src.services.csv_parser import CSVSchemaError
 
     now = datetime.now(tz=UTC)
     date_str = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -628,12 +628,12 @@ def test_named_header_missing_required_field(tmp_path):
 
     with pytest.raises(CSVSchemaError) as exc:
         asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
-    assert "prezzi" in str(exc.value).lower() and "prezzo" in str(exc.value).lower()
+    assert "prezzi" in str(exc.value).lower()
+    assert "prezzo" in str(exc.value).lower()
 
 
 def test_named_anagrafica_missing_required_columns_raises(tmp_path):
     """Named `anagrafica` header missing lat/lon should raise CSVSchemaError."""
-    from src.services.csv_parser import CSVSchemaError
 
     # named header missing lat/lon
     anag_header = "id|gestore|indirizzo"
@@ -697,10 +697,8 @@ def test_fetch_and_save_csvs_and_cleanup(tmp_path):
             return datetime(2026, 2, 15, 10, 0, 0, tzinfo=UTC)
         return datetime(2026, 2, 15, 10, 0, 1, tzinfo=UTC)
 
-    from src.services import csv_fetcher
-
     original_datetime = csv_fetcher.datetime
-    csv_fetcher.datetime = type("MockDatetime", (), {"now": mock_datetime_now})()
+    csv_fetcher.datetime = type("MockDatetime", (), {"now": mock_datetime_now})()  # type: ignore[assignment]
 
     try:
         asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
@@ -752,8 +750,6 @@ def test_save_uses_preferred_candidate_when_unset(tmp_path, monkeypatch):
     def fake_candidates(settings):
         return [preferred, other]
 
-    from src.services import csv_fetcher
-
     monkeypatch.setattr(csv_fetcher, "_candidate_local_csv_dirs", fake_candidates)
 
     now = datetime.now(tz=UTC)
@@ -777,7 +773,7 @@ def test_save_uses_preferred_candidate_when_unset(tmp_path, monkeypatch):
 
     params = StationSearchParams(latitude=LAT, longitude=LON, distance=10, fuel="benzina", results=5)
 
-    result = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
+    asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
 
     anag_files = list(preferred.glob("anagrafica_impianti_attivi_*.csv"))
     prezzi_files = list(preferred.glob("prezzo_alle_8_*.csv"))
@@ -954,8 +950,6 @@ def test_save_logs_filenames(tmp_path, monkeypatch):
     def fake_candidates(settings):
         return [preferred]
 
-    from src.services import csv_fetcher
-
     monkeypatch.setattr(csv_fetcher, "_candidate_local_csv_dirs", fake_candidates)
 
     now = datetime.now(tz=UTC)
@@ -979,15 +973,12 @@ def test_save_logs_filenames(tmp_path, monkeypatch):
 
     params = StationSearchParams(latitude=LAT, longitude=LON, distance=10, fuel="benzina", results=5)
 
-    # Mock logger.info from csv_fetcher module (where saving occurs)
-    from unittest.mock import MagicMock
-
-    from src.services import csv_fetcher
+    # Mock logger.info from csv_fetcher module (where saving occurs
 
     mock_logger = MagicMock()
     monkeypatch.setattr(csv_fetcher, "logger", mock_logger)
 
-    result = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
+    asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
 
     # Check that logger.info was called with a message containing the expected filename patterns
     found = False
@@ -1015,14 +1006,12 @@ def test_check_preferred_local_dir_writable_warns(monkeypatch):
     settings.prezzi_local_data_dir = None
 
     def fake_write_text(self, *args, **kwargs):
-        raise PermissionError("no write")
+        msg = "no write"
+        raise PermissionError(msg)
 
     monkeypatch.setattr(Path, "write_text", fake_write_text)
 
     # Mock logger.warning from csv_cache module
-    from unittest.mock import MagicMock
-
-    from src.services import csv_cache
 
     mock_logger = MagicMock()
     monkeypatch.setattr(csv_cache, "logger", mock_logger)

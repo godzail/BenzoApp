@@ -1,7 +1,6 @@
 """Run the BenzoApp FastAPI application using Uvicorn."""
 
 import uvicorn
-from loguru import logger
 
 from src.models import Settings
 

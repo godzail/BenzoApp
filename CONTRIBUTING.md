@@ -49,7 +49,7 @@ uv sync
 cp .env.example .env
 
 # Run the application
-uv run __run_app.py
+uv run _main.py
 ```
 
 ### Project Configuration

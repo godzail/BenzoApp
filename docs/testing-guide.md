@@ -77,8 +77,14 @@ tests/
 ├── test_main.py          # API endpoint tests
 ├── test_geocoding.py     # Geocoding service unit tests
 ├── test_geocoding_fallback.py  # Fallback behavior tests
-├── test_prezzi_csv.py    # CSV service tests (if exists)
-└── ...                  # Other test files
+├── test_fuel_api.py      # Fuel API service tests
+├── test_fuel_type_utils.py    # Fuel type normalization tests
+├── test_prezzi_csv.py    # CSV service tests
+├── test_models.py        # Pydantic model tests
+├── test_docs_page.py     # Docs page rendering test
+├── test_ui_accessibility.py   # Accessibility tests
+├── test_ui_buttons.py    # UI button tests
+└── e2e/                  # Playwright E2E tests
 ```
 
 ---

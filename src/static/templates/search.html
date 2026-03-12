@@ -11,6 +11,7 @@
       <div id="recent-searches-list" class="recent-searches-list flex flex-wrap gap-2">
         <!-- Placeholder for static analysis / accessibility tests: kept hidden at runtime -->
         <button
+          type="button"
           aria-hidden="true"
           class="recent-search-btn flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-full px-3 py-2 text-sm text-[var(--text-secondary)] cursor-pointer transition-all duration-150 min-h-10 hidden"
         >
@@ -32,7 +33,15 @@
     class="chip benzina flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
     type="button"
   >
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <svg
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
       <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
       <path d="M2 17l10 5 10-5"></path>
       <path d="M2 12l10 5 10-5"></path>
@@ -44,7 +53,15 @@
     class="chip gasolio flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
     type="button"
   >
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <svg
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
       <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
       <path d="M2 17l10 5 10-5"></path>
       <path d="M2 12l10 5 10-5"></path>
@@ -56,7 +73,15 @@
     class="chip GPL flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
     type="button"
   >
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <svg
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
       <circle cx="12" cy="12" r="10"></circle>
       <path d="M12 6v6l4 2"></path>
     </svg>
@@ -67,7 +92,15 @@
     class="chip metano flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
     type="button"
   >
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <svg
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
       <circle cx="12" cy="12" r="10"></circle>
       <path d="M12 6v6l4 2"></path>
     </svg>
@@ -124,6 +157,7 @@
     <span id="search-btn-text"></span>
     <span id="loading-spinner" class="hidden">
       <svg
+        aria-hidden="true"
         class="spinner animate-spin"
         width="18"
         height="18"
@@ -137,5 +171,10 @@
       <span id="loading-text"></span>
     </span>
   </button>
-  <div class="search-divider border-t border-[var(--border-color)] mt-4 mb-4" role="separator" aria-hidden="true"></div>
+  <div
+    class="search-divider border-t border-[var(--border-color)] mt-4 mb-4"
+    role="separator"
+    aria-hidden="true"
+    aria-valuenow="0"
+  ></div>
 </form>
