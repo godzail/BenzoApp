@@ -1,8 +1,7 @@
-import { expect, test } from '@playwright/test';
-import { skipIfServerUnavailable } from './helpers';
+import { expect, isServerAvailable, preventCsvPopupScript, test } from './helpers';
 
 test('documentation page loads without runtime errors', async ({ page }) => {
-  await skipIfServerUnavailable(page);
+  if (!(await isServerAvailable(page))) test.skip();
 
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(String(err)));
@@ -20,8 +19,9 @@ test('documentation page loads without runtime errors', async ({ page }) => {
 });
 
 test('returning from docs preserves SPA search state when using the back button', async ({ page }) => {
-  await skipIfServerUnavailable(page);
+  if (!(await isServerAvailable(page))) test.skip();
 
+  await page.addInitScript(preventCsvPopupScript());
   await page.goto('/');
   await page.fill('#city', 'Firenze');
   await page.click('#search-submit');

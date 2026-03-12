@@ -1,8 +1,7 @@
-import { expect, test } from '@playwright/test';
-import { skipIfServerUnavailable } from './helpers';
+import { expect, isServerAvailable, preventCsvPopupScript, test } from './helpers';
 
 test('updates title and recent searches when changing language', async ({ page }) => {
-  await skipIfServerUnavailable(page);
+  if (!(await isServerAvailable(page))) test.skip();
 
   await page.addInitScript(() => {
     try {
@@ -11,6 +10,7 @@ test('updates title and recent searches when changing language', async ({ page }
       // ignore
     }
   });
+  await page.addInitScript(preventCsvPopupScript());
 
   await page.goto('/');
   await page.waitForSelector('#title-i18n');
@@ -42,7 +42,12 @@ test('updates title and recent searches when changing language', async ({ page }
   const recentEn = await page.textContent('#recent-searches-i18n');
   expect(recentEn?.trim()).toBe('Recent Searches:');
 
-  await page.waitForSelector('#fuel-benzina-text');
+  // wait for the fuel label to reflect english translation; the UI may
+  // update asynchronously after changeLanguage events
+  await page.waitForFunction(() => {
+    const el = document.getElementById('fuel-benzina-text');
+    return el && el.textContent?.trim() === 'Gasoline';
+  });
   const fuelEn = await page.textContent('#fuel-benzina-text');
   const tf = await page.evaluate(() => (window.translateFuel ? window.translateFuel('benzina') : null));
   expect(tf).toBe('Gasoline');
