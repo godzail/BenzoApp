@@ -1,105 +1,113 @@
-# AGENTS.md
+# AGENTS.md — Project Contribution Standards
 
-## System Role
+> **Mission**: Every contribution must meet or exceed the project's quality bar.
+> Trust user input, but verify independently. Fill knowledge gaps through research before acting.
 
-**ROLE:**: senior architect and software engineer
+---
 
-## Code Guidelines
+## Environment
 
-Strictly adhere to specialized instructions for each coding language:
+| Concern    | Tool                                                     |
+|------------|----------------------------------------------------------|
+| OS         | Windows — PowerShell (`pwsh`)                            |
+| Python     | `uv` (deps + execution), `ruff` (lint/fmt), `ty` (types) |
+| Frontend   | `bun` (package mgr + scripts), `biome` (lint/fmt)        |
+| Search     | `rg` (ripgrep)                                           |
+| Virtualenv | `.venv/` — Python 3.13+ — always use `uv run`            |
 
-- Python: read and follow `docs/agents/py.instructions.md`
-- Frontend: read and follow `docs/agents/{language}.instructions.md`
-
-## Environment Setup
-
-- OS: Windows with PowerShell (`pwsh`)
-- Python
-  - `uv`: Dependency management, tool execution
-  - `ruff`: Linting and formatting
-  - `ty`: Static type checking
-- Frontend:
-  - `bun`: package management and script execution instead of node/npm/npmx
-  - `biome`: linting and formatting
-- Search
-  - `rg`: ripgrep, fast codebase searching
-
-### Virtual Environment
-
-- Location: `.venv/` (Python 3.13+)
-- Always use `uv run` to execute Python scripts within the virtualenv
+---
 
 ## Commands
 
-Navigation & Search:
+### Navigation
 
-- Search codebase: `rg <pattern>`
-- Search Python files: `rg <pattern> -t py`
-- Search frontend files: `rg <pattern> -t js,ts,tsx`
+```powershell
+rg <pattern>              # search codebase
+rg <pattern> -t py        # Python files only
+rg <pattern> -t js,ts,tsx # Frontend files only
+```
 
-Python Commands:
+### Python
 
-- Run application: `uv run _main.py`
-- List available tools: `uv tool list`
-- Run all tests: `uv run pytest tests/`
-- Lint codebase: `ruff check .`
-- Auto-fix issues: `ruff check . --fix`
-- Type checking: `ty check .`
+NOTE: ruff and ty are global tools
 
-Frontend Commands:
+```powershell
+uv run _main.py           # run application
+uv run pytest tests/      # run all tests
+ruff check .              # lint
+ruff check . --fix        # auto-fix lint
+ty check .                # type check
+```
 
-- Install dependencies: `bun install`
-- Run package.json scripts: `bun run <script>`
-- Lint frontend: `biome check src/static/`
-- Auto-fix issues: `biome check src/static/ --write`
+---
 
 ## Project Structure
 
-- Source Code: `src/`
-- Documentation: `docs/`
-- Tests: `tests/`
-- Python Project Configuration: `pyproject.toml`
-- Frontend Project Configuration: `package.json`
+```workspace
+src/          # Source code
+docs/         # Documentation
+tests/        # Tests
+pyproject.toml
+```
+
+---
+
+## Language-Specific Rules
+
+- **Python** → read and follow `@docs/agents/py.instructions.md` before any Python work
+
+---
 
 ## Problem-Solving Approach
 
-Reference this document and relevant guidelines first
+Before writing a single line of code, apply this sequence:
 
-- **Simplicity is king** — the simplest solution that works is the best solution
-- **Functional over OOP** — pure functions, composition, immutability
-- **Verification chain** — a verification chain is mandatory and must be completed prior to delivery.
-- Clarify ambiguities before proceeding
-- Adhere to existing patterns in codebase
-- Identify constraints and success criteria
-- Restate the problem to confirm understanding
-- **Multi-Perspective view** — evaluate solutions from multiple perspectives:
-  - **System Architect**: Solution aligned with overall system design and architecture principles? Is it scalable, maintainable, and extensible?
-  - **Senior Software Engineer**: Solution follows best practices, coding standards, and design patterns? Is it efficient, reliable, and testable?
-  - **Code Reviewer**: Solution meets quality standards, handles edge cases, and provides clear documentation?
+1. **Clarify** — If requirements are ambiguous, ask targeted questions. Do not assume intent.
+2. **Constrain** — Define explicit success criteria: *"Done means: tests pass, lint clean, types valid."*
+3. **Simplify** — The simplest working solution is the correct solution.
+4. **Compose** — Prefer pure functions, composition, and immutability over OOP hierarchies.
+5. **Verify** — Mandatory before delivery: `pytest` → `ruff check` → `ty check`. No exceptions.
+6. **Conform** — Follow existing codebase patterns. Identify conventions via `rg` before introducing new ones.
 
-## Security & Restrictions
+---
 
-### Protected Files
+## Multi-Perspective Review
 
-Absolute Prohibitions, **NEVER** read, modify, or expose:
+Before delivering any significant change, validate across three lenses:
+
+| Lens             | Questions to answer                                                 |
+|------------------|---------------------------------------------------------------------|
+| System Architect | Does this align with the overall design? Is it scalable/extensible? |
+| Senior Engineer  | Follows best practices? Efficient, reliable, testable?              |
+| Code Reviewer    | Edge cases handled? Documentation clear? Standards met?             |
+
+---
+
+## Communication
+
+- **Default**: concise, actionable responses (1–3 sentences).
+- **Expand** detail only when complexity genuinely requires it.
+- **Ask** before implementing when requirements are uncertain — one focused question at a time.
+- **Flag** blockers and missing information immediately; do not silently assume.
+- **Reference** files with line numbers: e.g. `src/foo.py:42`.
+- **Format**: Markdown. No unnecessary preamble or postamble.
+- **Confidence**: When making a significant recommendation, state confidence qualitatively
+  (e.g., *"High confidence — based on established patterns in the codebase"*) and flag
+  anything that requires external validation.
+
+---
+
+## Security
+
+### Protected files — NEVER read, modify, or expose
 
 - `*.env` files
 - `*/config/secrets.*`
 - Private keys or credentials
-- Log sensitive information
-- Commit secrets to version control
+- Any file containing sensitive information
 
-### Secret Management
+### Rules
 
-- No hardcoded API keys, passwords, or tokens
-- Never log or commit sensitive information
-- Use environment variables for configuration
-
-## Response Structure
-
-- Use professional markdown formatting
-- Default to concise, actionable responses, expand detail when complexity requires it
-- Include a **Probabilistic Correctness Ratio**, with each significant recommendation:
-  - Estimated a qualitative statement of confidence (e.g., "High confidence — 90%+").
-  - Justify the assessment (e.g., "Based on established patterns in the codebase and Python best practices")
-  - Flag uncertainties or areas requiring validation
+- No hardcoded API keys, passwords, or tokens — use environment variables.
+- Never log or commit sensitive information.
+- Never expose secrets in responses, diffs, or logs.

@@ -1,32 +1,63 @@
-# CLAUDE.md — Assistant Environment Guide
+# CLAUDE.md
 
-Read and follow instructions in `AGENTS.md`.
+> **First action every session**: read `@AGENTS.md` completely before doing anything else.
 
-<!-- BACKLOG.MD MCP GUIDELINES START -->
+---
 
-<CRITICAL_INSTRUCTION>
+## How to Start Any Task
 
-## BACKLOG WORKFLOW INSTRUCTIONS
+Use this template to frame every request clearly:
 
-This project uses Backlog.md MCP for all task and project management activities.
+```
+I want to [TASK] so that [SUCCESS CRITERIA].
+First, read: @AGENTS.md
+DO NOT start executing yet — ask me any clarifying questions needed.
+```
 
-**CRITICAL GUIDANCE**
+**Why this works**: task + success criteria up front eliminates ambiguous execution.
+Claude must know what "done" looks like before the first keystroke.
 
-- If your client supports MCP resources, read `backlog://workflow/overview` to understand when and how to use Backlog for this project.
-- If your client only supports tools or the above request fails, call `backlog.get_workflow_overview()` tool to load the tool-oriented overview (it lists the matching guide tools).
+---
 
-- **First time working here?** Read the overview resource IMMEDIATELY to learn the workflow
-- **Already familiar?** You should have the overview cached ("## Backlog.md Overview (MCP)")
-- **When to read it**: BEFORE creating tasks, or when you're unsure whether to track work
+## Session Checklist
 
-These guides cover:
-- Decision framework for when to create tasks
-- Search-first workflow to avoid duplicates
-- Links to detailed guides for task creation, execution, and finalization
-- MCP tools reference
+Before executing any task, confirm:
 
-You MUST read the overview resource to understand the complete workflow. The information is NOT summarized here.
+- [ ] `@AGENTS.md` has been read in full
+- [ ] Language-specific rules loaded if applicable (`@docs/agents/py.instructions.md` for Python)
+- [ ] Requirements are unambiguous — if not, ask before proceeding
+- [ ] Success criteria are explicit (tests pass, lint clean, types valid)
 
-</CRITICAL_INSTRUCTION>
+---
 
-<!-- BACKLOG.MD MCP GUIDELINES END -->
+## Quick Reference
+
+| Need                  | Command                              |
+|-----------------------|--------------------------------------|
+| Run app               | `uv run _main.py`                    |
+| Run tests             | `uv run pytest tests/`               |
+| Lint                  | `ruff check .`                       |
+| Auto-fix lint         | `ruff check . --fix`                 |
+| Type check            | `ty check .`                         |
+| Search codebase       | `rg <pattern>`                       |
+| Search Python files   | `rg <pattern> -t py`                 |
+| Search frontend files | `rg <pattern> -t js,ts,tsx`          |
+
+---
+
+## Rules (non-negotiable)
+
+1. **Ask, don't assume** — one focused question beats one wrong implementation.
+2. **Verify chain** — every delivery must pass: `pytest` → `ruff check` → `ty check`.
+3. **Simplest solution wins** — complexity is a cost, not a feature.
+4. **Never touch secrets** — see `@AGENTS.md` § Security.
+5. **Confidence matters** — state it; flag unknowns explicitly.
+
+---
+
+## Modular Rules
+
+For domain-specific conventions, load on demand:
+
+- `@docs/agents/py.instructions.md` — Python standards
+- `@docs/agents/` — other language/domain rules as they are added

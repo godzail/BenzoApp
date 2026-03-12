@@ -57,6 +57,7 @@ async def _fetch_csvs(
             return await _load_local_csvs(settings)
         except Exception:
             logger.error("Local fallback failed, re-raising original HTTP error")
+            logger.exception(original_exc)
             raise original_exc from e
     except httpx.RequestError as e:
         url = str(e.request.url) if e.request else "unknown"
@@ -67,6 +68,7 @@ async def _fetch_csvs(
             return await _load_local_csvs(settings)
         except Exception:
             logger.error("Local fallback failed, re-raising original network error")
+            logger.exception(original_exc)
             raise original_exc from e
     except Exception as e:
         logger.error("Unexpected error fetching CSV: {} - {}", type(e).__name__, e)
@@ -76,6 +78,7 @@ async def _fetch_csvs(
             return await _load_local_csvs(settings)
         except Exception:
             logger.error("Local fallback failed, re-raising original unexpected exception")
+            logger.exception(original_exc)
             raise original_exc from e
 
     anag_text = resp_anag.content.decode("iso-8859-1")

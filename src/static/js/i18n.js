@@ -47,18 +47,24 @@ window.setLang = (lang) => {
         i18next.reloadResources(lang, "translation", () => {
             // If resources are not present after reloadResources, fetch them explicitly.
             const i18nWithGetter = i18next;
-            const hasBundle = typeof i18nWithGetter.getResourceBundle === "function" && !!i18nWithGetter.getResourceBundle?.(lang, "translation");
+            const hasBundle = typeof i18nWithGetter.getResourceBundle === "function" &&
+                !!i18nWithGetter.getResourceBundle?.(lang, "translation");
             if (!hasBundle) {
                 // best-effort fetch; do not block the UI if it fails
-                loadTranslations(lang).catch(() => { });
+                loadTranslations(lang).catch(() => {
+                    /* noop */
+                });
             }
             if (i18next.changeLanguage) {
                 i18next.changeLanguage(lang, () => {
                     // Ensure texts are refreshed; if bundle still missing, load then update.
                     const i18nWithGetter2 = i18next;
-                    const bundleNow = typeof i18nWithGetter2.getResourceBundle === "function" && !!i18nWithGetter2.getResourceBundle?.(lang, "translation");
+                    const bundleNow = typeof i18nWithGetter2.getResourceBundle === "function" &&
+                        !!i18nWithGetter2.getResourceBundle?.(lang, "translation");
                     if (!bundleNow) {
-                        loadTranslations(lang).then(() => updateI18nTexts()).catch(() => updateI18nTexts());
+                        loadTranslations(lang)
+                            .then(() => updateI18nTexts())
+                            .catch(() => updateI18nTexts());
                     }
                     else {
                         updateI18nTexts();

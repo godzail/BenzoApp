@@ -3,7 +3,7 @@
 from src.services.fuel_api import parse_and_normalize_stations
 
 
-def test_parse_and_normalize_stations_filters_zero_coords():
+def test_parse_and_normalize_stations_filters_zero_coords() -> None:
     """Test that stations with zero coordinates are filtered out."""
     payload = [
         {"prezzo": "1.5", "latitudine": "0.0", "longitudine": "0.0"},
@@ -16,7 +16,7 @@ def test_parse_and_normalize_stations_filters_zero_coords():
     assert skipped == 1
 
 
-def test_parse_and_normalize_stations_malformed_price_skips():
+def test_parse_and_normalize_stations_malformed_price_skips() -> None:
     """Test that stations with malformed prices are skipped."""
     payload = [{"prezzo": "n/a", "latitudine": "43.7", "longitudine": "11.2"}]
 

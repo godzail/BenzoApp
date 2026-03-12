@@ -178,6 +178,46 @@
         </div>
       </div>
     </main>
+    <!-- CSV Update Startup Popup -->
+    <div
+      id="csv-update-popup"
+      class="hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="csv-popup-title"
+      aria-describedby="csv-popup-body"
+    >
+      <div class="csv-popup-dialog">
+        <div class="csv-popup-header">
+          <div class="csv-popup-icon" aria-hidden="true">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+          </div>
+          <span id="csv-popup-title" class="csv-popup-title" data-i18n="update_csv_popup_title"
+            >Data Update Required</span
+          >
+        </div>
+        <p id="csv-popup-body" class="csv-popup-body" data-i18n="update_csv_popup_body">
+          Fuel price data is missing or outdated. Click the button below to fetch the latest data.
+        </p>
+        <div id="csv-popup-status" class="csv-popup-status" aria-live="polite" aria-atomic="true"></div>
+        <button id="csv-popup-btn" type="button" class="csv-popup-btn" data-i18n="update_csv_popup_btn">
+          Update data
+        </button>
+      </div>
+    </div>
     <script>
     document.addEventListener("DOMContentLoaded", () => {
       window.initApp();

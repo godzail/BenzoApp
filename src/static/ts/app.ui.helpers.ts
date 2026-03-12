@@ -18,7 +18,10 @@ Object.assign(window.appUiMixin, {
         minute: "2-digit",
       });
     } catch (err) {
-      this.debug?.("Failed to format timestamp:", err instanceof Error ? err.message : err);
+      this.debug?.(
+        "Failed to format timestamp:",
+        err instanceof Error ? err.message : err,
+      );
       return isoTimestamp;
     }
   },
@@ -124,7 +127,8 @@ Object.assign(window.appUiMixin, {
   },
 
   buildPopupContent(station: { gestore?: string; address?: string }): string {
-    const title = station.gestore || this.translate("translation.station", "Gas Station");
+    const title =
+      station.gestore || this.translate("translation.station", "Gas Station");
     const addressLabel = this.translate("translation.address", "Address");
     return `
       <div class="map-popup">

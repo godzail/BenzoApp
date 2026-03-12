@@ -4,6 +4,7 @@
     <summary
       class="recent-searches-title text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide cursor-pointer list-none flex items-center gap-1"
       id="recent-searches-i18n"
+      :title="translate('recent_searches', 'Ricerche Recenti:') + (currentLang ? '' : '')"
       title="Recent Searches"
     ></summary>
     <section class="recent-searches-container pt-2" aria-labelledby="recent-searches-i18n">

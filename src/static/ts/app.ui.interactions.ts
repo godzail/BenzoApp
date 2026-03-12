@@ -181,6 +181,24 @@ Object.assign(window.appUiMixin, {
     });
   },
 
+  /**
+   * Update the language selector buttons' visual and ARIA state.
+   */
+  updateLanguageUI(): void {
+    try {
+      const en = document.getElementById("lang-en");
+      const it = document.getElementById("lang-it");
+      if (!(en && it)) return;
+      const enSelected = String(this.currentLang || "").startsWith("en");
+      en.classList.toggle("active", enSelected);
+      it.classList.toggle("active", !enSelected);
+      en.setAttribute("aria-pressed", enSelected ? "true" : "false");
+      it.setAttribute("aria-pressed", !enSelected ? "true" : "false");
+    } catch (err) {
+      this.debug?.("updateLanguageUI failed:", err);
+    }
+  },
+
   updateSearchFormUI(): void {
     const cityInput = document.getElementById(
       "city",
@@ -417,6 +435,7 @@ Object.assign(window.appUiMixin, {
         this.updateRecentSearchesUI?.();
         this.updateResultsUI?.();
         this.updateMap?.();
+        this._updatePopupTexts?.();
       });
 
       this.loadRecentSearches?.();
@@ -429,28 +448,23 @@ Object.assign(window.appUiMixin, {
 
       this.initTranslateFuelHelper?.();
 
-      Promise.resolve().then(() => {
-        this.initializeComponents?.();
-        if (window.updateI18nTexts) window.updateI18nTexts();
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          this.initializeComponents?.();
+          if (window.updateI18nTexts) window.updateI18nTexts();
+          resolve();
+        }, 0);
       });
 
       this.fetchCsvStatus()?.then((status) => {
         this.csvLastUpdated = status.last_updated;
 
-        // Auto-trigger a client-side reload on first page load when cache is missing or stale.
-        // Guard with `reload_in_progress` and `this.csvReloading` to avoid duplicate requests,
-        // and set a sessionStorage flag so we only auto-reload once per session.
         try {
-          const shouldAutoReload = (!status.last_updated || status.is_stale) && !status.reload_in_progress && !this.csvReloading;
-          const alreadyTriggered = sessionStorage.getItem("csvAutoReloadTriggered");
-          if (shouldAutoReload && !alreadyTriggered) {
-            sessionStorage.setItem("csvAutoReloadTriggered", "1");
-            // run reload in background; UI updates are handled by existing reloadCsv handlers
-            this.reloadCsv()?.catch(() => {});
+          if (!(status.reload_in_progress || this.csvReloading)) {
+            this.showCsvUpdatePopup?.();
           }
         } catch (err) {
-          // sessionStorage may be unavailable in some environments — ignore failures
-          this.debug("Auto-reload check failed:", err as Error);
+          this.debug("CSV popup check failed:", err as Error);
         }
       });
 
@@ -592,5 +606,14 @@ Object.assign(window.appUiMixin, {
     if (!this.map) return;
     this.clearMapMarkers?.();
     if (this.results?.length > 0) this.addMapMarkers?.();
+  },
+
+  reinitializeComponents(): void {
+    const docsLink = document.getElementById("docs-link");
+    if (docsLink) {
+      docsLink.setAttribute("href", `/help/user-${this.currentLang || "it"}`);
+      const title = this.translate("user_docs", "User Documentation");
+      docsLink.setAttribute("title", title);
+    }
   },
 } as Partial<AppUiMixin>);

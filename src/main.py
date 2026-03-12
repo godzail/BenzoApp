@@ -61,6 +61,9 @@ from src.services.prezzi_csv import (
 )
 
 
+_cached_settings: Settings | None = None
+
+
 def get_settings() -> Settings:
     """Get application settings instance.
 
@@ -70,7 +73,10 @@ def get_settings() -> Settings:
     Returns:
     - The application settings object.
     """
-    return Settings()
+    global _cached_settings  # noqa: PLW0603
+    if _cached_settings is None:
+        _cached_settings = Settings()
+    return _cached_settings
 
 
 # --- Lifespan Management ---
@@ -95,6 +101,7 @@ async def lifespan(_app: FastAPI):
                 _ = await asyncio.to_thread(check_preferred_local_dir_writable, settings)
             except Exception as err:
                 logger.warning("Preferred CSV directory check failed: {}", err)
+                logger.exception(err)
 
         # Optionally preload local CSV data into cache (non-blocking)
         if settings.prezzi_preload_on_startup:
@@ -104,6 +111,7 @@ async def lifespan(_app: FastAPI):
                 task.add_done_callback(lambda _: logger.debug("Prezzi preload task finished"))
             except Exception as err:
                 logger.warning("Failed to start prezzi preload task: {}", err)
+                logger.exception(err)
 
         # Optionally trigger a full remote CSV reload on startup.
         # If the on-disk cache is missing or stale we perform a blocking reload
@@ -122,7 +130,7 @@ async def lifespan(_app: FastAPI):
                     # Blocking reload on first run (cache missing/stale)
                     logger.info("Prezzi cache missing or stale — running blocking CSV reload on startup")
                     try:
-                        await fetch_and_combine_csv_data(settings, client)  # type: ignore[arg-type]
+                        await fetch_and_combine_csv_data(settings, client)
                         logger.info("Blocking startup CSV reload completed successfully")
                     except Exception as e:
                         logger.warning("Blocking startup CSV reload failed: {}", e)
@@ -133,7 +141,7 @@ async def lifespan(_app: FastAPI):
                         logger.info("Starting prezzi CSV reload on startup (background)")
                         try:
                             # Reuse existing service function to fetch/parse/save and refresh cache
-                            await fetch_and_combine_csv_data(settings, client)  # type: ignore[arg-type]
+                            await fetch_and_combine_csv_data(settings, client)
                             logger.info("Startup CSV reload completed successfully")
                         except Exception as e:
                             logger.warning("Startup CSV reload failed: {}", e)
@@ -143,6 +151,7 @@ async def lifespan(_app: FastAPI):
                     _app.state._startup_reload_task = task  # noqa: SLF001
             except Exception as err:
                 logger.warning("Failed to schedule startup CSV reload: {}", err)
+                logger.exception(err)
         try:
             yield
         except (asyncio.CancelledError, KeyboardInterrupt):
@@ -152,8 +161,6 @@ async def lifespan(_app: FastAPI):
 
 
 # --- FastAPI App Initialization ---
-# HTTP status code for service unavailable responses
-HTTP_503_SERVICE_UNAVAILABLE = 503
 app = FastAPI(title="Gas Station Finder API", lifespan=lifespan)
 
 # Configure rate limiter
@@ -285,8 +292,12 @@ async def search_gas_stations(
         fetch_error = "Search timed out while fetching station data. Please try again later."
     except RetryError:
         fetch_error = "Gas station data is temporarily unavailable. Please try again later."
-    except HTTPException:
-        fetch_error = "Failed to fetch gas station data. Please try again later."
+    except HTTPException as he:
+        # If upstream service returned a 422 for schema problems, surface its message
+        if getattr(he, "status_code", None) == 422:
+            fetch_error = str(he.detail)
+        else:
+            fetch_error = "Failed to fetch gas station data. Please try again later."
 
     if fetch_error:
         return SearchResponse(stations=[], warning=fetch_error, error=True)
@@ -382,7 +393,7 @@ async def render_docs(page: str) -> HTMLResponse:
         min-h-screen font-sans transition-colors duration-250'>
             <div class='max-w-3xl mx-auto px-6 py-12 relative'>
                 <div class='docs-content mt-4'>{rendered}</div>
-                <button onclick="window.location.href='/'" aria-label='Back to main page'
+                <button onclick="(history.length > 1) ? history.back() : (window.location.href='/')" aria-label='Back to main page'
                 class='absolute top-6 left-6 p-1.5 rounded-lg border border-[var(--border-color)]
                 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-colors
                 cursor-pointer text-[var(--text-primary)] shadow-sm'>
