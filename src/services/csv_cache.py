@@ -34,9 +34,7 @@ async def _read_json_file(path: str) -> dict[str, Any] | None:
 
     try:
         content = await asyncio.to_thread(p.read_text, "utf-8")
-        if not content.strip():
-            return None
-        return json.loads(content)
+        return json.loads(content) if content.strip() else None
     except json.JSONDecodeError as err:
         logger.warning("Failed to parse cache file {}: {}", path, err)
         return None
@@ -47,22 +45,40 @@ async def _read_json_file(path: str) -> dict[str, Any] | None:
 
 
 async def _write_json_file(path: str, payload: dict[str, Any]) -> None:
-    """Write a dictionary to a JSON file asynchronously.
+    """Write a dictionary to a JSON file **atomically**.
+
+    Strategy:
+    - Serialize to a temporary file next to the final path (``<name>.part``).
+    - Atomically replace the final file with ``Path.replace``.
+    - On any error, leave the original file intact and ensure no temporary file leaks remain.
 
     Parameters:
     - path: The file path to write to.
-    - payload: The dictionary to serialize as JSON.
+    - payload: The dictionary data to serialize and write.
     """
+    p = Path(path)
+    tmp: Path | None = None
     try:
-        p = Path(path)
+        # ensure parent exists
         if parent := p.parent:
             parent_exists = await asyncio.to_thread(parent.exists)
             if not parent_exists:
                 await asyncio.to_thread(parent.mkdir, parents=True, exist_ok=True)
-        await asyncio.to_thread(p.write_text, json.dumps(payload, ensure_ascii=False), "utf-8")
+
+        # write to temp file in same directory then atomically replace
+        tmp = p.with_name(f"{p.name}.part")
+        text = json.dumps(payload, ensure_ascii=False)
+        await asyncio.to_thread(tmp.write_text, text, "utf-8")
+        await asyncio.to_thread(tmp.replace, p)
     except Exception as err:
-        logger.warning("Failed to write cache file {}: {}", path, err)
+        logger.warning("Failed to write cache file {} atomically: {}", path, err)
         logger.exception(err)
+        # best-effort cleanup of temporary file
+        try:
+            if tmp and await asyncio.to_thread(tmp.exists):
+                await asyncio.to_thread(tmp.unlink)
+        except Exception:
+            logger.debug("Failed to remove temp cache file {}", tmp)
 
 
 async def _is_cache_fresh(cache_path: str, cache_hours: float) -> bool:
@@ -148,7 +164,54 @@ def check_preferred_local_dir_writable(settings: Settings) -> bool:
         return True
 
 
-def get_latest_csv_timestamp(settings: Settings) -> str | None:  # noqa: C901, PLR0912
+def _find_timestamped_csvs(candidates: list[Path]) -> datetime | None:
+    """Find the latest timestamp from timestamped CSV filenames."""
+    latest_ts: datetime | None = None
+    ts_format_length = 14
+    patterns = ["anagrafica_impianti_attivi_*.csv", "prezzo_alle_8_*.csv"]
+
+    for d in candidates:
+        if not d.exists():
+            continue
+        for pattern in patterns:
+            for csv_file in d.glob(pattern):
+                filename = csv_file.name
+                if len(filename) < len("YYYYMMDD_HHMMSS.csv"):
+                    continue
+                ts_str = filename.replace("anagrafica_impianti_attivi_", "").replace("prezzo_alle_8_", "")
+                ts_str = ts_str.replace(".csv", "")
+                if len(ts_str) >= ts_format_length:
+                    try:
+                        ts = datetime.strptime(ts_str[:ts_format_length], "%Y%m%d_%H%M%S").replace(tzinfo=UTC)
+                        if latest_ts is None or ts > latest_ts:
+                            latest_ts = ts
+                    except ValueError:
+                        continue
+    return latest_ts
+
+
+def _find_latest_mtime(candidates: list[Path]) -> datetime | None:
+    """Find the latest mtime from non-timestamped base CSV files."""
+    latest_ts: datetime | None = None
+    base_files = ["anagrafica_impianti_attivi.csv", "prezzo_alle_8.csv"]
+
+    for d in candidates:
+        if not d.exists():
+            continue
+        for base_name in base_files:
+            csv_file = d / base_name
+            if csv_file.exists():
+                try:
+                    st = csv_file.stat()
+                    mtime_ts = datetime.fromtimestamp(st.st_mtime, tz=UTC)
+                    if latest_ts is None or mtime_ts > latest_ts:
+                        latest_ts = mtime_ts
+                except Exception:
+                    continue
+    return latest_ts
+
+
+def get_latest_csv_timestamp(settings: Settings) -> str | None:
     """Extract timestamp from the most recent CSV filename.
 
     Looks for timestamped CSV files in candidate directories and extracts
@@ -166,48 +229,9 @@ def get_latest_csv_timestamp(settings: Settings) -> str | None:  # noqa: C901, P
 
     try:
         candidates = _candidate_local_csv_dirs(settings)
-        latest_ts: datetime | None = None
-        ts_format_length = 14
-
-        # First, try to find timestamped files
-        for d in candidates:
-            if not d.exists():
-                continue
-
-            patterns = ["anagrafica_impianti_attivi_*.csv", "prezzo_alle_8_*.csv"]
-            for pattern in patterns:
-                for csv_file in d.glob(pattern):
-                    filename = csv_file.name
-                    if len(filename) < len("YYYYMMDD_HHMMSS.csv"):
-                        continue
-                    ts_str = filename.replace("anagrafica_impianti_attivi_", "").replace("prezzo_alle_8_", "")
-                    ts_str = ts_str.replace(".csv", "")
-                    if len(ts_str) >= ts_format_length:
-                        try:
-                            ts = datetime.strptime(ts_str[:ts_format_length], "%Y%m%d_%H%M%S").replace(tzinfo=UTC)
-                            if latest_ts is None or ts > latest_ts:
-                                latest_ts = ts
-                        except ValueError:
-                            logger.debug("Could not parse timestamp from CSV filename: {}", filename)
-                            continue
-
-        # If no timestamped files, fall back to mtime of base CSV files (non-timestamped)
+        latest_ts = _find_timestamped_csvs(candidates)
         if latest_ts is None:
-            base_files = ["anagrafica_impianti_attivi.csv", "prezzo_alle_8.csv"]
-            for d in candidates:
-                if not d.exists():
-                    continue
-                for base_name in base_files:
-                    csv_file = d / base_name
-                    if csv_file.exists():
-                        try:
-                            st = csv_file.stat()
-                            mtime_ts = datetime.fromtimestamp(st.st_mtime, tz=UTC)
-                            if latest_ts is None or mtime_ts > latest_ts:
-                                latest_ts = mtime_ts
-                        except Exception as e:
-                            logger.debug("Failed to read mtime for {}: {}", csv_file, e)
-
+            latest_ts = _find_latest_mtime(candidates)
         return latest_ts.isoformat() if latest_ts else None
     except Exception as err:
         logger.warning("Failed to get latest CSV timestamp: {}", err)

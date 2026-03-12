@@ -42,5 +42,9 @@
   "translation": {
     "loading": "Caricamento...",
     "best_price_short": "Miglior"
-  }
+  },
+  "update_csv_popup_title": "Aggiornamento Dati Richiesto",
+  "update_csv_popup_body": "I dati sui prezzi del carburante sono mancanti o non aggiornati. Clicca il pulsante per scaricare gli ultimi dati.",
+  "update_csv_popup_btn": "Aggiorna dati",
+  "update_csv_popup_loading": "Aggiornamento in corso, attendi\u2026"
 }

@@ -182,6 +182,53 @@ def test_read_json_file_invalid(tmp_path):
     assert asyncio.run(_read_json_file(str(p))) is None
 
 
+def test_write_json_file_atomic_replace(tmp_path):
+    """_write_json_file should publish the new JSON atomically and remove any .part files."""
+    from src.services.csv_cache import _write_json_file
+
+    cache_path = tmp_path / "prezzi_cache.json"
+    cache_path.write_text(json.dumps({"orig": True}), encoding="utf-8")
+
+    asyncio.run(_write_json_file(str(cache_path), {"new": 123}))
+
+    # final file should contain the new payload and no .part file should remain
+    assert json.loads(cache_path.read_text(encoding="utf-8")) == {"new": 123}
+    assert not (tmp_path / "prezzi_cache.json.part").exists()
+
+
+def test_write_json_file_does_not_corrupt_on_replace_failure(tmp_path, monkeypatch):
+    """If replace() fails, the original cache must remain unchanged and no .part file should leak."""
+    import pathlib
+
+    from src.services.csv_cache import _write_json_file
+
+    cache_path = tmp_path / "prezzi_cache.json"
+    orig = {"orig": True}
+    cache_path.write_text(json.dumps(orig), encoding="utf-8")
+
+    real_replace = pathlib.Path.replace
+
+    def fake_replace(self, target):
+        # Simulate failure only when replacing a .part temporary file
+        if str(self).endswith(".part"):
+            raise RuntimeError("simulated replace failure")
+        return real_replace(self, target)
+
+    monkeypatch.setattr(pathlib.Path, "replace", fake_replace)
+
+    try:
+        # call should not raise; function handles/logs the error internally
+        asyncio.run(_write_json_file(str(cache_path), {"new": 999}))
+    finally:
+        # monkeypatch fixture will restore replace automatically
+        pass
+
+    # original file must be unchanged
+    assert json.loads(cache_path.read_text(encoding="utf-8")) == orig
+    # temporary .part file should not remain (cleanup is best-effort)
+    assert not (tmp_path / "prezzi_cache.json.part").exists()
+
+
 def test_fetch_csvs_raises_on_http_error(monkeypatch):
     """_fetch_csvs should raise if HTTP error and local fallback is unavailable."""
 
@@ -315,6 +362,107 @@ def test_fuel_name_variants_match(tmp_path):
     assert abs(result[0]["prezzo"] - 1.55) < FLOAT_TOLERANCE
 
 
+@pytest.mark.parametrize(
+    "price_str,expected",
+    [
+        ("1,50", 1.5),
+        ("1.50", 1.5),
+        ("1.234,56", 1234.56),
+        ("1,234.56", 1234.56),
+        ("1 234,56", 1234.56),
+        ("\u00a01\u00a0234,56", 1234.56),
+        ("EUR1.234,56", 1234.56),
+        ("1.234", 1.234),
+        ("1.519", 1.519),
+        ("1,234", 1.234),
+        ("1.234.567,89", 1234567.89),
+        ("1234", 1234.0),
+    ],
+)
+def test_price_parsing_various_locales(tmp_path, price_str, expected):
+    now = datetime.now(tz=UTC)
+    date_str = now.strftime("%d/%m/%Y %H:%M:%S")
+
+    anag_header = "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9"
+    anag_row = _make_anagrafica_row("7777", "43,7696", "11,2558")
+
+    prezzi_header = "col0|col1|col2|col3|col4"
+    prezzi_row = _make_prezzi_row("7777", "benzina", price_str, "1", date_str)
+
+    anag_text = f"{anag_header}\n{anag_row}\n"
+    prezzi_text = f"{prezzi_header}\n{prezzi_row}\n"
+
+    client = DummyClient(anag_text.encode("iso-8859-1"), prezzi_text.encode("iso-8859-1"))
+
+    settings = Settings()
+    settings.prezzi_cache_path = str(tmp_path / f"prezzi_cache_price_{price_str}.json")
+
+    params = StationSearchParams(latitude=LAT, longitude=LON, distance=10, fuel="benzina", results=5)
+
+    result = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert abs(result[0]["prezzo"] - expected) < FLOAT_TOLERANCE
+
+
+def test_non_numeric_price_skips_station(tmp_path):
+    now = datetime.now(tz=UTC)
+    date_str = now.strftime("%d/%m/%Y %H:%M:%S")
+
+    anag_header = "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9"
+    anag_row = _make_anagrafica_row("8888", "43,7696", "11,2558")
+
+    prezzi_header = "col0|col1|col2|col3|col4"
+    prezzi_row = _make_prezzi_row("8888", "benzina", "not-a-price", "1", date_str)
+
+    anag_text = f"{anag_header}\n{anag_row}\n"
+    prezzi_text = f"{prezzi_header}\n{prezzi_row}\n"
+
+    client = DummyClient(anag_text.encode("iso-8859-1"), prezzi_text.encode("iso-8859-1"))
+
+    settings = Settings()
+    settings.prezzi_cache_path = str(tmp_path / "prezzi_cache_non_numeric.json")
+
+    params = StationSearchParams(latitude=LAT, longitude=LON, distance=10, fuel="benzina", results=5)
+
+    result = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
+    assert isinstance(result, list)
+    assert len(result) == 0
+
+
+def test_fetch_gas_stations_maps_schema_error_to_http_exception(tmp_path):
+    """Ensure fuel_api.fetch_gas_stations converts CSV schema errors to an HTTP 422 exception with explicit detail."""
+    from fastapi import HTTPException
+
+    import src.services.fuel_api as fa
+
+    now = datetime.now(tz=UTC)
+    date_str = now.strftime("%d/%m/%Y %H:%M:%S")
+
+    anag_header = "col0|col1|col2|col3|col4|col5|col6|col7|col8|col9"
+    anag_row = _make_anagrafica_row("123", "43,7696", "11,2558")
+
+    # prezzi header missing required 'prezzo' column -> should trigger schema error
+    prezzi_header = "id|carburante|self|data"
+    prezzi_row = f"123|benzina|1|{date_str}"
+
+    anag_text = f"{anag_header}\n{anag_row}\n"
+    prezzi_text = f"{prezzi_header}\n{prezzi_row}\n"
+
+    client = DummyClient(anag_text.encode("iso-8859-1"), prezzi_text.encode("iso-8859-1"))
+
+    settings = Settings()
+    settings.prezzi_cache_path = str(tmp_path / "prezzi_cache_named_missing_for_api.json")
+
+    params = StationSearchParams(latitude=LAT, longitude=LON, distance=10, fuel="benzina", results=5)
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(fa.fetch_gas_stations(params, settings, cast("httpx.AsyncClient", client)))
+
+    assert exc.value.status_code == 422
+    assert "prezzi" in str(exc.value.detail).lower()
+
+
 def test_pipe_delimiter_is_detected(tmp_path):
     """Verify that pipe-delimited CSVs are detected and parsed correctly."""
     now = datetime.now(tz=UTC)
@@ -420,6 +568,92 @@ def test_force_delimiter_override(tmp_path):
     client2 = DummyClient(anag_text.encode("iso-8859-1"), prezzi_text.encode("iso-8859-1"))
     result2 = asyncio.run(fetch_and_combine_csv_data(settings2, cast("httpx.AsyncClient", client2), params=params))
     assert len(result2) == 0
+
+
+def test_named_headers_reordered(tmp_path):
+    """Named CSV headers (reordered) should be mapped by name, not by position."""
+    now = datetime.now(tz=UTC)
+    date_str = now.strftime("%d/%m/%Y %H:%M:%S")
+
+    # anagrafica with named headers in a different order
+    anag_header = "latitudine|longitudine|id|gestore|indirizzo"
+    anag_row = "43,7696|11,2558|123|GestoreX|Via Test"
+
+    # prezzi with named headers reordered (price is last)
+    prezzi_header = "carburante|id|data|self|prezzo"
+    prezzi_row = f"benzina|123|{date_str}|1|1,50"
+
+    anag_text = f"{anag_header}\n{anag_row}\n"
+    prezzi_text = f"{prezzi_header}\n{prezzi_row}\n"
+
+    client = DummyClient(anag_text.encode("iso-8859-1"), prezzi_text.encode("iso-8859-1"))
+
+    settings = Settings()
+    settings.prezzi_cache_path = str(tmp_path / "prezzi_cache_named.json")
+
+    params = StationSearchParams(latitude=LAT, longitude=LON, distance=10, fuel="benzina", results=5)
+
+    result = asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
+
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0]["prezzo"] == EXPECTED_PRICE_A
+    assert result[0]["latitudine"] == LAT
+
+
+def test_named_header_missing_required_field(tmp_path):
+    """If a named header is present but required columns are missing, fail fast with CSVSchemaError."""
+    from src.services.csv_parser import CSVSchemaError
+
+    now = datetime.now(tz=UTC)
+    date_str = now.strftime("%d/%m/%Y %H:%M:%S")
+
+    # named anagrafica (valid)
+    anag_header = "id|gestore|indirizzo|latitudine|longitudine"
+    anag_row = "123|GestoreX|Via Test|43,7696|11,2558"
+
+    # prezzi header is missing the 'prezzo' column
+    prezzi_header = "id|carburante|self|data"
+    prezzi_row = f"123|benzina|1|{date_str}"
+
+    anag_text = f"{anag_header}\n{anag_row}\n"
+    prezzi_text = f"{prezzi_header}\n{prezzi_row}\n"
+
+    client = DummyClient(anag_text.encode("iso-8859-1"), prezzi_text.encode("iso-8859-1"))
+
+    settings = Settings()
+    settings.prezzi_cache_path = str(tmp_path / "prezzi_cache_named_missing.json")
+
+    params = StationSearchParams(latitude=LAT, longitude=LON, distance=10, fuel="benzina", results=5)
+
+    with pytest.raises(CSVSchemaError) as exc:
+        asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
+    assert "prezzi" in str(exc.value).lower() and "prezzo" in str(exc.value).lower()
+
+
+def test_named_anagrafica_missing_required_columns_raises(tmp_path):
+    """Named `anagrafica` header missing lat/lon should raise CSVSchemaError."""
+    from src.services.csv_parser import CSVSchemaError
+
+    # named header missing lat/lon
+    anag_header = "id|gestore|indirizzo"
+    anag_row = "123|GestoreX|Via Test"
+
+    prezzi_header = "col0|col1|col2|col3|col4"
+    prezzi_row = _make_prezzi_row("123", "benzina", "1,50", "1", datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M:%S"))
+
+    anag_text = f"{anag_header}\n{anag_row}\n"
+    prezzi_text = f"{prezzi_header}\n{prezzi_row}\n"
+
+    client = DummyClient(anag_text.encode("iso-8859-1"), prezzi_text.encode("iso-8859-1"))
+
+    settings = Settings()
+    settings.prezzi_cache_path = str(tmp_path / "prezzi_cache_named_missing_anag.json")
+
+    params = StationSearchParams(latitude=LAT, longitude=LON, distance=10, fuel="benzina", results=5)
+
+    with pytest.raises(CSVSchemaError):
+        asyncio.run(fetch_and_combine_csv_data(settings, cast("httpx.AsyncClient", client), params=params))
 
 
 def test_fetch_and_save_csvs_and_cleanup(tmp_path):

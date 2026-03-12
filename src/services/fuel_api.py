@@ -14,6 +14,7 @@ from src.models import (
     Station,
     StationSearchParams,
 )
+from src.services.csv_parser import CSVSchemaError
 from src.services.distance_utils import calculate_distance
 from src.services.prezzi_csv import fetch_and_combine_csv_data
 
@@ -50,6 +51,10 @@ async def fetch_gas_stations(
             "CSV gas station payload size: {}",
             len(payload) if payload else 0,
         )
+    except CSVSchemaError as err:
+        # Surface schema problems as a client-visible, testable 422
+        logger.error("CSV schema error: {}", err)
+        raise HTTPException(status_code=422, detail=str(err)) from err
     except Exception as err:
         logger.error("CSV fetch or parse error: {} - {}", type(err).__name__, err)
         logger.exception("Full traceback for CSV fetch error:")

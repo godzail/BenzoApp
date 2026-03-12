@@ -66,14 +66,14 @@ window.appStorageMixin = {
       const parsed = stored ? JSON.parse(stored) : [];
       // Deduplicate case-insensitively (city|radius|fuel) and preserve order (most-recent first)
       const seen = new Set<string>();
-      this.recentSearches = (Array.isArray(parsed) ? parsed : []).filter((s) => {
-        const key = `${(s.city || "").toString().trim().toLowerCase()}|${s.radius}|${(
-          s.fuel || ""
-        ).toString().trim().toLowerCase()}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+      this.recentSearches = (Array.isArray(parsed) ? parsed : []).filter(
+        (s) => {
+          const key = `${(s.city || "").toString().trim().toLowerCase()}|${s.radius}|${(s.fuel || "").toString().trim().toLowerCase()}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        },
+      );
     } catch {
       this.recentSearches = [];
     }
@@ -94,13 +94,20 @@ window.appStorageMixin = {
     const incomingCity = (search.city || "").toString().trim();
     const incomingFuel = (search.fuel || "").toString().trim();
     this.recentSearches = this.recentSearches.filter((s) => {
-      const sameCity = (s.city || "").toString().trim().toLowerCase() === incomingCity.toLowerCase();
-      const sameFuel = (s.fuel || "").toString().trim().toLowerCase() === incomingFuel.toLowerCase();
+      const sameCity =
+        (s.city || "").toString().trim().toLowerCase() ===
+        incomingCity.toLowerCase();
+      const sameFuel =
+        (s.fuel || "").toString().trim().toLowerCase() ===
+        incomingFuel.toLowerCase();
       return !(sameCity && s.radius === search.radius && sameFuel);
     });
 
     const entry = { ...search, timestamp: Date.now() };
-    this.recentSearches = [entry, ...this.recentSearches].slice(0, window.CONFIG.RECENT_SEARCHES_LIMIT);
+    this.recentSearches = [entry, ...this.recentSearches].slice(
+      0,
+      window.CONFIG.RECENT_SEARCHES_LIMIT,
+    );
     this.safeSetItem("recentSearches", JSON.stringify(this.recentSearches));
   },
 

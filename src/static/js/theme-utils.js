@@ -41,7 +41,8 @@ function updateThemeIcons(theme) {
     }
 }
 function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute("data-theme") || getSystemPreference();
+    const currentTheme = document.documentElement.getAttribute("data-theme") ||
+        getSystemPreference();
     const newTheme = currentTheme === "light" ? "dark" : "light";
     applyTheme(newTheme);
     setStoredTheme(newTheme);

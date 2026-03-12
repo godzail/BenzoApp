@@ -63,7 +63,10 @@ function createApp(): GasStationApp {
     // and headless environments behave predictably. System preference
     // changes are handled later by the ThemeManager listener when
     // there's no stored preference.
-    document.documentElement.setAttribute("data-theme", window.CONFIG.DEFAULT_THEME);
+    document.documentElement.setAttribute(
+      "data-theme",
+      window.CONFIG.DEFAULT_THEME,
+    );
     return window.CONFIG.DEFAULT_THEME;
   };
 

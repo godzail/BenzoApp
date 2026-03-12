@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import threading
 from pathlib import Path
 
 import httpx
@@ -15,12 +16,70 @@ from src.models import Settings
 # Global cache for geocoding results: city name -> location dict
 # maxsize=1000 items, ttl=86400 seconds (24 hours)
 geocoding_cache: TTLCache[str, dict[str, float]] = TTLCache(maxsize=1000, ttl=86400)
+_cache_lock = threading.Lock()
 
 # Rate limiter: semaphore to ensure max 1 request per second to Nominatim
 _rate_limiter = asyncio.Semaphore(1)
 
+# Maximum seconds we will respect from a Retry-After header (safety clamp)
+MAX_RETRY_AFTER_SECONDS = 60
+
+
+def _parse_retry_after_header(value: str | None) -> float | None:
+    """Parse a Retry-After header value into seconds.
+
+    Supports:
+    - integer seconds ("120")
+    - float seconds ("1.5")
+    - HTTP-date (RFC 1123/2822) strings ("Wed, 21 Oct 2015 07:28:00 GMT")
+
+    Returns the number of seconds to wait (>=0) or None if the header is
+    unparseable.
+    """
+    if not value:
+        return None
+    s = value.strip()
+    # Plain integer/float seconds
+    try:
+        return float(s)
+    except Exception:
+        pass
+
+    # Try parsing as an HTTP-date
+    try:
+        from email.utils import parsedate_to_datetime
+
+        dt = parsedate_to_datetime(s)
+        # parsedate_to_datetime may return naive datetime — treat as UTC
+        if dt.tzinfo is None:
+            from datetime import timezone
+
+            dt = dt.replace(tzinfo=timezone.utc)
+        from datetime import datetime, timezone
+
+        now = datetime.now(tz=timezone.utc)
+        delta = (dt - now).total_seconds()
+        return max(0.0, delta)
+    except Exception:
+        return None
+
+
 # In-memory local city coordinates loaded from a static JSON (if available)
 _LOCAL_CITY_COORDS: dict[str, dict[str, float]] | None = None
+_local_coords_lock = threading.Lock()
+
+
+def get_from_cache(key: str) -> dict[str, float] | None:
+    """Thread-safe get from geocoding cache."""
+    with _cache_lock:
+        return geocoding_cache.get(key)
+
+
+def set_in_cache(key: str, value: dict[str, float]) -> None:
+    """Thread-safe set in geocoding cache."""
+    with _cache_lock:
+        geocoding_cache[key] = value
+
 
 # Small alias mapping for common English/Italian city name pairs
 ALIASES: dict[str, str] = {"florence": "firenze", "firenze": "firenze"}
@@ -107,60 +166,68 @@ BUILTIN_ITALIAN_CITIES: dict[str, dict[str, float]] = {
 }
 
 
-def _load_local_city_coords(settings: Settings) -> dict[str, dict[str, float]]:  # noqa: PLR0912
+def _parse_cities_json(data: dict | list) -> dict[str, dict[str, float]]:
+    """Parse cities JSON data (dict or list format) into a normalized mapping."""
+    mapping: dict[str, dict[str, float]] = {}
+
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if isinstance(v, dict):
+                lat = v.get("latitude") or v.get("lat")
+                lon = v.get("longitude") or v.get("lon")
+                if lat is not None and lon is not None:
+                    mapping[k.strip().lower()] = {
+                        "latitude": float(lat),
+                        "longitude": float(lon),
+                    }
+    elif isinstance(data, list):
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            city = (item.get("city") or item.get("name") or item.get("nome") or "").strip().lower()
+            lat = item.get("lat") or item.get("latitude")
+            lon = item.get("lon") or item.get("longitude")
+            if city and lat is not None and lon is not None:
+                mapping[city] = {"latitude": float(lat), "longitude": float(lon)}
+
+    return mapping
+
+
+def _load_local_city_coords(settings: Settings) -> dict[str, dict[str, float]]:
     """Attempt to load a local cities.json file and normalize it to a mapping.
 
     Searches several candidate locations and caches the result in memory.
     Falls back to built-in Italian cities if no local file found.
     """
     global _LOCAL_CITY_COORDS  # noqa: PLW0603
-    if _LOCAL_CITY_COORDS is not None:
+
+    with _local_coords_lock:
+        if _LOCAL_CITY_COORDS is not None:
+            return _LOCAL_CITY_COORDS
+
+        candidates = []
+        try:
+            cache_parent = Path(settings.prezzi_cache_path).parent
+            candidates.append(cache_parent / "cities.json")
+        except Exception as e:  # Don't silently ignore
+            logger.debug("Could not determine cache parent from prezzi_cache_path: {}", e)
+        candidates.extend([Path("src/static/data/cities.json"), Path("data/cities.json")])
+
+        for p in candidates:
+            if p.exists():
+                try:
+                    with p.open("r", encoding="utf-8") as fh:
+                        data = json.load(fh)
+                    mapping = _parse_cities_json(data)
+                    _LOCAL_CITY_COORDS = mapping
+                    logger.debug("Loaded local city coords from {} (entries={})", p, len(mapping))
+                    return _LOCAL_CITY_COORDS  # noqa: TRY300
+                except Exception as exc:  # pragma: no cover - defensive file handling
+                    logger.debug("Failed to parse local cities file {}: {}", p, exc)
+
+        _LOCAL_CITY_COORDS = BUILTIN_ITALIAN_CITIES.copy()
+        logger.debug("Using built-in Italian cities fallback (entries={})", len(_LOCAL_CITY_COORDS))
         return _LOCAL_CITY_COORDS
-
-    candidates = []
-    try:
-        cache_parent = Path(settings.prezzi_cache_path).parent
-        candidates.append(cache_parent / "cities.json")
-    except Exception as e:  # Don't silently ignore
-        logger.debug("Could not determine cache parent from prezzi_cache_path: {}", e)
-    candidates.extend([Path("src/static/data/cities.json"), Path("data/cities.json")])
-
-    for p in candidates:
-        if p.exists():
-            try:
-                with p.open("r", encoding="utf-8") as fh:
-                    data = json.load(fh)
-                mapping: dict[str, dict[str, float]] = {}
-                if isinstance(data, dict):
-                    # Accept either {city: {latitude, longitude}} or list-like dict
-                    for k, v in data.items():
-                        if isinstance(v, dict):
-                            lat = v.get("latitude") or v.get("lat")
-                            lon = v.get("longitude") or v.get("lon")
-                            if lat is not None and lon is not None:
-                                mapping[k.strip().lower()] = {
-                                    "latitude": float(lat),
-                                    "longitude": float(lon),
-                                }
-                elif isinstance(data, list):
-                    for item in data:
-                        if not isinstance(item, dict):
-                            continue
-                        city = (item.get("city") or item.get("name") or item.get("nome") or "").strip().lower()
-                        lat = item.get("lat") or item.get("latitude")
-                        lon = item.get("lon") or item.get("longitude")
-                        if city and lat is not None and lon is not None:
-                            mapping[city] = {"latitude": float(lat), "longitude": float(lon)}
-                _LOCAL_CITY_COORDS = mapping
-                logger.debug("Loaded local city coords from {} (entries={})", p, len(mapping))
-                return _LOCAL_CITY_COORDS  # noqa: TRY300
-            except Exception as exc:  # pragma: no cover - defensive file handling
-                logger.debug("Failed to parse local cities file {}: {}", p, exc)
-
-    # Use built-in Italian cities as fallback
-    _LOCAL_CITY_COORDS = BUILTIN_ITALIAN_CITIES.copy()
-    logger.debug("Using built-in Italian cities fallback (entries={})", len(_LOCAL_CITY_COORDS))
-    return _LOCAL_CITY_COORDS
 
 
 def normalize_city_input(city: str) -> str:
@@ -198,9 +265,10 @@ async def geocode_city(
     """
     # Normalize city input and check cache first
     normalized_city = normalize_city_input(city)
-    if normalized_city in geocoding_cache:
+    cached_result = get_from_cache(normalized_city)
+    if cached_result is not None:
         logger.info("Found city '{}' in geocoding cache", normalized_city)
-        return geocoding_cache[normalized_city]
+        return cached_result
 
     # Rate limiting: acquire semaphore to ensure max 1 request per second
     async with _rate_limiter:
@@ -227,7 +295,7 @@ async def geocode_city(
                         "Using local fallback coordinates for '{}' because provider returned no results",
                         normalized_city,
                     )
-                    geocoding_cache[normalized_city] = coords
+                    set_in_cache(normalized_city, coords)
                     return coords
                 raise HTTPException(status_code=404, detail=f"City '{city}' not found")
 
@@ -251,12 +319,15 @@ async def geocode_city(
                 )
 
                 if retry_after:
-                    try:
-                        ra = int(retry_after)
-                        logger.debug("Sleeping for {} seconds per Retry-After header", ra)
-                        await asyncio.sleep(ra)
-                    except ValueError:  # pragma: no cover - defensive parsing
+                    # Parse Retry-After with support for integer seconds or HTTP-date strings
+                    wait_secs = _parse_retry_after_header(retry_after)
+                    if wait_secs is None:
                         logger.debug("Could not parse Retry-After header: {}", retry_after)
+                    else:
+                        # Clamp to prevent very long sleeps (safety)
+                        wait_secs = min(wait_secs, MAX_RETRY_AFTER_SECONDS)
+                        logger.debug("Sleeping for %s seconds per Retry-After header (clamped)", wait_secs)
+                        await asyncio.sleep(wait_secs)
 
                 # Try to find local city coordinates as a fallback
                 local_coords = _load_local_city_coords(settings)
@@ -266,7 +337,7 @@ async def geocode_city(
                         "Using local fallback coordinates for '{}' due to provider rate limit",
                         normalized_city,
                     )
-                    geocoding_cache[normalized_city] = coords
+                    set_in_cache(normalized_city, coords)
                     return coords
 
                 # Surface a 503 to the client (tenacity retries will still apply to outer attempts)
@@ -283,7 +354,7 @@ async def geocode_city(
                 logger.warning("Nominatim returned {} - trying Photon fallback", status)
                 try:
                     photon_response = await http_client.get(
-                        "https://photon.komoot.io/api/",
+                        settings.photon_api_url,
                         params={"q": normalized_city, "limit": 1},
                         headers={"User-Agent": settings.user_agent},
                     )
@@ -293,10 +364,11 @@ async def geocode_city(
                         location = photon_data["features"][0]["geometry"]["coordinates"]
                         result = {"longitude": float(location[0]), "latitude": float(location[1])}
                         logger.info("Successfully geocoded '{}' via Photon", normalized_city)
-                        geocoding_cache[normalized_city] = result
+                        set_in_cache(normalized_city, result)
                         return result
                 except Exception as photon_err:
                     logger.warning("Photon fallback also failed: {}", photon_err)
+                    logger.exception(photon_err)
 
             # Other HTTP errors — surface upstream
             logger.error(
@@ -318,7 +390,7 @@ async def geocode_city(
                     "Using local fallback coordinates for '{}' due to request error",
                     normalized_city,
                 )
-                geocoding_cache[normalized_city] = coords
+                set_in_cache(normalized_city, coords)
                 return coords
 
             raise HTTPException(
@@ -327,5 +399,5 @@ async def geocode_city(
             ) from err
         else:
             # Update cache only if request succeeded
-            geocoding_cache[normalized_city] = result
+            set_in_cache(normalized_city, result)
             return result

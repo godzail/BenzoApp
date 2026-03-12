@@ -29,6 +29,10 @@ test('updates title and recent searches when changing language', async ({ page }
   const fuelIt = await page.textContent('#fuel-benzina-text');
   expect(fuelIt?.trim()).toBe('Benzina');
 
+  // language buttons should reflect selected state (ARIA + visual)
+  expect(await page.getAttribute('#lang-it', 'aria-pressed')).toBe('true');
+  expect(await page.getAttribute('#lang-en', 'aria-pressed')).toBe('false');
+
   await page.click('button:has-text("EN")');
   await page.waitForTimeout(250);
 
@@ -43,4 +47,8 @@ test('updates title and recent searches when changing language', async ({ page }
   const tf = await page.evaluate(() => (window.translateFuel ? window.translateFuel('benzina') : null));
   expect(tf).toBe('Gasoline');
   expect(fuelEn?.trim()).toBe('Gasoline');
+
+  // ARIA state should update when language changes
+  expect(await page.getAttribute('#lang-en', 'aria-pressed')).toBe('true');
+  expect(await page.getAttribute('#lang-it', 'aria-pressed')).toBe('false');
 });

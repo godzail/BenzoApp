@@ -1,7 +1,5 @@
 """Tests for Gas Station Finder API using FastAPI TestClient."""
 
-import asyncio
-
 from fastapi.testclient import TestClient
 from starlette import status
 
@@ -38,6 +36,23 @@ def test_search_gas_stations_invalid_city(client: TestClient) -> None:
     # message may vary; ensure warning present
     assert "warning" in data
     assert isinstance(data["warning"], str)
+
+
+def test_search_surfaces_csv_schema_error(client: TestClient, monkeypatch) -> None:
+    """When upstream CSV parsing reports a schema error (422) surface that exact message to the client."""
+    from fastapi import HTTPException
+
+    def _raise_schema(_params, _settings, _http_client):
+        raise HTTPException(status_code=422, detail="CSV schema error (prezzi): missing required column 'prezzo'")
+
+    monkeypatch.setattr("src.services.fuel_api.fetch_gas_stations", _raise_schema)
+
+    payload = {"city": "Florence", "radius": 5, "fuel": "benzina", "results": 2}
+    response = client.post("/search", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["stations"] == []
+    assert data["warning"] == "CSV schema error (prezzi): missing required column 'prezzo'"
 
 
 def test_search_gas_stations_missing_field(client: TestClient) -> None:
@@ -80,7 +95,7 @@ def test_search_timeout_behavior(client: TestClient) -> None:
     # Monkeypatch the actual fetcher
     import src.services.fuel_api as _fa
 
-    _fa.fetch_gas_stations = _slow_fetch  # type: ignore[assignment]
+    _fa.fetch_gas_stations = _slow_fetch  # type: ignore[assignment] - Monkeypatching for testing timeout behavior
 
     payload = {"city": "Rome", "radius": 5, "fuel": "benzina", "results": 2}
     response = client.post("/search", json=payload)
@@ -112,7 +127,7 @@ async def _fake_save_csv_files(anag_text, prezzi_text, settings):
     return None
 
 
-def test_reload_csv_triggers_fetch_and_saves(client: TestClient, monkeypatch):
+def test_reload_csv_triggers_fetch_and_saves(client: TestClient, monkeypatch) -> None:
     """POST /api/reload-csv should trigger CSV fetch/parse/save flow and return success.
 
     The test monkeypatches network and file operations to make the endpoint deterministic
@@ -140,7 +155,7 @@ def test_reload_csv_triggers_fetch_and_saves(client: TestClient, monkeypatch):
     assert data.get("last_updated") == "2026-02-13T12:00:00+00:00"
 
 
-def test_startup_triggers_background_reload(monkeypatch):
+def test_startup_triggers_background_reload(monkeypatch) -> None:
     """When a fresh cache exists the app should schedule a background CSV reload."""
     import asyncio
 
@@ -184,11 +199,13 @@ def test_startup_triggers_background_reload(monkeypatch):
 
 async def _fake_fetch_and_combine_blocking(settings, http_client, params=None):
     # Keep task alive briefly to simulate work
+    import asyncio
+
     await asyncio.sleep(0.05)
     return []
 
 
-def test_startup_blocks_when_cache_missing(monkeypatch):
+def test_startup_blocks_when_cache_missing(monkeypatch) -> None:
     """If the on-disk cache is missing/stale the startup reload should block until complete."""
     import asyncio
 

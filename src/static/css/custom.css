@@ -129,6 +129,12 @@
     flex-shrink: 0;
   }
 
+  .lang-btn.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+
   /* Divider after search button */
   .search-divider {
     border-top-width: 1px;
@@ -506,4 +512,122 @@ details[open] .recent-searches-title::before {
 .chip.active.metano {
   background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
   border-color: transparent;
+}
+
+/* ── CSV Update Startup Popup ─────────────────────────────── */
+#csv-update-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}
+
+#csv-update-popup.hidden {
+  display: none;
+}
+
+#csv-update-popup.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.csv-popup-dialog {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 420px;
+  width: calc(100% - 2rem);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: slideIn 0.3s ease;
+}
+
+.csv-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.csv-popup-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(0, 200, 83, 0.15);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.csv-popup-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.csv-popup-body {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.csv-popup-status {
+  font-size: 0.8rem;
+  color: var(--color-primary);
+  min-height: 1.25em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.csv-popup-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-primary);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+.csv-popup-btn {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  background: var(--color-primary);
+  color: #002c18;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: inherit;
+}
+
+.csv-popup-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.csv-popup-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }

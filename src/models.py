@@ -155,6 +155,14 @@ class Settings(BaseSettings):
     # Timeout for interactive search requests (seconds)
     search_timeout_seconds: int = Field(12, description="Timeout in seconds for interactive search requests.")
 
+    # Geocoding configuration
+    photon_api_url: str = Field(
+        "https://photon.komoot.io/api/",
+        description="Photon geocoding fallback URL.",
+    )
+    geocoding_cache_maxsize: int = Field(1000, description="Max geocoding cache entries.")
+    geocoding_cache_ttl_seconds: int = Field(86400, description="Geocoding cache TTL in seconds.")
+
 
 class SearchRequest(BaseModel):
     """Represents a search request for gas stations."""
@@ -233,11 +241,6 @@ class Station(BaseModel):
     def __str__(self) -> str:
         """Return a string representation of the station."""
         return f"{self.address} - {', '.join(str(fp) for fp in self.fuel_prices)}"
-
-
-# Map configuration
-MAX_ZOOM_LEVEL = 14  # Maximum zoom level for map tiles
-MAP_PADDING_PX = 50  # Padding around map bounds when fitting stations
 
 
 class SearchResponse(BaseModel):
