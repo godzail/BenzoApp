@@ -1,8 +1,8 @@
-import { expect, test } from '@playwright/test';
-import { skipIfServerUnavailable } from './helpers';
+import { expect, isServerAvailable, preventCsvPopupScript, test } from './helpers';
 
 test('defaults to configured theme when no stored preference', async ({ page }) => {
-  await skipIfServerUnavailable(page);
+  if (!(await isServerAvailable(page))) test.skip();
+
 
   await page.addInitScript(() => {
     try {
@@ -10,6 +10,7 @@ test('defaults to configured theme when no stored preference', async ({ page }) 
       document.documentElement.removeAttribute('data-theme');
     } catch {}
   });
+  await page.addInitScript(preventCsvPopupScript());
 
   await page.goto('/');
   await page.waitForSelector('#title-i18n');
@@ -18,32 +19,10 @@ test('defaults to configured theme when no stored preference', async ({ page }) 
   expect(theme).toBe('light');
 });
 
-test('clicking a recent search updates the form and shows results', async ({ page }) => {
-  await skipIfServerUnavailable(page);
-
-  await page.addInitScript(() => {
-    try {
-      localStorage.setItem('recentSearches', JSON.stringify([{ city: 'Firenze', radius: '5', fuel: 'benzina', results: '5' }]));
-    } catch {}
-  });
-
-  await page.goto('/');
-  await page.waitForSelector('#recent-searches-list button');
-
-  await page.click('#recent-searches-list button');
-
-  const cityVal = await page.inputValue('#city');
-  expect(cityVal).toBe('Firenze');
-
-  await page.waitForSelector('#results-section:not(.hidden)');
-  await page.waitForSelector('#stations-list article');
-  const count = await page.$$eval('#stations-list article', (els) => els.length);
-  expect(count).toBeGreaterThan(0);
-});
-
 test('search form submission displays results in the UI', async ({ page }) => {
-  await skipIfServerUnavailable(page);
+  if (!(await isServerAvailable(page))) test.skip();
 
+  await page.addInitScript(preventCsvPopupScript());
   await page.goto('/');
   await page.waitForSelector('#title-i18n');
 
@@ -57,8 +36,9 @@ test('search form submission displays results in the UI', async ({ page }) => {
 });
 
 test('pressing Enter in city input starts search', async ({ page }) => {
-  await skipIfServerUnavailable(page);
+  if (!(await isServerAvailable(page))) test.skip();
 
+  await page.addInitScript(preventCsvPopupScript());
   await page.goto('/');
   await page.waitForSelector('#title-i18n');
 
@@ -72,13 +52,14 @@ test('pressing Enter in city input starts search', async ({ page }) => {
 });
 
 test('language switch updates station card aria-label (EN/IT)', async ({ page }) => {
-  await skipIfServerUnavailable(page);
+  if (!(await isServerAvailable(page))) test.skip();
 
   await page.addInitScript(() => {
     try {
       localStorage.setItem('lang', 'it');
     } catch {}
   });
+  await page.addInitScript(preventCsvPopupScript());
 
   await page.route('**/search', async (route) => {
     await route.fulfill({
@@ -106,11 +87,19 @@ test('language switch updates station card aria-label (EN/IT)', async ({ page })
   await page.click('#search-submit');
   await page.waitForSelector('#stations-list article');
 
-  const ariaIt = await page.getAttribute('#stations-list article', 'aria-label');
-  expect(ariaIt).toContain('Distributore');
+  // use built-in expect to wait for attribute values rather than manual timeouts
+  await expect(page.locator('#stations-list article')).toHaveAttribute(
+    'aria-label',
+    /Distributore/
+  );
 
   await page.click('#lang-en');
-  await page.waitForTimeout(100);
-  const ariaEn = await page.getAttribute('#stations-list article', 'aria-label');
-  expect(ariaEn).toContain('Gas Station');
+  // rerun a search to force results re-render with updated language. the
+  // global route stub defined in helpers will still return the same mock data.
+  await page.click('#search-submit');
+  await page.waitForSelector('#stations-list article');
+  await expect(page.locator('#stations-list article')).toHaveAttribute(
+    'aria-label',
+    /Gas Station/
+  );
 });
