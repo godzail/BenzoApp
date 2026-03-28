@@ -1,14 +1,5 @@
 /* Custom CSS - Animations, Third-party overrides, and Layout styles */
 
-:root {
-  --color-primary: #00c853;
-  --color-primary-hover: #00b14a;
-}
-
-[data-theme="light"] {
-  --color-primary-hover: #00a63f;
-}
-
 /* Header content for desktop */
 .header-content {
   max-width: 1600px;
@@ -91,16 +82,46 @@
 
 .lang-btn.active {
   background: var(--color-primary);
-  color: white;
+  color: #002c18;
   border-color: var(--color-primary);
 }
 
+/* Station Card - Selected State (Accent Border) */
 .station-card.selected {
   border-color: var(--color-primary);
+  border-left: 4px solid var(--color-primary);
   box-shadow:
-    0 0 0 2px var(--color-primary),
-    0 10px 15px rgba(0, 0, 0, 0.5);
+    var(--shadow-card),
+    0 0 20px rgba(249, 115, 22, 0.15);
   transform: translateY(-2px);
+  background: linear-gradient(
+    90deg,
+    rgba(249, 115, 22, 0.05) 0%,
+    var(--bg-surface) 20%
+  );
+}
+
+/* Station Card - Hover State (exclude selected) */
+.station-card:hover:not(.selected) {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--color-primary-light);
+}
+
+/* Station Card - Focus State (Keyboard Navigation) */
+.station-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 4px rgba(249, 115, 22, 0.2),
+    var(--shadow-md);
+}
+
+/* Station Card - Responsive Padding */
+@media (min-width: 640px) {
+  .station-card {
+    padding: 2rem;
+  }
 }
 
 /* Mobile layout adjustments */
@@ -202,6 +223,22 @@
   }
 }
 
+/* Best Price Badge - Entrance Animation */
+@keyframes badge-entrance {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.best-price-badge {
+  animation: badge-entrance 0.4s ease-out;
+}
+
 @keyframes pulse-ring {
   0% {
     transform: translate(-50%, -50%) scale(0.5);
@@ -237,10 +274,10 @@
 @keyframes pulse-badge {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7);
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.6);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(0, 200, 83, 0);
+    box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
   }
 }
 
@@ -250,14 +287,80 @@
   }
 }
 
+/* Card entrance animation */
+@keyframes card-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.station-card {
+  animation: card-entrance 0.3s ease-out;
+}
+
 /* Range slider styling */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   height: 6px;
   border-radius: 9999px;
-  background: var(--border-color);
+  background: var(--bg-elevated);
   outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  box-shadow:
+    var(--shadow-md),
+    0 0 0 3px var(--bg-surface);
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow:
+    var(--shadow-lg),
+    0 0 0 4px var(--bg-surface);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  box-shadow:
+    var(--shadow-md),
+    0 0 0 3px var(--bg-surface);
+  border: none;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  box-shadow:
+    var(--shadow-lg),
+    0 0 0 4px var(--bg-surface);
+}
+
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -268,12 +371,19 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   background: var(--color-primary);
   cursor: pointer;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
-  transition: transform 0.15s ease;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 0 0 3px var(--bg-surface);
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
+  transform: scale(1.2);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 0 0 4px var(--bg-surface);
 }
 
 input[type="range"]::-moz-range-thumb {
@@ -282,9 +392,20 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 50%;
   background: var(--color-primary);
   cursor: pointer;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 0 0 3px var(--bg-surface);
   border: none;
-  transition: transform 0.15s ease;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.2);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 0 0 4px var(--bg-surface);
 }
 
 input[type="range"]:focus-visible {
@@ -348,14 +469,15 @@ input[type="range"]:focus-visible {
 
 .leaflet-popup-content-wrapper {
   background: var(--bg-surface);
-  border-radius: 12px;
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5);
+  border-radius: 16px;
+  box-shadow: var(--shadow-xl);
   border: 1px solid var(--border-color);
 }
 
 .leaflet-popup-content {
   color: var(--text-primary);
   margin: 16px;
+  font-family: inherit;
 }
 
 .leaflet-popup-tip {
@@ -383,29 +505,26 @@ summary::after {
   transition: transform 0.15s ease;
 }
 
-/* Chip ripple effect */
-.chip.active::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  transform: translate(-50%, -50%);
-  transition:
-    width 0.6s,
-    height 0.6s;
-  pointer-events: none;
+/* Chip base styles - Floating Pills Design */
+.chip {
+  position: relative;
+  padding: 0.625rem 1.25rem;
+  border-radius: 9999px;
+  border: 1.5px solid var(--chip-border);
+  background: var(--chip-bg);
+  color: var(--chip-color);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
 }
 
-.chip.active:active::after {
-  width: 200px;
-  height: 200px;
-  transition:
-    width 0s,
-    height 0s;
+/* Chip hover state for inactive chips */
+.chip:not(.active):hover {
+  border-color: var(--chip-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 /* Remove default disclosure triangle */
@@ -479,13 +598,6 @@ details[open] .recent-searches-title::before {
   --chip-border: rgba(33, 150, 243, 0.4);
 }
 
-/* Inactive chip styles */
-.chip:not(.active) {
-  background: var(--chip-bg);
-  border-color: var(--chip-border);
-  color: var(--chip-color);
-}
-
 /* Focus visible for accessibility */
 .chip:focus-visible {
   outline: 3px solid var(--chip-color);
@@ -501,25 +613,67 @@ details[open] .recent-searches-title::before {
     0 0 0 3px var(--chip-color);
 }
 
-/* Fuel chip active gradient backgrounds */
+/* Fuel chip active state - Translucent with glowing bottom border */
+.chip.active {
+  background: var(--chip-bg);
+  border-color: var(--chip-color);
+  transform: scale(1.02);
+}
+
 .chip.active.benzina {
-  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-  border-color: transparent;
+  --chip-glow: rgba(234, 88, 12, 0.25);
+  box-shadow:
+    0 4px 16px var(--chip-glow),
+    inset 0 -2px 0 var(--chip-color);
 }
 
 .chip.active.gasolio {
-  background: linear-gradient(135deg, #607d8b 0%, #546e7a 100%);
-  border-color: transparent;
+  --chip-glow: rgba(71, 85, 105, 0.25);
+  box-shadow:
+    0 4px 16px var(--chip-glow),
+    inset 0 -2px 0 var(--chip-color);
 }
 
 .chip.active.GPL {
-  background: linear-gradient(135deg, #ff5722 0%, #e64a19 100%);
-  border-color: transparent;
+  --chip-glow: rgba(220, 38, 38, 0.25);
+  box-shadow:
+    0 4px 16px var(--chip-glow),
+    inset 0 -2px 0 var(--chip-color);
 }
 
 .chip.active.metano {
-  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
-  border-color: transparent;
+  --chip-glow: rgba(3, 105, 161, 0.25);
+  box-shadow:
+    0 4px 16px var(--chip-glow),
+    inset 0 -2px 0 var(--chip-color);
+}
+
+.chip.active.benzina {
+  --chip-glow: rgba(255, 152, 0, 0.3);
+  box-shadow:
+    0 4px 16px var(--chip-glow),
+    inset 0 -2px 0 var(--chip-color);
+}
+
+.chip.active.gasolio {
+  --chip-glow: rgba(120, 144, 156, 0.3);
+  box-shadow:
+    0 4px 16px var(--chip-glow),
+    inset 0 -2px 0 var(--chip-color);
+}
+
+.chip.active.GPL {
+  --chip-glow: rgba(255, 87, 34, 0.3);
+  box-shadow:
+    0 4px 16px var(--chip-glow),
+    inset 0 -2px 0 var(--chip-color);
+}
+
+.chip.active.metano {
+  --chip-glow: rgba(66, 165, 245, 0.3);
+  box-shadow:
+    0 4px 16px var(--chip-glow),
+    inset 0 -2px 0 var(--chip-color);
 }
 
 /* ── CSV Update Startup Popup ─────────────────────────────── */
@@ -568,7 +722,7 @@ details[open] .recent-searches-title::before {
 .csv-popup-icon {
   width: 48px;
   height: 48px;
-  background: rgba(0, 200, 83, 0.15);
+  background: rgba(249, 115, 22, 0.15);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -612,16 +766,20 @@ details[open] .recent-searches-title::before {
 .csv-popup-btn {
   width: 100%;
   padding: 0.75rem 1.5rem;
-  background: var(--color-primary);
-  color: #002c18;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary) 0%,
+    var(--color-primary-hover) 100%
+  );
+  color: #fff;
   font-weight: 700;
   font-size: 0.95rem;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   cursor: pointer;
   transition:
-    background 0.15s ease,
-    transform 0.1s ease;
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -630,8 +788,8 @@ details[open] .recent-searches-title::before {
 }
 
 .csv-popup-btn:hover:not(:disabled) {
-  background: var(--color-primary-hover);
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
 }
 
 .csv-popup-btn:disabled {

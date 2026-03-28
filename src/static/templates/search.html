@@ -22,15 +22,11 @@
   </details>
 </div>
 
-<!-- Fuel Type Chips -->
-<div
-  class="fuel-chips flex gap-1 mb-6 flex-wrap p-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-xl shadow-inner"
-  role="group"
-  aria-label="Seleziona tipo di carburante"
->
+<!-- Fuel Type Chips - Floating Pills -->
+<div class="fuel-chips flex gap-3 mb-6 flex-wrap" role="group" aria-label="Seleziona tipo di carburante">
   <button
-    id="fuel-benzina"
-    class="chip benzina flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
+    id="fuel-metano"
+    class="chip metano flex-1 min-w-24 justify-center inline-flex items-center gap-2 rounded-xl px-4 py-3"
     type="button"
   >
     <svg
@@ -50,7 +46,7 @@
   </button>
   <button
     id="fuel-gasolio"
-    class="chip gasolio flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
+    class="chip gasolio flex-1 min-w-24 justify-center inline-flex items-center gap-2 rounded-xl px-4 py-3"
     type="button"
   >
     <svg
@@ -68,11 +64,7 @@
     </svg>
     <span id="fuel-gasolio-text">Gasolio</span>
   </button>
-  <button
-    id="fuel-GPL"
-    class="chip GPL flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
-    type="button"
-  >
+  <button id="fuel-GPL" class="chip GPL flex-1 min-w-24 justify-center inline-flex items-center gap-1" type="button">
     <svg
       aria-hidden="true"
       width="14"
@@ -88,8 +80,8 @@
     <span id="fuel-GPL-text">GPL</span>
   </button>
   <button
-    id="fuel-metano"
-    class="chip metano flex-1 min-w-24 justify-center relative overflow-hidden inline-flex items-center gap-1 bg-transparent border-2 border-transparent rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-250"
+    id="fuel-GPL"
+    class="chip GPL flex-1 min-w-24 justify-center inline-flex items-center gap-2 rounded-xl px-4 py-3"
     type="button"
   >
     <svg
@@ -119,7 +111,7 @@
   <div class="search-settings-grid grid gap-4 mt-4">
     <!-- Radius Slider -->
     <div class="radius-control flex items-center gap-4 p-4 bg-[var(--bg-elevated)] rounded-xl">
-      <span class="text-sm font-medium text-[var(--text-secondary)] whitespace-nowrap" id="radius-label"></span>
+      <span class="text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap" id="radius-label"></span>
       <input
         type="range"
         id="radius-slider"
@@ -134,7 +126,7 @@
 
     <!-- Max Results Slider -->
     <div class="radius-control flex items-center gap-4 p-4 bg-[var(--bg-elevated)] rounded-xl">
-      <span class="text-sm font-medium text-[var(--text-secondary)] whitespace-nowrap" id="results-label"></span>
+      <span class="text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap" id="results-label"></span>
       <input
         type="range"
         id="results-slider"
@@ -151,7 +143,7 @@
   <!-- Submit Button -->
   <button
     id="search-submit"
-    class="btn btn-primary w-full mt-4 bg-[var(--color-primary)] text-white border-none rounded-lg py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center gap-1 disabled:opacity-70 disabled:cursor-not-allowed"
+    class="btn btn-primary w-full mt-4 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white border-none rounded-xl py-3 px-4 text-sm font-semibold cursor-pointer transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:-translate-y-0.5"
     type="submit"
   >
     <span id="search-btn-text"></span>

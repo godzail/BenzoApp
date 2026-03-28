@@ -1,7 +1,7 @@
 <div id="results" aria-live="polite">
   <!-- Skeleton loader -->
   <div id="skeleton-loader" class="hidden flex flex-col gap-4">
-    <div class="skeleton-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-6">
+    <div class="skeleton-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-6">
       <div class="skeleton-header flex items-center gap-4 mb-4">
         <div class="skeleton-avatar w-10 h-10 rounded-lg animate-shimmer"></div>
         <div class="skeleton-title flex-1 h-4 rounded animate-shimmer"></div>
@@ -11,9 +11,9 @@
         <div class="h-3 rounded animate-shimmer w-3/5"></div>
       </div>
     </div>
-    <div class="skeleton-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-6">
+    <div class="skeleton-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-6">
       <div class="skeleton-header flex items-center gap-4 mb-4">
-        <div class="skeleton-avatar w-10 h-10 rounded-lg animate-shimmer"></div>
+        <div class="skeleton-avatar w-10 h-10 rounded-xl animate-shimmer"></div>
         <div class="skeleton-title flex-1 h-4 rounded animate-shimmer"></div>
       </div>
       <div class="skeleton-body">
@@ -21,7 +21,7 @@
         <div class="h-3 rounded animate-shimmer w-3/5"></div>
       </div>
     </div>
-    <div class="skeleton-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-6">
+    <div class="skeleton-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-6">
       <div class="skeleton-header flex items-center gap-4 mb-4">
         <div class="skeleton-avatar w-10 h-10 rounded-lg animate-shimmer"></div>
         <div class="skeleton-title flex-1 h-4 rounded animate-shimmer"></div>
@@ -36,17 +36,18 @@
   <!-- Empty state -->
   <div
     id="empty-state"
-    class="hidden text-center p-8 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl"
+    class="hidden text-center py-12 px-8 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl"
   >
-    <div class="empty-icon text-6xl text-[var(--border-color)] mb-6">
+    <div class="empty-icon w-20 h-20 mx-auto mb-6 rounded-2xl bg-[var(--bg-elevated)] flex items-center justify-center">
       <svg
         aria-hidden="true"
-        width="64"
-        height="64"
+        width="40"
+        height="40"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
         stroke-width="1.5"
+        class="text-[var(--text-muted)]"
       >
         <circle cx="11" cy="11" r="8"></circle>
         <path d="m21 21-4.35-4.35"></path>
@@ -54,8 +55,14 @@
         <line x1="14" y1="8" x2="8" y2="14"></line>
       </svg>
     </div>
-    <p class="empty-message text-lg text-[var(--text-primary)] mb-2" id="no-results-i18n" data-i18n="no_results"></p>
-    <p class="empty-suggestion text-base text-[var(--text-muted)]">Try adjusting your search radius or fuel type</p>
+    <h3
+      class="empty-message text-lg font-semibold text-[var(--text-primary)] mb-2"
+      id="no-results-i18n"
+      data-i18n="no_results"
+    ></h3>
+    <p class="empty-suggestion text-sm text-[var(--text-muted)] max-w-xs mx-auto">
+      Try adjusting your search radius or selecting a different fuel type
+    </p>
   </div>
 
   <!-- Results -->
@@ -63,29 +70,33 @@
     <h2 id="results-heading" class="sr-only" data-i18n="results_heading"></h2>
     <!-- Include translateFuel reference for template-level checks (hidden) -->
     <span class="sr-only" id="translateFuel-sample">translateFuel('benzina')</span>
-    <div id="stations-list" class="flex flex-col gap-2"></div>
+    <div id="stations-list" class="flex flex-col gap-3"></div>
   </section>
 
   <!-- Error Message -->
   <div
     id="error-message"
-    class="hidden flex items-center bg-red-500/10 text-red-500 p-4 rounded-xl border border-red-500/20 mt-4 font-medium"
+    class="hidden flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 mt-4"
     role="alert"
   >
-    <svg
-      aria-hidden="true"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      class="mr-2"
-    >
-      <circle cx="12" cy="12" r="10"></circle>
-      <line x1="12" y1="8" x2="12" y2="12"></line>
-      <line x1="12" y1="16" x2="12.01" y2="16"></line>
-    </svg>
-    <span id="error-text"></span>
+    <div class="error-icon w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center flex-shrink-0">
+      <svg
+        aria-hidden="true"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        class="text-red-500"
+      >
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+    </div>
+    <div>
+      <p class="text-sm font-medium text-red-500" id="error-text"></p>
+    </div>
   </div>
 </div>

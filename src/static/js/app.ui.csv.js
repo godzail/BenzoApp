@@ -10,13 +10,13 @@ Object.assign(window.appUiMixin, {
      */
     async fetchCsvStatus() {
         this.csvStatusLoading = true;
-        const prev = !!this.csvRemoteReloadInProgress;
+        const prev = Boolean(this.csvRemoteReloadInProgress);
         try {
             const response = await fetch(window.CONFIG.CSV_STATUS_ENDPOINT);
             if (!response.ok)
                 throw new Error(`HTTP error! status: ${response.status}`);
             const status = (await response.json());
-            this.csvRemoteReloadInProgress = !!status.reload_in_progress;
+            this.csvRemoteReloadInProgress = Boolean(status.reload_in_progress);
             // ensure the reload button UI reflects remote reload-in-progress state
             this.updateReloadButtonUI?.();
             if (prev && !this.csvRemoteReloadInProgress) {
@@ -102,7 +102,7 @@ Object.assign(window.appUiMixin, {
         const reloadSpinner = document.getElementById("reload-spinner");
         if (!reloadBtn)
             return;
-        const inProgress = this.csvReloading || !!this.csvRemoteReloadInProgress;
+        const inProgress = this.csvReloading || Boolean(this.csvRemoteReloadInProgress);
         reloadBtn.disabled = inProgress;
         if (reloadIcon)
             reloadIcon.classList.toggle("hidden", inProgress);

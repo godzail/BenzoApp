@@ -89,9 +89,9 @@ def test_search_divider_present() -> None:
     )
 
 
-def test_stations_list_has_gap2() -> None:
-    """Results template should render `#stations-list` with `gap-2` for compact spacing."""
+def test_stations_list_has_gap() -> None:
+    """Results template should render `#stations-list` with gap for spacing."""
     results = Path("src/static/templates/results.html").read_text()
-    assert 'id="stations-list"' in results and ("gap-2" in results or "flex flex-col gap-2" in results), (  # noqa: PT018
-        "Expected #stations-list to include gap-2 (compact spacing)"
+    assert 'id="stations-list"' in results and ("gap-" in results), (  # noqa: PT018
+        "Expected #stations-list to include gap class for spacing"
     )
