@@ -1,62 +1,94 @@
 /* Theme Variables - Used by Tailwind dark: variants and inline styles */
 :root {
-  /* Primary Accent */
-  --color-primary: #00c853;
-  --color-primary-light: #b9f6ca;
-  --color-primary-hover: #00b14a;
+  /* Primary Accent - Warm Orange */
+  --color-primary: #f97316;
+  --color-primary-light: #fed7aa;
+  --color-primary-hover: #ea580c;
+  --color-primary-dark: #c2410c;
 
-  /* Dark Theme (Default) */
-  --bg-primary: #0a0a0f;
-  --bg-surface: #141419;
-  --bg-elevated: #1e1e24;
-  --border-color: #2a2a35;
-  --text-primary: #ffffff;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
+  /* Dark Theme - Warm Stone Tones */
+  --bg-primary: #1c1917; /* stone-900 */
+  --bg-surface: #292524; /* stone-800 */
+  --bg-elevated: #44403c; /* stone-700 */
+  --border-color: #57534e; /* stone-600 */
+  --text-primary: #fafaf9; /* stone-50 */
+  --text-secondary: #a8a29e; /* stone-400 */
+  --text-muted: #78716c; /* stone-500 */
+
+  /* Design Tokens - Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Design Tokens - Shadows */
+  --shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.05);
+  --shadow-md:
+    0 4px 6px -1px rgba(28, 25, 23, 0.08), 0 2px 4px -2px rgba(28, 25, 23, 0.05);
+  --shadow-lg:
+    0 10px 15px -3px rgba(28, 25, 23, 0.08),
+    0 4px 6px -4px rgba(28, 25, 23, 0.05);
+  --shadow-xl:
+    0 20px 25px -5px rgba(28, 25, 23, 0.1),
+    0 8px 10px -6px rgba(28, 25, 23, 0.05);
+  --shadow-card: 0 4px 12px rgba(249, 115, 22, 0.08);
+
+  /* Design Tokens - Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
 }
 
-/* Light Theme */
+/* Light Theme - Warm Tones */
 [data-theme="light"] {
-  --bg-primary: #f8fafc;
+  --bg-primary: #fefce8; /* warm-50 */
   --bg-surface: #ffffff;
-  --bg-elevated: #f1f5f9;
-  --border-color: #e2e8f0;
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-  --color-primary-hover: #00a63f;
+  --bg-elevated: #f5f5f4; /* stone-100 */
+  --border-color: #e7e5e4; /* stone-200 */
+  --text-primary: #1c1917; /* stone-900 */
+  --text-secondary: #78716c; /* stone-500 */
+  --text-muted: #a8a29e; /* stone-400 */
+  --color-primary-hover: #ea580c;
 }
 
-/* Fuel Type Colors - Used for dynamic inline styles */
+/* Fuel Type Colors - Warm Updates */
 :root {
-  --fuel-benzina-color: #ff9800;
-  --fuel-gasolio-color: #78909c;
-  --fuel-gpl-color: #ff5722;
-  --fuel-metano-color: #42a5f5;
+  --fuel-benzina-color: #ea580c;
+  --fuel-gasolio-color: #475569;
+  --fuel-gpl-color: #dc2626;
+  --fuel-metano-color: #0369a1;
 }
 
 [data-theme="light"] {
   --fuel-benzina-color: #e65100;
-  --fuel-gasolio-color: #455a64;
-  --fuel-gpl-color: #d84315;
-  --fuel-metano-color: #1565c0;
+  --fuel-gasolio-color: #334155;
+  --fuel-gpl-color: #b91c1c;
+  --fuel-metano-color: #0369a1;
 }
 
-/* Glass Morphism - For header backdrop */
+/* Glass Morphism - Warm Tones */
 :root {
-  --glass-bg: rgba(20, 20, 25, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(41, 37, 36, 0.85);
+  --glass-border: rgba(250, 250, 249, 0.08);
 }
 
 [data-theme="light"] {
   --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(0, 0, 0, 0.1);
+  --glass-border: rgba(28, 25, 23, 0.08);
+}
+
+[data-theme="light"] {
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.08);
 }
 
 /* Accessibility: Focus visible */
 *:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15);
 }
 
 button:focus:not(:focus-visible),
@@ -89,6 +121,23 @@ input:focus:not(:focus-visible) {
   }
 }
 
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Text selection */
+::selection {
+  background: rgba(249, 115, 22, 0.2);
+  color: inherit;
+}
+
 /* High Contrast Mode */
 @media (prefers-contrast: high) {
   :root {
@@ -112,13 +161,17 @@ input:focus:not(:focus-visible) {
   top: -40px;
   left: 6px;
   background: var(--color-primary);
-  color: white;
+  color: #fff;
   padding: 8px 16px;
   text-decoration: none;
-  border-radius: 8px;
+  border-radius: 10px;
   z-index: 10001;
   font-weight: 600;
-  transition: top 0.15s ease;
+  transition: top var(--transition-fast);
+}
+
+.skip-link:focus {
+  top: 10px;
 }
 
 .skip-link:focus {

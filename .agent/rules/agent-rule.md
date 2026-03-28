@@ -2,4 +2,4 @@
 trigger: always_on
 ---
 
-follow agents.md in root folder workspace
+MANDATORY: always read and follow rules in `agents.md` in root folder workspace.

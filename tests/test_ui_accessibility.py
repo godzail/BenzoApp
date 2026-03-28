@@ -103,7 +103,7 @@ MIN_CONTRAST_THRESHOLD = 2.0
 
 def test_primary_color_contrast_possible():
     """Test that primary color has minimum contrast for visibility."""
-    color_primary = parse_css_variable(CUSTOM_CSS, "color-primary")
+    color_primary = parse_css_variable(BASE_CSS, "color-primary")
     color_primary_hex = parse_hex_string(color_primary)
     primary_rgb = hex_to_rgb(color_primary_hex)
 
