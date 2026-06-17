@@ -44,7 +44,7 @@ function t(key: string, fallback = ""): string {
 window.setLang = (lang: SupportedLang): void => {
   const app = window.gasStationApp;
   if (app?.debugMode) {
-    console.log("[DEBUG] i18next.changeLanguage called with lang:", lang);
+    console.debug("[DEBUG] i18next.changeLanguage called with lang:", lang);
   }
 
   if (typeof i18next !== "undefined" && i18next.reloadResources) {

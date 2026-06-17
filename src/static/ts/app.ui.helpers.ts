@@ -38,7 +38,7 @@ Object.assign(window.appUiMixin, {
 
   /** Debug logger (no-op when debugMode is false) */
   debug(message: string, data: unknown = null): void {
-    if (this.debugMode) console.log("[DEBUG]", message, data ?? "");
+    if (this.debugMode) console.debug("[DEBUG]", message, data ?? "");
   },
 
   safeGetItem(key: string): string | null {

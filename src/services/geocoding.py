@@ -5,6 +5,7 @@ import json
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, Protocol
 
 import httpx
 from cachetools import TTLCache
@@ -24,6 +25,19 @@ _rate_limiter = asyncio.Semaphore(1)
 
 # Maximum seconds we will respect from a Retry-After header (safety clamp)
 MAX_RETRY_AFTER_SECONDS = 60
+
+
+class AsyncGeocodingClient(Protocol):
+    """Minimal async HTTP client interface used by geocoding."""
+
+    async def get(
+        self,
+        url: str,
+        *,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> Any:
+        """Send a GET request and return a response-like object."""
 
 
 def _parse_retry_after_header(value: str | None) -> float | None:
@@ -228,6 +242,52 @@ def _load_local_city_coords(settings: Settings) -> dict[str, dict[str, float]]:
         return _LOCAL_CITY_COORDS
 
 
+def _get_local_city_coords(settings: Settings, normalized_city: str) -> dict[str, float] | None:
+    """Return local fallback coordinates for a normalized city, if available."""
+    local_coords = _load_local_city_coords(settings)
+    return local_coords.get(normalized_city)
+
+
+async def _sleep_for_retry_after(retry_after: str | None) -> None:
+    """Sleep for a bounded Retry-After duration when the header is parseable."""
+    if not retry_after:
+        return
+
+    wait_secs = _parse_retry_after_header(retry_after)
+    if wait_secs is None:
+        logger.debug("Could not parse Retry-After header: {}", retry_after)
+        return
+
+    wait_secs = min(wait_secs, MAX_RETRY_AFTER_SECONDS)
+    logger.debug("Sleeping for {} seconds per Retry-After header (clamped)", wait_secs)
+    await asyncio.sleep(wait_secs)
+
+
+async def _geocode_with_photon(
+    normalized_city: str,
+    settings: Settings,
+    http_client: AsyncGeocodingClient,
+) -> dict[str, float] | None:
+    """Try Photon as a fallback geocoding provider."""
+    try:
+        photon_response = await http_client.get(
+            settings.photon_api_url,
+            params={"q": normalized_city, "limit": 1},
+            headers={"User-Agent": settings.user_agent},
+        )
+        photon_response.raise_for_status()
+        photon_data = photon_response.json()
+        if photon_data.get("features"):
+            location = photon_data["features"][0]["geometry"]["coordinates"]
+            result = {"longitude": float(location[0]), "latitude": float(location[1])}
+            logger.info("Successfully geocoded '{}' via Photon", normalized_city)
+            return result
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as photon_err:
+        logger.warning("Photon fallback also failed: {}", photon_err)
+        logger.exception(photon_err)
+    return None
+
+
 def normalize_city_input(city: str) -> str:
     """Normalize city input for cache keys and geocoding queries.
 
@@ -242,10 +302,10 @@ def normalize_city_input(city: str) -> str:
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
-async def geocode_city(  # noqa: C901, PLR0912, PLR0915
+async def geocode_city(
     city: str,
     settings: Settings,
-    http_client: httpx.AsyncClient,
+    http_client: AsyncGeocodingClient,
 ) -> dict[str, float]:
     """Geocode a city name to latitude and longitude using OpenStreetMap Nominatim.
 
@@ -286,9 +346,8 @@ async def geocode_city(  # noqa: C901, PLR0912, PLR0915
             response.raise_for_status()
             data = response.json()
             if not data:
-                local_coords = _load_local_city_coords(settings)
-                if normalized_city in local_coords:
-                    coords = local_coords[normalized_city]
+                coords = _get_local_city_coords(settings, normalized_city)
+                if coords is not None:
                     logger.warning(
                         "Using local fallback coordinates for '{}' because provider returned no results",
                         normalized_city,
@@ -316,21 +375,11 @@ async def geocode_city(  # noqa: C901, PLR0912, PLR0915
                     retry_after,
                 )
 
-                if retry_after:
-                    # Parse Retry-After with support for integer seconds or HTTP-date strings
-                    wait_secs = _parse_retry_after_header(retry_after)
-                    if wait_secs is None:
-                        logger.debug("Could not parse Retry-After header: {}", retry_after)
-                    else:
-                        # Clamp to prevent very long sleeps (safety)
-                        wait_secs = min(wait_secs, MAX_RETRY_AFTER_SECONDS)
-                        logger.debug("Sleeping for %s seconds per Retry-After header (clamped)", wait_secs)
-                        await asyncio.sleep(wait_secs)
+                await _sleep_for_retry_after(retry_after)
 
                 # Try to find local city coordinates as a fallback
-                local_coords = _load_local_city_coords(settings)
-                if normalized_city in local_coords:
-                    coords = local_coords[normalized_city]
+                coords = _get_local_city_coords(settings, normalized_city)
+                if coords is not None:
                     logger.warning(
                         "Using local fallback coordinates for '{}' due to provider rate limit",
                         normalized_city,
@@ -350,23 +399,10 @@ async def geocode_city(  # noqa: C901, PLR0912, PLR0915
             # For 403 (Forbidden) or other errors, try Photon fallback
             if status in (403, 502, 503):
                 logger.warning("Nominatim returned {} - trying Photon fallback", status)
-                try:
-                    photon_response = await http_client.get(
-                        settings.photon_api_url,
-                        params={"q": normalized_city, "limit": 1},
-                        headers={"User-Agent": settings.user_agent},
-                    )
-                    photon_response.raise_for_status()
-                    photon_data = photon_response.json()
-                    if photon_data.get("features"):
-                        location = photon_data["features"][0]["geometry"]["coordinates"]
-                        result = {"longitude": float(location[0]), "latitude": float(location[1])}
-                        logger.info("Successfully geocoded '{}' via Photon", normalized_city)
-                        set_in_cache(normalized_city, result)
-                        return result
-                except Exception as photon_err:
-                    logger.warning("Photon fallback also failed: {}", photon_err)
-                    logger.exception(photon_err)
+                photon_result = await _geocode_with_photon(normalized_city, settings, http_client)
+                if photon_result is not None:
+                    set_in_cache(normalized_city, photon_result)
+                    return photon_result
 
             # Other HTTP errors — surface upstream
             logger.error(
@@ -381,9 +417,8 @@ async def geocode_city(  # noqa: C901, PLR0912, PLR0915
         except httpx.RequestError as err:
             logger.warning("Geocoding request error: {}", err)
             # Try local fallback coordinates before failing
-            local_coords = _load_local_city_coords(settings)
-            if normalized_city in local_coords:
-                coords = local_coords[normalized_city]
+            coords = _get_local_city_coords(settings, normalized_city)
+            if coords is not None:
                 logger.warning(
                     "Using local fallback coordinates for '{}' due to request error",
                     normalized_city,

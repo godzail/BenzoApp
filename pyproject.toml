@@ -30,7 +30,7 @@ dependencies = [
 [dependency-groups]
 dev = [
   "datamodel-code-generator",
-  "httpx",
+  "httpx2",
   "pipgrip",
   "pytest",
   "pytest-asyncio",

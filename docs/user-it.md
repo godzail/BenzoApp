@@ -1,6 +1,6 @@
 # Guida Utente di BenzoApp
 
-**Versione 1.1** | Ultimo aggiornamento: Febbraio 2026
+**Versione 1.2** | Ultimo aggiornamento: Giugno 2026
 
 ---
 
@@ -13,7 +13,7 @@ BenzoApp fornisce dati sui prezzi in tempo reale da fonti ufficiali, mostrati at
 ### Vista principale
 
 ![Interfaccia principale](screenshots/main.jpg)
-*Figura 1: L'interfaccia principale di BenzoApp che mostra il campo di ricerca, i filtri e la mappa interattiva*
+*Figura 1: L'interfaccia principale di BenzoApp che mostra il campo di ricerca, gli slider etichettati per raggio e numero di risultati, i chip carburante e la mappa interattiva*
 
 ---
 
@@ -89,13 +89,13 @@ BenzoApp fornisce dati sui prezzi in tempo reale da fonti ufficiali, mostrati at
    - Esempi: "Roma", "Milano", "Napoli", "Torino"
 
 2. **Regola i parametri di ricerca** (opzionale):
-   - **Raggio**: trascina lo slider per impostare la distanza di ricerca (1-200 km)
-   - **Tipo di carburante**: seleziona la tua preferenza dai chip carburante
+   - **Raggio**: trascina lo slider per impostare la distanza di ricerca (1-200 km). Lo slider è etichettato "Raggio di Ricerca" per rendere il valore attuale sempre chiaro.
+   - **Tipo di carburante**: seleziona la tua preferenza dai chip carburante. Il chip selezionato ha un riempimento opaco del colore corrispondente e testo bianco per il massimo contrasto.
      - Benzina
      - Gasolio
      - GPL
      - Metano
-   - **Risultati**: scegli quante stazioni mostrare (1-20)
+   - **Risultati**: scegli quante stazioni mostrare (1-20). Lo slider è etichettato "Limite Risultati" per rendere il limite sempre chiaro.
    - **Posizione corrente**: clicca il pulsante posizione per cercare vicino alla tua posizione attuale
 
 3. **Clicca "Cerca"** o premi Invio
@@ -411,7 +411,7 @@ Vedi il repository per le linee guida di contribuzione.
 ### Tecnologie utilizzate
 
 - **Backend**: FastAPI, Pydantic, httpx, Tenacity, Loguru
-- **Frontend**: Alpine.js, Leaflet, i18next, TypeScript
+- **Frontend**: TypeScript (compilato in vanilla ES2020), Tailwind CSS, Leaflet, i18next
 - **Strumenti di build**: Bun per gestione pacchetti e scripting
 - **API**: OpenStreetMap Nominatim, download file CSV Ministero dello Sviluppo Economico
 - **Design**: CSS personalizzato con font Inter
@@ -428,6 +428,13 @@ BenzoApp è rilasciata sotto licenza MIT. Vedi il file LICENSE per i dettagli.
 ---
 
 ## Cronologia versioni
+
+### v1.2.0 (Giugno 2026)
+
+- Migliorata la leggibilità di tutte le etichette interattive (slider raggio e limite risultati, pulsante posizione, intestazione ricerche recenti)
+- Ristilizzato lo stato attivo dei chip carburante con riempimento opaco ad alto contrasto e testo bianco
+- Rimosse regole CSS duplicate e in conflitto per gli slider e le frecce di discesa
+- Aggiornata la documentazione con lo stack frontend TypeScript/Tailwind attuale
 
 ### v1.1.0 (Febbraio 2026)
 

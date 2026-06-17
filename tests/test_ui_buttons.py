@@ -67,9 +67,8 @@ def test_lang_button_hover_text_present() -> None:
 def test_recent_searches_is_reactive() -> None:
     """Test that recent searches heading is reactive to language changes."""
     search_html = Path("src/static/templates/search.html").read_text()
-    assert "translate('recent_searches', 'Ricerche Recenti:') + (currentLang ? '' : '')" in search_html, (
-        "Recent searches heading should include reactive currentLang dependency"
-    )
+    assert 'id="recent-searches-i18n"' in search_html
+    assert 'data-i18n="recent_searches"' in search_html
 
 
 def test_updateI18nTexts_sets_document_title() -> None:  # noqa: N802

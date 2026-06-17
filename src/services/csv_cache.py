@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
+from src.services import csv_admin
+
 if TYPE_CHECKING:
     from src.models import Settings
 
@@ -164,12 +166,10 @@ def check_preferred_local_dir_writable(settings: Settings) -> bool:
     If `settings.prezzi_local_data_dir` is set, this check is skipped (returns True).
     Returns True if writable, False otherwise (and logs a warning).
     """
-    from src.services.csv_fetcher import PROJECT_ROOT  # noqa: PLC0415
-
     if getattr(settings, "prezzi_local_data_dir", None):
         return True
 
-    preferred = PROJECT_ROOT / "src" / "static" / "data"
+    preferred = csv_admin.preferred_local_csv_dir(settings)
     try:
         preferred.mkdir(parents=True, exist_ok=True)
         test_file = preferred / ".write_test"
@@ -188,50 +188,12 @@ def check_preferred_local_dir_writable(settings: Settings) -> bool:
 
 def _find_timestamped_csvs(candidates: list[Path]) -> datetime | None:
     """Find the latest timestamp from timestamped CSV filenames."""
-    latest_ts: datetime | None = None
-    ts_format_length = 14
-    patterns = ["anagrafica_impianti_attivi_*.csv", "prezzo_alle_8_*.csv"]
-
-    for d in candidates:
-        if not d.exists():
-            continue
-        for pattern in patterns:
-            for csv_file in d.glob(pattern):
-                filename = csv_file.name
-                if len(filename) < len("YYYYMMDD_HHMMSS.csv"):
-                    continue
-                ts_str = filename.replace("anagrafica_impianti_attivi_", "").replace("prezzo_alle_8_", "")
-                ts_str = ts_str.replace(".csv", "")
-                if len(ts_str) >= ts_format_length:
-                    try:
-                        ts = datetime.strptime(ts_str[:ts_format_length], "%Y%m%d_%H%M%S").replace(tzinfo=UTC)
-                        if latest_ts is None or ts > latest_ts:
-                            latest_ts = ts
-                    except ValueError:
-                        continue
-    return latest_ts
+    return csv_admin.find_timestamped_csvs(candidates)
 
 
 def _find_latest_mtime(candidates: list[Path]) -> datetime | None:
     """Find the latest mtime from non-timestamped base CSV files."""
-    latest_ts: datetime | None = None
-    base_files = ["anagrafica_impianti_attivi.csv", "prezzo_alle_8.csv"]
-
-    for d in candidates:
-        if not d.exists():
-            continue
-        for base_name in base_files:
-            csv_file = d / base_name
-            if csv_file.exists():
-                try:
-                    st = csv_file.stat()
-                    mtime_ts = datetime.fromtimestamp(st.st_mtime, tz=UTC)
-                    if latest_ts is None or mtime_ts > latest_ts:
-                        latest_ts = mtime_ts
-                except Exception:
-                    logger.debug("Failed to stat CSV file {}: {}", csv_file, csv_file.name)
-                    continue
-    return latest_ts
+    return csv_admin.find_latest_base_csv_mtime(candidates)
 
 
 def get_latest_csv_timestamp(settings: Settings) -> str | None:
@@ -248,10 +210,8 @@ def get_latest_csv_timestamp(settings: Settings) -> str | None:
     Returns:
         ISO timestamp string (YYYY-MM-DDTHH:MM:SS) or None if no files found.
     """
-    from src.services.csv_fetcher import _candidate_local_csv_dirs  # noqa: PLC0415
-
     try:
-        candidates = _candidate_local_csv_dirs(settings)
+        candidates = csv_admin.candidate_local_csv_dirs(settings)
         latest_ts = _find_timestamped_csvs(candidates)
         if latest_ts is None:
             latest_ts = _find_latest_mtime(candidates)

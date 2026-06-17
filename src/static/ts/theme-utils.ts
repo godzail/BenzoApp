@@ -75,7 +75,7 @@ function initTheme(): void {
 }
 
 // Attach to window for global use
-(window as any).themeUtils = {
+(window as unknown as Record<string, unknown>).themeUtils = {
   getSystemPreference,
   getStoredTheme,
   setStoredTheme,

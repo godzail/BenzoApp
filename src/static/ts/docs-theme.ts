@@ -5,7 +5,17 @@
 
 (() => {
   const btn = document.getElementById("docs-theme-toggle");
-  const theme = (window as any).themeUtils;
+  const theme = (
+    window as unknown as {
+      themeUtils: {
+        initTheme(): void;
+        getStoredTheme(): string | null;
+        getSystemPreference(): string;
+        updateThemeIcons(theme: string): void;
+        toggleTheme(): string;
+      };
+    }
+  ).themeUtils;
 
   const init = (): void => {
     // Initialize theme (applies stored or system preference)
