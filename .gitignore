@@ -263,6 +263,9 @@ typings/
 /.agent/
 /.agents/
 /.claude/
+/.complexipy_cache/
+/.github/
+/backlog/
 /.github/agents/
 /.github/chatmodes/
 /.github/instructions/
