@@ -263,8 +263,12 @@ typings/
 /.agent/
 /.agents/
 /.claude/
+/.codex/
 /.complexipy_cache/
 /.github/
+/.githooks/
+/.playwright-cli/
+/.remember/
 /backlog/
 /.github/agents/
 /.github/chatmodes/
