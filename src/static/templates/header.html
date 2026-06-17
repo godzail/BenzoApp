@@ -1,7 +1,7 @@
 <div class="header-content">
   <!-- Logo/Title -->
   <div class="title-row">
-    <h1 id="title-i18n" class="app-title text-xl font-semibold text-[var(--text-primary)]"></h1>
+    <h1 id="title-i18n" class="app-title text-xl font-semibold text-[var(--text-primary)]">BenzoApp</h1>
     <div class="csv-status flex items-center gap-2 text-sm text-[var(--text-secondary)]">
       <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -85,7 +85,7 @@
           <path d="m21 21-4.35-4.35"></path>
         </svg>
       </span>
-      <label id="city-label-i18n" class="sr-only" data-i18n="search_placeholder">Search city...</label>
+      <label for="city" id="city-label-i18n" class="sr-only" data-i18n="search_placeholder">Search city...</label>
       <input
         type="text"
         id="city"
@@ -117,16 +117,16 @@
           <circle cx="12" cy="12" r="3"></circle>
           <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
         </svg>
-        <span id="location-text">Location</span>
+        <span id="location-text" data-i18n="location">Posizione</span>
       </button>
     </div>
 
     <!-- Autocomplete Dropdown -->
-    <ul
+    <div
       id="city-suggestions"
       class="autocomplete-list absolute left-0 right-0 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl z-50 hidden"
       role="listbox"
-    ></ul>
+    ></div>
   </div>
 
   <!-- Theme & Language Controls -->
@@ -190,6 +190,7 @@
     <!-- API Documentation Link -->
     <a
       id="docs-link"
+      href="/help/user-it"
       title="User Documentation"
       class="theme-toggle inline-flex items-center justify-center w-10 h-9 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] cursor-pointer p-0 hover:bg-[var(--bg-elevated)] hover:border-[var(--color-primary)]"
     >

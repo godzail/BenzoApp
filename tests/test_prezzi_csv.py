@@ -604,7 +604,6 @@ def test_named_headers_reordered(tmp_path):
 
 def test_named_header_missing_required_field(tmp_path):
     """If a named header is present but required columns are missing, fail fast with CSVSchemaError."""
-
     now = datetime.now(tz=UTC)
     date_str = now.strftime("%d/%m/%Y %H:%M:%S")
 
@@ -634,7 +633,6 @@ def test_named_header_missing_required_field(tmp_path):
 
 def test_named_anagrafica_missing_required_columns_raises(tmp_path):
     """Named `anagrafica` header missing lat/lon should raise CSVSchemaError."""
-
     # named header missing lat/lon
     anag_header = "id|gestore|indirizzo"
     anag_row = "123|GestoreX|Via Test"

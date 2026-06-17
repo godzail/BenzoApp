@@ -3,29 +3,29 @@
  * Main application composition.
  * Composes the UI, storage, and map mixins into the main app object.
  */
-function createApp() {
-    // Get current theme from document or localStorage/system preference
-    const getInitialTheme = () => {
-        const stored = document.documentElement.getAttribute("data-theme");
-        if (stored)
-            return stored;
-        // If user previously chose a theme in localStorage, apply it and return.
-        try {
-            const ls = localStorage.getItem(window.CONFIG.THEME_STORAGE_KEY);
-            if (ls) {
-                document.documentElement.setAttribute("data-theme", ls);
-                return ls;
-            }
+// Get current theme from document or localStorage/system preference
+function getInitialTheme() {
+    const stored = document.documentElement.getAttribute("data-theme");
+    if (stored)
+        return stored;
+    // If user previously chose a theme in localStorage, apply it and return.
+    try {
+        const ls = localStorage.getItem(window.CONFIG.THEME_STORAGE_KEY);
+        if (ls) {
+            document.documentElement.setAttribute("data-theme", ls);
+            return ls;
         }
-        catch { }
-        // Start deterministically with the configured DEFAULT_THEME so tests
-        // and headless environments behave predictably. System preference
-        // changes are handled later by the ThemeManager listener when
-        // there's no stored preference.
-        document.documentElement.setAttribute("data-theme", window.CONFIG.DEFAULT_THEME);
-        return window.CONFIG.DEFAULT_THEME;
-    };
-    const app = {
+    }
+    catch { }
+    // Start deterministically with the configured DEFAULT_THEME so tests
+    // and headless environments behave predictably. System preference
+    // changes are handled later by the ThemeManager listener when
+    // there's no stored preference.
+    document.documentElement.setAttribute("data-theme", window.CONFIG.DEFAULT_THEME);
+    return window.CONFIG.DEFAULT_THEME;
+}
+function createInitialState() {
+    return {
         formData: {
             city: "",
             radius: window.CONFIG.DEFAULT_RADIUS,
@@ -55,6 +55,9 @@ function createApp() {
             // Will be replaced by mixin init
         },
     };
+}
+function createApp() {
+    const app = createInitialState();
     const uiMixin = window.appUiMixin;
     const storageMixin = window.appStorageMixin;
     const mapMixin = window.appMapMixin;

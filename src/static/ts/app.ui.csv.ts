@@ -180,7 +180,7 @@ Object.assign(window.appUiMixin, {
           csvUpdated?.classList.remove("hidden");
           if (csvUpdated) {
             const date = new Date(status.last_updated);
-            csvUpdated.textContent = date.toLocaleString();
+            csvUpdated.textContent = date.toLocaleString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
           }
           csvNoData?.classList.add("hidden");
         } else {
@@ -239,7 +239,12 @@ Object.assign(window.appUiMixin, {
       : "Updating data, please wait\u2026";
 
     if (statusEl) {
-      statusEl.innerHTML = `<span class="csv-popup-spinner"></span><span>${loadingMsg}</span>`;
+      statusEl.replaceChildren();
+      const spinner = document.createElement("span");
+      spinner.className = "csv-popup-spinner";
+      const msg = document.createElement("span");
+      msg.textContent = loadingMsg;
+      statusEl.append(spinner, msg);
     }
 
     try {

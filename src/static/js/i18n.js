@@ -39,7 +39,7 @@ function t(key, fallback = "") {
 window.setLang = (lang) => {
     const app = window.gasStationApp;
     if (app?.debugMode) {
-        console.log("[DEBUG] i18next.changeLanguage called with lang:", lang);
+        console.debug("[DEBUG] i18next.changeLanguage called with lang:", lang);
     }
     if (typeof i18next !== "undefined" && i18next.reloadResources) {
         // Try to reload resources (some i18next backends populate bundles via reloadResources),

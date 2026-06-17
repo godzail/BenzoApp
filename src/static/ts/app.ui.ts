@@ -6,19 +6,6 @@
  */
 // @ts-nocheck
 
-interface CsvStatus {
-  last_updated: string | null;
-  source: string;
-  is_stale: boolean;
-  reload_in_progress?: boolean;
-}
-
-interface ReloadResponse {
-  status: string;
-  message?: string;
-  last_updated?: string;
-}
-
 /**
  * Represents a petrol station returned by the search API.
  */

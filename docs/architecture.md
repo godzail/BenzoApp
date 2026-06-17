@@ -1,6 +1,6 @@
 # BenzoApp Architecture
 
-**Version 1.1** | Last Updated: February 2026
+**Version 1.2** | Last Updated: June 2026
 
 ---
 
@@ -11,7 +11,7 @@ BenzoApp is a web application for searching and analyzing gas stations in Italy.
 ### Key Characteristics
 
 - **Backend**: FastAPI (async-capable, high-performance Python framework)
-- **Frontend**: Vanilla JavaScript with Alpine.js, Leaflet maps, and i18next
+- **Frontend**: TypeScript (compiled to vanilla ES2020), Tailwind CSS, Leaflet maps, and i18next
 - **Data Sources**: OpenStreetMap Nominatim (geocoding), MIMIT official CSV feeds
 - **Caching**: Memory-based (TTLCache) + local JSON/CSV files
 - **Architecture**: Monolithic backend with clear service separation
@@ -23,13 +23,14 @@ BenzoApp is a web application for searching and analyzing gas stations in Italy.
 ```
 ┌───────────────────────────────────────────────────────────┐
 │                         Frontend (Browser)                │
-│  • Alpine.js + Vanilla JS                                 │
+│  • TypeScript (compiled to vanilla ES2020)                  │
+│  • Tailwind CSS utility styles                            │
 │  • Leaflet Maps                                           │
 │  • i18next (IT/EN)                                        │
 │  • Theme management (dark/light)                          │
 └─────────────────────────────┬─────────────────────────────┘
-                              │ HTTPS/REST API
-                              ▼
+                               │ HTTPS/REST API
+                               ▼
 ┌───────────────────────────────────────────────────────────┐
 │                    FastAPI Backend                        │
 │  ┌──────────────────────────────────────────────────────┐ │

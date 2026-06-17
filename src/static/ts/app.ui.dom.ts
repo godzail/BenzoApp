@@ -13,7 +13,10 @@ Object.assign(window.appUiMixin, {
     if (progressEl) this.loadingBar = progressEl;
     this.initializeResizer();
 
-    if (!(window as any).__benzo_map_relayout_attached) {
+    if (
+      !(window as unknown as Record<string, unknown>)
+        .__benzo_map_relayout_attached
+    ) {
       let _resizeTimer: number | null = null;
       const relayout = () => {
         if (_resizeTimer) window.clearTimeout(_resizeTimer);
@@ -21,16 +24,19 @@ Object.assign(window.appUiMixin, {
           this.placeMapAccordingToViewport?.();
           if (
             this.map &&
-            typeof (this.map as any).invalidateSize === "function"
+            typeof (this.map as { invalidateSize?: () => void })
+              .invalidateSize === "function"
           ) {
-            (this.map as any).invalidateSize();
+            (this.map as { invalidateSize?: () => void }).invalidateSize();
           }
           _resizeTimer = null;
         }, 150);
       };
       window.addEventListener("resize", relayout);
       window.addEventListener("orientationchange", relayout);
-      (window as any).__benzo_map_relayout_attached = true;
+      (
+        window as unknown as Record<string, unknown>
+      ).__benzo_map_relayout_attached = true;
     }
   },
 
@@ -122,8 +128,13 @@ Object.assign(window.appUiMixin, {
       const desired = lang === "en" ? "en" : "it";
       this.currentLang = desired;
 
-      if (typeof (window as any).setLang === "function") {
-        (window as any).setLang(desired);
+      if (
+        typeof (window as unknown as { setLang?: (lang: string) => void })
+          .setLang === "function"
+      ) {
+        (window as unknown as { setLang?: (lang: string) => void }).setLang(
+          desired,
+        );
       } else {
         try {
           localStorage.setItem("lang", desired);

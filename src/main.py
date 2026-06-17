@@ -19,7 +19,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from textwrap import dedent
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 import httpx
 from dateutil.parser import parse as dateutil_parse
@@ -43,8 +43,7 @@ from src.models import (
     Settings,
     StationSearchParams,
 )
-from src.services import fuel_api
-from src.services.csv_fetcher import _candidate_local_csv_dirs, _cleanup_old_csvs
+from src.services import csv_admin, fuel_api
 from src.services.fuel_type_utils import normalize_fuel_type
 from src.services.geocoding import geocode_city
 from src.services.prezzi_csv import (
@@ -62,6 +61,10 @@ from src.services.prezzi_csv import (
 
 _cached_settings: Settings | None = None
 
+FAVICON_CACHE_SECONDS = 3600
+STATIC_CACHE_SECONDS = 3600
+CSV_SCHEMA_ERROR_STATUS = 422
+
 
 def get_settings() -> Settings:
     """Get application settings instance.
@@ -78,79 +81,268 @@ def get_settings() -> Settings:
     return _cached_settings
 
 
+def _csv_http_headers(settings: Settings) -> dict[str, str]:
+    """Build headers for CSV and geocoding HTTP clients."""
+    return {"User-Agent": settings.user_agent, "Accept": "text/csv"}
+
+
+async def _check_preferred_csv_dir(settings: Settings) -> None:
+    """Warn when the default preferred CSV directory is not writable."""
+    if settings.prezzi_local_data_dir is not None:
+        return
+    try:
+        await asyncio.to_thread(check_preferred_local_dir_writable, settings)
+    except Exception as err:
+        logger.warning("Preferred CSV directory check failed: {}", err)
+        logger.exception(err)
+
+
+def _start_background_task(_app: FastAPI, name: str, coro: Any) -> asyncio.Task[Any]:
+    """Start a named background task and store it on app state."""
+    task = asyncio.create_task(coro)
+    setattr(_app.state, name, task)
+    return task
+
+
+async def _startup_reload_csv(settings: Settings, client: httpx.AsyncClient) -> None:
+    """Refresh CSV data during startup and log failures."""
+    logger.info("Starting prezzi CSV reload on startup (background)")
+    try:
+        await fetch_and_combine_csv_data(settings, client)
+        logger.info("Startup CSV reload completed successfully")
+    except Exception as err:
+        logger.warning("Startup CSV reload failed: {}", err)
+        logger.exception(err)
+
+
+async def _schedule_startup_work(_app: FastAPI, settings: Settings, client: httpx.AsyncClient) -> None:
+    """Run startup CSV checks, preload, and optional reload work."""
+    await _check_preferred_csv_dir(settings)
+
+    if settings.prezzi_preload_on_startup:
+        try:
+            task = _start_background_task(_app, "_preload_task", preload_local_csv_cache(settings))
+            task.add_done_callback(lambda _: logger.debug("Prezzi preload task finished"))
+        except Exception as err:
+            logger.warning("Failed to start prezzi preload task: {}", err)
+            logger.exception(err)
+
+    if not getattr(settings, "prezzi_reload_on_startup", False):
+        return
+
+    try:
+        cache_fresh = await _is_cache_fresh(settings.prezzi_cache_path, settings.prezzi_cache_hours)
+    except Exception:
+        cache_fresh = False
+
+    if not cache_fresh:
+        logger.info("Prezzi cache missing or stale — running blocking CSV reload on startup")
+        try:
+            await fetch_and_combine_csv_data(settings, client)
+            logger.info("Blocking startup CSV reload completed successfully")
+        except Exception as err:
+            logger.warning("Blocking startup CSV reload failed: {}", err)
+            logger.exception(err)
+        return
+
+    _start_background_task(_app, "_startup_reload_task", _startup_reload_csv(settings, client))
+
+
+async def _geocode_for_search(city: str, settings: Settings) -> dict[str, float] | SearchResponse:
+    """Geocode a search city or return the existing error response."""
+    try:
+        location = await asyncio.wait_for(
+            geocode_city(city, settings, app.state.http_client),
+            timeout=settings.search_timeout_seconds,
+        )
+    except TimeoutError:
+        logger.warning("Search timed out during geocoding for city: {}", city)
+        return SearchResponse(stations=[], warning="Search timed out. Please try again later.", error=True)
+    except RetryError:
+        return SearchResponse(
+            stations=[],
+            warning="City geocoding service is temporarily unavailable. Please try again later.",
+            error=True,
+        )
+    except HTTPException:
+        return SearchResponse(
+            stations=[],
+            warning="City not found. Please check the city name and try again.",
+            error=True,
+        )
+
+    if location is None:
+        return SearchResponse(stations=[], warning="Unexpected error during geocoding.", error=True)
+    return location
+
+
+async def _fetch_stations_for_search(
+    params: StationSearchParams,
+    settings: Settings,
+    city: str,
+) -> dict | list | SearchResponse:
+    """Fetch station data or return the existing error response."""
+    try:
+        return await asyncio.wait_for(
+            fuel_api.fetch_gas_stations(params, settings, app.state.http_client),
+            timeout=settings.search_timeout_seconds,
+        )
+    except TimeoutError:
+        logger.warning("Search timed out while fetching stations for city: {}", city)
+        return SearchResponse(
+            stations=[],
+            warning="Search timed out while fetching station data. Please try again later.",
+            error=True,
+        )
+    except RetryError:
+        return SearchResponse(
+            stations=[],
+            warning="Gas station data is temporarily unavailable. Please try again later.",
+            error=True,
+        )
+    except HTTPException as exc:
+        if getattr(exc, "status_code", None) == CSV_SCHEMA_ERROR_STATUS:
+            warning = str(exc.detail)
+        else:
+            warning = "Failed to fetch gas station data. Please try again later."
+        return SearchResponse(stations=[], warning=warning, error=True)
+
+
+def _build_station_search_params(
+    request: SearchRequest,
+    location: dict[str, float],
+    radius: int,
+    results: int,
+) -> tuple[StationSearchParams, str]:
+    """Build normalized station search parameters from a request and location."""
+    normalized_fuel = normalize_fuel_type(request.fuel)
+    params = StationSearchParams(
+        latitude=location["latitude"],
+        longitude=location["longitude"],
+        distance=radius,
+        fuel=normalized_fuel,
+        results=min(results, MAX_RESULTS_COUNT),
+    )
+    return params, normalized_fuel
+
+
+def _resolve_docs_page(page: str) -> Path:
+    """Resolve a safe docs Markdown page path or raise an HTTP error."""
+    if ".." in page or "/" in page or "\\" in page:
+        raise HTTPException(status_code=400, detail="Invalid page")
+
+    md_path = docs_dir / f"{page}.md"
+    if md_path.exists():
+        return md_path
+
+    for alt in (f"{page}-en.md", f"{page}-it.md"):
+        alt_path = docs_dir / alt
+        if alt_path.exists():
+            return alt_path
+
+    raise HTTPException(status_code=404, detail="Not found")
+
+
+def _render_markdown(md_text: str) -> str:
+    """Render Markdown to HTML with an escaped fallback."""
+    try:
+        return py_markdown(md_text, extensions=["tables", "fenced_code", "attr_list"])
+    except Exception:
+        logger.exception("Python-Markdown fallback failed; rendering raw markdown as escaped text")
+        return f"<pre>{_html.escape(md_text)}</pre>"
+
+
+def _is_reload_in_progress() -> bool:
+    """Return whether a CSV reload task is currently running."""
+    for task_name in ("_reload_task", "_startup_reload_task"):
+        task = getattr(app.state, task_name, None)
+        if task is not None and hasattr(task, "done") and not task.done():
+            return True
+    return False
+
+
+async def _build_csv_status(settings: Settings) -> dict[str, Any]:
+    """Build the CSV status payload returned by the public endpoint."""
+    last_updated = get_latest_csv_timestamp(settings)
+    is_stale = False
+    if last_updated:
+        try:
+            dt = dateutil_parse(last_updated)
+            now = datetime.now(tz=dt.tzinfo)
+            hours_old = (now - dt).total_seconds() / 3600.0
+            is_stale = hours_old > settings.prezzi_cache_hours
+        except (TypeError, ValueError, OverflowError):
+            is_stale = False
+
+    source = "local" if last_updated else "unknown"
+    try:
+        cache_fresh = await _is_cache_fresh(settings.prezzi_cache_path, settings.prezzi_cache_hours)
+        if cache_fresh:
+            cached = await _load_cached_combined(settings.prezzi_cache_path)
+            if cached and len(cached) > 0:
+                source = "cache"
+    except Exception as err:
+        logger.debug("Failed to check cache status: {}", err)
+
+    return {
+        "last_updated": last_updated,
+        "source": source,
+        "is_stale": is_stale,
+        "reload_in_progress": _is_reload_in_progress(),
+    }
+
+
+async def _remove_cache_file(cache_path: Path) -> None:
+    """Remove the CSV cache file if it exists, logging non-fatal failures."""
+    cache_exists = await asyncio.to_thread(cache_path.exists)
+    logger.debug("Cache exists: {}", cache_exists)
+    if not cache_exists:
+        return
+    try:
+        await asyncio.to_thread(cache_path.unlink)
+        logger.info("Cleared cache file: {}", cache_path)
+    except OSError as err:
+        logger.warning("Could not remove cache file (it may be in use); continuing reload: {} - {}", cache_path, err)
+
+
+async def _run_csv_reload(settings: Settings) -> None:
+    """Fetch, parse, cache, save, and clean CSV data for manual reload."""
+    try:
+        logger.debug("Starting CSV fetch...")
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(60.0, connect=15.0),
+            headers=_csv_http_headers(settings),
+            follow_redirects=True,
+        ) as client:
+            anag_text, prezzi_text = await _fetch_csvs(client, settings)
+            force_delimiter = None if settings.prezzi_csv_delimiter == "auto" else settings.prezzi_csv_delimiter
+            combined = await asyncio.to_thread(
+                lambda: _parse_and_combine_sync(anag_text, prezzi_text, force_delimiter),
+            )
+            await _write_json_file(settings.prezzi_cache_path, combined)
+            saved_dir = await _save_csv_files(anag_text, prezzi_text, settings)
+            if saved_dir:
+                logger.info("CSV reload completed successfully, saved to: {}", saved_dir)
+            else:
+                logger.warning("CSV reload completed but failed to save local copies")
+
+            await asyncio.to_thread(csv_admin.cleanup_candidate_csvs, settings)
+            logger.info("Cleaned up old CSV files across all candidate directories")
+    except Exception as err:
+        logger.error("Async CSV reload failed: {}", err)
+        logger.exception(err)
+
+
 # --- Lifespan Management ---
 @asynccontextmanager
-async def lifespan(_app: FastAPI):  # noqa: PLR0915
+async def lifespan(_app: FastAPI):
     """Lifespan context manager to handle startup and shutdown events."""
     settings = get_settings()
-    # Create a shared HTTP client for connection pooling with timeout
     timeout = httpx.Timeout(60.0, connect=15.0)
-    headers = {
-        "User-Agent": settings.user_agent,
-        "Accept": "text/csv",
-    }
+    headers = _csv_http_headers(settings)
     async with httpx.AsyncClient(timeout=timeout, headers=headers, follow_redirects=True) as client:
-        # Store the client in app state for use in endpoints
         _app.state.http_client = client
-
-        # Startup check: warn if the preferred service-level CSV directory is not writable
-        if settings.prezzi_local_data_dir is None:
-            try:
-                # Run the preferred-dir writability check in a thread to avoid blocking the event loop
-                _ = await asyncio.to_thread(check_preferred_local_dir_writable, settings)
-            except Exception as err:
-                logger.warning("Preferred CSV directory check failed: {}", err)
-                logger.exception(err)
-
-        # Optionally preload local CSV data into cache (non-blocking)
-        if settings.prezzi_preload_on_startup:
-            try:
-                task = asyncio.create_task(preload_local_csv_cache(settings))
-                _app.state._preload_task = task  # noqa: SLF001
-                task.add_done_callback(lambda _: logger.debug("Prezzi preload task finished"))
-            except Exception as err:
-                logger.warning("Failed to start prezzi preload task: {}", err)
-                logger.exception(err)
-
-        # Optionally trigger a full remote CSV reload on startup.
-        # If the on-disk cache is missing or stale we perform a blocking reload
-        # so the first-run experience has data available immediately. Otherwise
-        # we schedule a non-blocking background refresh (preserve previous behavior).
-        if getattr(settings, "prezzi_reload_on_startup", False):
-            try:
-                cache_fresh = False
-                try:
-                    cache_fresh = await _is_cache_fresh(settings.prezzi_cache_path, settings.prezzi_cache_hours)
-                except Exception as _err:
-                    # If cache check fails treat it as missing/stale so we attempt a reload
-                    cache_fresh = False
-
-                if not cache_fresh:
-                    # Blocking reload on first run (cache missing/stale)
-                    logger.info("Prezzi cache missing or stale — running blocking CSV reload on startup")
-                    try:
-                        await fetch_and_combine_csv_data(settings, client)
-                        logger.info("Blocking startup CSV reload completed successfully")
-                    except Exception as e:
-                        logger.warning("Blocking startup CSV reload failed: {}", e)
-                        logger.exception(e)
-                else:
-                    # Previous non-blocking behavior: schedule background refresh
-                    async def _startup_reload():
-                        logger.info("Starting prezzi CSV reload on startup (background)")
-                        try:
-                            # Reuse existing service function to fetch/parse/save and refresh cache
-                            await fetch_and_combine_csv_data(settings, client)
-                            logger.info("Startup CSV reload completed successfully")
-                        except Exception as e:
-                            logger.warning("Startup CSV reload failed: {}", e)
-                            logger.exception(e)
-
-                    task = asyncio.create_task(_startup_reload())
-                    _app.state._startup_reload_task = task  # noqa: SLF001
-            except Exception as err:
-                logger.warning("Failed to schedule startup CSV reload: {}", err)
-                logger.exception(err)
+        await _schedule_startup_work(_app, settings, client)
         try:
             yield
         except (asyncio.CancelledError, KeyboardInterrupt):
@@ -167,7 +359,7 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(
     RateLimitExceeded,
-    _rate_limit_exceeded_handler,  # ty:ignore
+    cast("Any", _rate_limit_exceeded_handler),
 )
 
 # Configure Loguru logger
@@ -181,7 +373,7 @@ logger.add(
 
 # Add CORS middleware using settings
 app.add_middleware(
-    CORSMiddleware,  # ty:ignore[invalid-argument-type]
+    CORSMiddleware,
     allow_origins=get_settings().cors_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
@@ -218,7 +410,7 @@ async def favicon_ico() -> FileResponse:
 
 @limiter.limit("10/minute")
 @app.post("/search", response_class=JSONResponse)
-async def search_gas_stations(  # noqa: PLR0912
+async def search_gas_stations(
     request: SearchRequest,
     settings: Annotated[Settings, Depends(get_settings)],
     _request: Request,  # for rate limiting
@@ -248,58 +440,14 @@ async def search_gas_stations(  # noqa: PLR0912
     results: int = request.results if request.results and request.results > 0 else DEFAULT_RESULTS_COUNT
     radius: int = min(max(request.radius or 1, 1), MAX_SEARCH_RADIUS_KM)
 
-    # Geocode city (with timeout)
-    location: dict[str, float] | None = None
-    geo_error: str | None = None
-    try:
-        location = await asyncio.wait_for(
-            geocode_city(city, settings, app.state.http_client),
-            timeout=settings.search_timeout_seconds,
-        )
-    except TimeoutError:
-        logger.warning("Search timed out during geocoding for city: {}", city)
-        geo_error = "Search timed out. Please try again later."
-    except RetryError:
-        geo_error = "City geocoding service is temporarily unavailable. Please try again later."
-    except HTTPException:
-        geo_error = "City not found. Please check the city name and try again."
+    location_or_response = await _geocode_for_search(city, settings)
+    if isinstance(location_or_response, SearchResponse):
+        return location_or_response
 
-    if geo_error:
-        return SearchResponse(stations=[], warning=geo_error, error=True)
-
-    if location is None:
-        return SearchResponse(stations=[], warning="Unexpected error during geocoding.", error=True)
-
-    # Fetch stations (with timeout)
-    normalized_fuel = normalize_fuel_type(request.fuel)
-    params = StationSearchParams(
-        latitude=location["latitude"],
-        longitude=location["longitude"],
-        distance=radius,
-        fuel=normalized_fuel,
-        results=min(results, MAX_RESULTS_COUNT),
-    )
-    stations_payload: dict | list | None = None
-    fetch_error: str | None = None
-    try:
-        stations_payload = await asyncio.wait_for(
-            fuel_api.fetch_gas_stations(params, settings, app.state.http_client),
-            timeout=settings.search_timeout_seconds,
-        )
-    except TimeoutError:
-        logger.warning("Search timed out while fetching stations for city: {}", city)
-        fetch_error = "Search timed out while fetching station data. Please try again later."
-    except RetryError:
-        fetch_error = "Gas station data is temporarily unavailable. Please try again later."
-    except HTTPException as he:
-        # If upstream service returned a 422 for schema problems, surface its message
-        if getattr(he, "status_code", None) == 422:  # noqa: PLR2004
-            fetch_error = str(he.detail)
-        else:
-            fetch_error = "Failed to fetch gas station data. Please try again later."
-
-    if fetch_error:
-        return SearchResponse(stations=[], warning=fetch_error, error=True)
+    params, normalized_fuel = _build_station_search_params(request, location_or_response, radius, results)
+    stations_payload = await _fetch_stations_for_search(params, settings, city)
+    if isinstance(stations_payload, SearchResponse):
+        return stations_payload
 
     if stations_payload is None:
         return SearchResponse(stations=[], warning="Unexpected error fetching station data.", error=True)
@@ -309,8 +457,8 @@ async def search_gas_stations(  # noqa: PLR0912
         stations_payload,
         normalized_fuel,
         results,
-        search_lat=location["latitude"],
-        search_lon=location["longitude"],
+        search_lat=location_or_response["latitude"],
+        search_lon=location_or_response["longitude"],
     )
 
     return SearchResponse(
@@ -332,34 +480,9 @@ async def read_root() -> FileResponse:
 @app.get("/help/{page}", response_class=HTMLResponse)
 async def render_docs(page: str) -> HTMLResponse:
     """Render Markdown docs pages from the `docs` directory (safe filename)."""
-    # Basic filename validation to prevent path traversal
-    if ".." in page or "/" in page or "\\" in page:
-        raise HTTPException(status_code=400, detail="Invalid page")
-
-    docs_dir = Path(__file__).parent.parent / "docs"
-    md_path = docs_dir / f"{page}.md"
-
-    # If the exact page filename is missing, try language-specific fallbacks
-    if not md_path.exists():
-        for alt in (f"{page}-en.md", f"{page}-it.md"):
-            alt_path = docs_dir / alt
-            if alt_path.exists():
-                md_path = alt_path
-                break
-
-    if not md_path.exists():
-        raise HTTPException(status_code=404, detail="Not found")
-
+    md_path = _resolve_docs_page(page)
     md_text = md_path.read_text(encoding="utf-8")
-
-    # Preferred renderers: MarkdownIt
-    rendered = None
-
-    try:
-        rendered = py_markdown(md_text, extensions=["tables", "fenced_code", "attr_list"])
-    except Exception:
-        logger.exception("Python-Markdown fallback failed; rendering raw markdown as escaped text")
-        rendered = f"<pre>{_html.escape(md_text)}</pre>"
+    rendered = _render_markdown(md_text)
 
     # Read docs CSS for inlining
     docs_css_path = static_dir / "css" / "docs.css"
@@ -445,45 +568,7 @@ async def get_csv_status(settings: Annotated[Settings, Depends(get_settings)]) -
       - source: "local" | "remote" | "cache" | "unknown"
       - is_stale: boolean indicating if cache is older than cache_hours
     """
-    last_updated = get_latest_csv_timestamp(settings)
-
-    is_stale = False
-    if last_updated:
-        try:
-            dt = dateutil_parse(last_updated)
-            now = datetime.now(tz=dt.tzinfo)
-            hours_old = (now - dt).total_seconds() / 3600.0
-            is_stale = hours_old > settings.prezzi_cache_hours
-        except Exception:
-            is_stale = False
-
-    source = "unknown"
-    if last_updated:
-        source = "local"
-
-    try:
-        cache_fresh = await _is_cache_fresh(settings.prezzi_cache_path, settings.prezzi_cache_hours)
-        if cache_fresh:
-            cached = await _load_cached_combined(settings.prezzi_cache_path)
-            if cached and len(cached) > 0:
-                source = "cache"
-    except Exception as err:
-        logger.debug("Failed to check cache status: {}", err)
-
-    # Indicate whether a reload (manual or startup) is currently in progress
-    reload_in_progress = False
-    for task_name in ("_reload_task", "_startup_reload_task"):
-        task = getattr(app.state, task_name, None)
-        if task is not None and hasattr(task, "done") and not task.done():
-            reload_in_progress = True
-            break
-
-    return {
-        "last_updated": last_updated,
-        "source": source,
-        "is_stale": is_stale,
-        "reload_in_progress": reload_in_progress,
-    }
+    return await _build_csv_status(settings)
 
 
 @app.post("/api/reload-csv")
@@ -500,59 +585,11 @@ async def reload_csv(
 
     try:
         cache_path = Path(settings.prezzi_cache_path)
-        cache_exists = await asyncio.to_thread(cache_path.exists)
-        logger.debug("Cache exists: {}", cache_exists)
-        if cache_exists:
-            try:
-                await asyncio.to_thread(cache_path.unlink)
-                logger.info("Cleared cache file: {}", settings.prezzi_cache_path)
-            except Exception as e:
-                logger.warning(
-                    "Could not remove cache file (it may be in use); continuing reload: {} - {}",
-                    settings.prezzi_cache_path,
-                    e,
-                )
+        await _remove_cache_file(cache_path)
 
-        async def trigger_fetch():
-            try:
-                logger.debug("Starting CSV fetch...")
-                async with httpx.AsyncClient(
-                    timeout=httpx.Timeout(60.0, connect=15.0),
-                    headers={"User-Agent": settings.user_agent, "Accept": "text/csv"},
-                    follow_redirects=True,
-                ) as client:
-                    anag_text, prezzi_text = await _fetch_csvs(client, settings)
-                    force_delimiter = None if settings.prezzi_csv_delimiter == "auto" else settings.prezzi_csv_delimiter
-                    combined = await asyncio.to_thread(
-                        lambda: _parse_and_combine_sync(anag_text, prezzi_text, force_delimiter),
-                    )
-                    await _write_json_file(settings.prezzi_cache_path, combined)
-                    saved_dir = await _save_csv_files(anag_text, prezzi_text, settings)
-                    if saved_dir:
-                        logger.info("CSV reload completed successfully, saved to: {}", saved_dir)
-                    else:
-                        logger.warning("CSV reload completed but failed to save local copies")
-
-                    # Clean up old CSVs across ALL candidate directories (keep only the newest)
-                    def _cleanup_all_candidates():
-                        candidates = _candidate_local_csv_dirs(settings)
-                        keep = getattr(settings, "prezzi_keep_versions", 1)
-                        for d in candidates:
-                            if d.exists():
-                                _cleanup_old_csvs(d, "anagrafica_impianti_attivi_", keep)
-                                _cleanup_old_csvs(d, "prezzo_alle_8_", keep)
-
-                    await asyncio.to_thread(_cleanup_all_candidates)
-                    logger.info("Cleaned up old CSV files across all candidate directories")
-            except Exception as err:
-                logger.error("Async CSV reload failed: {}", err)
-                logger.exception(err)
-
-        task = asyncio.create_task(trigger_fetch())
+        task = asyncio.create_task(_run_csv_reload(settings))
         app.state._reload_task = task  # noqa: SLF001
-
         await task
-        # Await the task completion so client sees real-time logs
     except Exception as err:
         logger.error("Failed to trigger CSV reload: {}", err)
         logger.exception(err)

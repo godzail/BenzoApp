@@ -127,8 +127,9 @@ window.appStorageMixin = {
     this.formData.fuel = search.fuel;
     this.formData.results = search.results || "5";
     // Update the visible form inputs immediately, then submit.
-    if (typeof (this as any).updateSearchFormUI === "function") {
-      (this as any).updateSearchFormUI();
+    const self = this as { updateSearchFormUI?: () => void };
+    if (typeof self.updateSearchFormUI === "function") {
+      self.updateSearchFormUI();
     }
     this.submitForm();
   },

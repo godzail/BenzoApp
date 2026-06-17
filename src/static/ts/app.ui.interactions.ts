@@ -3,6 +3,16 @@
  */
 // @ts-nocheck
 
+/** Escape a value for safe interpolation into HTML text/attribute contexts. */
+function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 Object.assign(window.appUiMixin, {
   setFuelType(fuel: string): void {
     this.formData.fuel = fuel;
@@ -47,7 +57,7 @@ Object.assign(window.appUiMixin, {
     }
     suggestions.innerHTML = "";
     for (const city of this.filteredCities.slice(0, 15)) {
-      const item = document.createElement("li");
+      const item = document.createElement("div");
       item.className =
         "autocomplete-item px-3 py-2 cursor-pointer text-sm text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]";
       item.setAttribute("role", "option");
@@ -145,7 +155,14 @@ Object.assign(window.appUiMixin, {
         btn.className =
           "recent-search-btn flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-full px-3 py-2 text-sm text-[var(--text-secondary)] cursor-pointer transition-all duration-150 min-h-10 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]";
         btn.type = "button";
-        btn.innerHTML = `\n          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n            <circle cx="12" cy="12" r="10"></circle>\n            <polyline points="12 6 12 16 16 14"></polyline>\n </svg>\n          <span>${search.city}, ${search.radius}km, ${window.translateFuel ? window.translateFuel(search.fuel) : search.fuel}</span>\n        `;
+        // Static SVG markup is safe; user-supplied city/fuel go through textContent.
+        btn.innerHTML = `\n          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n            <circle cx="12" cy="12" r="10"></circle>\n            <polyline points="12 6 12 16 16 14"></polyline>\n </svg>`;
+        const fuelLabel = window.translateFuel
+          ? window.translateFuel(search.fuel)
+          : search.fuel;
+        const label = document.createElement("span");
+        label.textContent = `${search.city}, ${search.radius}km, ${fuelLabel}`;
+        btn.appendChild(label);
         btn.addEventListener("click", () => this.selectRecentSearch(search));
         list.appendChild(btn);
       });
@@ -161,7 +178,6 @@ Object.assign(window.appUiMixin, {
       if (btn) {
         const isSelected = this.formData.fuel === fuel;
         btn.classList.toggle("active", isSelected);
-        btn.classList.toggle("text-white", isSelected);
         if (isSelected) btn.classList.add("border-[var(--color-primary)]");
         else btn.classList.remove("border-[var(--color-primary)]");
 
@@ -217,6 +233,8 @@ Object.assign(window.appUiMixin, {
     ) as HTMLInputElement | null;
     const radiusValue = document.getElementById("radius-value");
     const resultsValue = document.getElementById("results-value");
+    const radiusLabel = document.getElementById("radius-label");
+    const resultsLabel = document.getElementById("results-label");
     const submitBtn = document.getElementById(
       "search-submit",
     ) as HTMLButtonElement | null;
@@ -228,6 +246,16 @@ Object.assign(window.appUiMixin, {
     if (resultsSlider) resultsSlider.value = this.formData.results;
     if (radiusValue) radiusValue.textContent = `${this.formData.radius}km`;
     if (resultsValue) resultsValue.textContent = this.formData.results;
+    if (radiusLabel)
+      radiusLabel.textContent = this.translate(
+        "search_radius",
+        "Raggio di Ricerca",
+      );
+    if (resultsLabel)
+      resultsLabel.textContent = this.translate(
+        "max_results",
+        "Limite Risultati",
+      );
     if (submitBtn) submitBtn.disabled = this.loading || !this.formData.city;
   },
 
@@ -321,7 +349,7 @@ Object.assign(window.appUiMixin, {
         `${station.gestore || this.translate("station", "Gas Station")}, ${this.formatCurrency(price)}`,
       );
 
-      article.innerHTML = `\n        <div class="station-card-header mb-4 min-w-0">\n          <div class="flex items-center justify-between gap-4 mb-2">\n            <div class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1">\n              <div class="station-icon w-10 h-10 bg-gradient-to-br from-[var(--color-primary-light)] to-[var(--color-primary)] rounded-xl flex items-center justify-center text-white shadow-sm">\n                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                  <path d="M12 2L2 7l10 5 10-5-10-5z"></path>\n                  <path d="M2 17l10 5 10-5"></path>\n                  <path d="M2 12l10 5 10-5"></path>\n                </svg>\n              </div>\n              <span class="truncate overflow-hidden text-ellipsis whitespace-nowrap">${station.gestore || this.translate("station", "Gas Station")}</span>\n            </div>\n            <div class="station-price flex flex-row items-center gap-2 flex-nowrap">\n              ${station.fuel_prices && station.fuel_prices.length > 0 ? `\n                <span class="uppercase tracking-wide text-sm ${fuelColorClass}">${window.translateFuel ? window.translateFuel(fuelType) : fuelType}</span>\n                <span class="text-2xl font-bold text-[var(--color-primary)]">${this.formatCurrency(price)}</span>\n              ` : ""}\n            </div>\n          </div>\n          <div class="flex items-center justify-end gap-3 pl-[calc(8px+2rem)]">\n            ${isCheapest ? `<span class="inline-block bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md whitespace-nowrap">${this.translate("best_price", "Miglior Prezzo!")}</span>` : ""}\n            ${station.fuel_prices && station.fuel_prices.length > 0 && !isCheapest ? `<span class="text-sm text-red-500 font-medium">${this.getPriceDifference(index)}</span>` : ""}\n            ${station.distance ? `<span class="flex items-center gap-1 text-sm text-[var(--text-muted)]">\n              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <circle cx="12" cy="12" r="10"></circle>\n                <polyline points="12 6 12 12 16 14"></polyline>\n              </svg>\n              ${this.formatDistance(station.distance)}\n            </span>` : ""}\n          </div>\n        </div>\n        <div class="station-card-body flex flex-col gap-2">\n          <div class="station-address-row flex items-start gap-2 text-sm text-[var(--text-secondary)] break-word overflow-wrap-break-word">\n            <svg class="address-icon w-4 h-4 text-[var(--text-muted)] mt-0.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n              <circle cx="12" cy="10" r="3"></circle>\n            </svg>\n            <span class="break-word overflow-wrap-break-word leading-relaxed max-w-full">${station.address || ""}</span>\n          </div>\n          <div class="station-actions-row flex gap-2 mt-4 pt-4 border-t border-[var(--border-color)]">\n            <button class="btn btn-primary flex-1 min-w-0 whitespace-nowrap bg-[var(--color-primary)] text-white border-none rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--color-primary-hover)] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale disabled:transform-none ${!(station.latitude && station.longitude) ? "disabled" : ""}" data-action="directions" data-id="${station.id}">\n              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M9 18l6-6-6-6"></path>\n              </svg>\n              <span>${this.translate("navigate", "Navigate")}</span>\n            </button>\n            <button class="btn btn-secondary flex-1 min-w-0 whitespace-nowrap bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed ${!(station.latitude && station.longitude) ? "disabled" : ""}" data-action="show-map" data-id="${station.id}">\n              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n                <circle cx="12" cy="10" r="3"></circle>\n              </svg>\n              <span>${this.translate("show_on_map", "Show on Map")}</span>\n            </button>\n          </div>\n        </div>\n      `;
+      article.innerHTML = `\n        <div class="station-card-header mb-4 min-w-0">\n          <div class="flex items-center justify-between gap-4 mb-2">\n            <div class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1">\n              <div class="station-icon w-10 h-10 bg-gradient-to-br from-[var(--color-primary-light)] to-[var(--color-primary)] rounded-xl flex items-center justify-center text-white shadow-sm">\n                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                  <path d="M12 2L2 7l10 5 10-5-10-5z"></path>\n                  <path d="M2 17l10 5 10-5"></path>\n                  <path d="M2 12l10 5 10-5"></path>\n                </svg>\n              </div>\n              <span class="truncate overflow-hidden text-ellipsis whitespace-nowrap">${escapeHtml(station.gestore || this.translate("station", "Gas Station"))}</span>\n            </div>\n            <div class="station-price flex flex-row items-center gap-2 flex-nowrap">\n              ${station.fuel_prices && station.fuel_prices.length > 0 ? `\n                <span class="uppercase tracking-wide text-sm ${fuelColorClass}">${escapeHtml(window.translateFuel ? window.translateFuel(fuelType) : fuelType)}</span>\n                <span class="text-2xl font-bold text-[var(--color-primary)]">${this.formatCurrency(price)}</span>\n              ` : ""}\n            </div>\n          </div>\n          <div class="flex items-center justify-end gap-3 pl-[calc(8px+2rem)]">\n            ${isCheapest ? `<span class="inline-block bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md whitespace-nowrap">${this.translate("best_price", "Miglior Prezzo!")}</span>` : ""}\n            ${station.fuel_prices && station.fuel_prices.length > 0 && !isCheapest ? `<span class="text-sm text-red-500 font-medium">${this.getPriceDifference(index)}</span>` : ""}\n            ${station.distance ? `<span class="flex items-center gap-1 text-sm text-[var(--text-muted)]">\n              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <circle cx="12" cy="12" r="10"></circle>\n                <polyline points="12 6 12 12 16 14"></polyline>\n              </svg>\n              ${this.formatDistance(station.distance)}\n            </span>` : ""}\n          </div>\n        </div>\n        <div class="station-card-body flex flex-col gap-2">\n          <div class="station-address-row flex items-start gap-2 text-sm text-[var(--text-secondary)] break-word overflow-wrap-break-word">\n            <svg class="address-icon w-4 h-4 text-[var(--text-muted)] mt-0.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n              <circle cx="12" cy="10" r="3"></circle>\n            </svg>\n            <span class="break-word overflow-wrap-break-word leading-relaxed max-w-full">${escapeHtml(station.address || "")}</span>\n          </div>\n          <div class="station-actions-row flex gap-2 mt-4 pt-4 border-t border-[var(--border-color)]">\n            <button class="btn btn-primary flex-1 min-w-0 whitespace-nowrap bg-[var(--color-primary)] text-white border-none rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--color-primary-hover)] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale disabled:transform-none ${!(station.latitude && station.longitude) ? "disabled" : ""}" data-action="directions" data-id="${escapeHtml(station.id)}">\n              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M9 18l6-6-6-6"></path>\n              </svg>\n              <span>${this.translate("navigate", "Navigate")}</span>\n            </button>\n            <button class="btn btn-secondary flex-1 min-w-0 whitespace-nowrap bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed ${!(station.latitude && station.longitude) ? "disabled" : ""}" data-action="show-map" data-id="${escapeHtml(station.id)}">\n              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n                <circle cx="12" cy="10" r="3"></circle>\n              </svg>\n              <span>${this.translate("show_on_map", "Show on Map")}</span>\n            </button>\n          </div>\n        </div>\n      `;
 
       article.addEventListener("click", () =>
         this.selectStationForMap(station.id),

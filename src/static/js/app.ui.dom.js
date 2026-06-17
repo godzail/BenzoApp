@@ -13,7 +13,8 @@ Object.assign(window.appUiMixin, {
         if (progressEl)
             this.loadingBar = progressEl;
         this.initializeResizer();
-        if (!window.__benzo_map_relayout_attached) {
+        if (!window
+            .__benzo_map_relayout_attached) {
             let _resizeTimer = null;
             const relayout = () => {
                 if (_resizeTimer)
@@ -21,7 +22,8 @@ Object.assign(window.appUiMixin, {
                 _resizeTimer = window.setTimeout(() => {
                     this.placeMapAccordingToViewport?.();
                     if (this.map &&
-                        typeof this.map.invalidateSize === "function") {
+                        typeof this.map
+                            .invalidateSize === "function") {
                         this.map.invalidateSize();
                     }
                     _resizeTimer = null;
@@ -109,7 +111,8 @@ Object.assign(window.appUiMixin, {
         try {
             const desired = lang === "en" ? "en" : "it";
             this.currentLang = desired;
-            if (typeof window.setLang === "function") {
+            if (typeof window
+                .setLang === "function") {
                 window.setLang(desired);
             }
             else {

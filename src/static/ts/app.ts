@@ -45,32 +45,32 @@ interface GasStationApp {
   init: () => Promise<void>;
 }
 
-function createApp(): GasStationApp {
-  // Get current theme from document or localStorage/system preference
-  const getInitialTheme = (): string => {
-    const stored = document.documentElement.getAttribute("data-theme");
-    if (stored) return stored;
-    // If user previously chose a theme in localStorage, apply it and return.
-    try {
-      const ls = localStorage.getItem(window.CONFIG.THEME_STORAGE_KEY);
-      if (ls) {
-        document.documentElement.setAttribute("data-theme", ls);
-        return ls;
-      }
-    } catch {}
+// Get current theme from document or localStorage/system preference
+function getInitialTheme(): string {
+  const stored = document.documentElement.getAttribute("data-theme");
+  if (stored) return stored;
+  // If user previously chose a theme in localStorage, apply it and return.
+  try {
+    const ls = localStorage.getItem(window.CONFIG.THEME_STORAGE_KEY);
+    if (ls) {
+      document.documentElement.setAttribute("data-theme", ls);
+      return ls;
+    }
+  } catch {}
 
-    // Start deterministically with the configured DEFAULT_THEME so tests
-    // and headless environments behave predictably. System preference
-    // changes are handled later by the ThemeManager listener when
-    // there's no stored preference.
-    document.documentElement.setAttribute(
-      "data-theme",
-      window.CONFIG.DEFAULT_THEME,
-    );
-    return window.CONFIG.DEFAULT_THEME;
-  };
+  // Start deterministically with the configured DEFAULT_THEME so tests
+  // and headless environments behave predictably. System preference
+  // changes are handled later by the ThemeManager listener when
+  // there's no stored preference.
+  document.documentElement.setAttribute(
+    "data-theme",
+    window.CONFIG.DEFAULT_THEME,
+  );
+  return window.CONFIG.DEFAULT_THEME;
+}
 
-  const app = {
+function createInitialState() {
+  return {
     formData: {
       city: "",
       radius: window.CONFIG.DEFAULT_RADIUS,
@@ -114,11 +114,13 @@ function createApp(): GasStationApp {
       // Will be replaced by mixin init
     },
   };
+}
 
+function createApp(): GasStationApp {
+  const app = createInitialState();
   const uiMixin = window.appUiMixin as Record<string, unknown>;
   const storageMixin = window.appStorageMixin as Record<string, unknown>;
   const mapMixin = window.appMapMixin as Record<string, unknown>;
-
   return Object.assign(app, uiMixin, storageMixin, mapMixin) as GasStationApp;
 }
 

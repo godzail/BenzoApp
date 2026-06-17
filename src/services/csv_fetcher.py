@@ -7,19 +7,24 @@ saving fetched data, and managing the local data directory structure.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import UTC
+from datetime import datetime as _datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from loguru import logger
 
+from src.services import csv_admin
+
 if TYPE_CHECKING:
     from src.models import Settings
 
+datetime: Any = _datetime
+
 # Project root and data directories
-PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
-LOCAL_DATA_DIR = Path(__file__).parent / "static" / "data"
+PROJECT_ROOT = csv_admin.PROJECT_ROOT
+LOCAL_DATA_DIR = csv_admin.LOCAL_DATA_DIR
 
 # Validation constants
 MIN_CONTENT_LENGTH = 50
@@ -176,18 +181,7 @@ def _candidate_local_csv_dirs(settings: Settings) -> list[Path]:
         2. `src/services/static/data` (service-local)
         3. project `data/` (fallback)
     """
-    candidates: list[Path] = []
-    local_dir = getattr(settings, "prezzi_local_data_dir", None)
-    if local_dir:
-        candidates.append(Path(local_dir))
-    candidates.extend(
-        (
-            PROJECT_ROOT / "src" / "static" / "data",
-            Path(__file__).parent / "static" / "data",
-            PROJECT_ROOT / "data",
-        ),
-    )
-    return candidates
+    return csv_admin.candidate_local_csv_dirs(settings)
 
 
 async def _save_csv_files(
@@ -260,14 +254,4 @@ def _cleanup_old_csvs(directory: Path, prefix: str, keep: int = 1) -> None:
     - prefix: The filename prefix to match (e.g., "anagrafica_impianti_attivi_").
     - keep: The number of most recent files to keep. Defaults to 1.
     """
-    try:
-        files = sorted(directory.glob(f"{prefix}*.csv"), key=lambda p: p.name, reverse=True)
-        to_remove = files[keep:]
-        for p in to_remove:
-            try:
-                p.unlink()
-                logger.debug("Removed old CSV file {}", p)
-            except Exception as err:
-                logger.exception("Failed to remove old CSV file {}: {}", p, err)
-    except Exception as err:
-        logger.warning("cleanup_old_csvs failed for {}: {}", directory, err)
+    csv_admin.cleanup_old_csvs(directory, prefix, keep)

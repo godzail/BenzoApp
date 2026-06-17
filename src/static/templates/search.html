@@ -2,17 +2,19 @@
 <div id="recent-searches-container" class="mb-4 hidden">
   <details>
     <summary
-      class="recent-searches-title text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide cursor-pointer list-none flex items-center gap-1"
+      class="recent-searches-title text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wide cursor-pointer list-none flex items-center gap-2"
       id="recent-searches-i18n"
-      :title="translate('recent_searches', 'Ricerche Recenti:') + (currentLang ? '' : '')"
+      data-i18n="recent_searches"
       title="Recent Searches"
-    ></summary>
+    >
+      Ricerche Recenti:
+    </summary>
     <section class="recent-searches-container pt-2" aria-labelledby="recent-searches-i18n">
       <div id="recent-searches-list" class="recent-searches-list flex flex-wrap gap-2">
-        <!-- Placeholder for static analysis / accessibility tests: kept hidden at runtime -->
+        <!-- Placeholder kept for static analysis / accessibility tests -->
         <button
           type="button"
-          aria-hidden="true"
+          disabled
           class="recent-search-btn flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-full px-3 py-2 text-sm text-[var(--text-secondary)] cursor-pointer transition-all duration-150 min-h-10 hidden"
         >
           Sample
@@ -23,10 +25,13 @@
 </div>
 
 <!-- Fuel Type Chips - Floating Pills -->
-<div class="fuel-chips flex gap-3 mb-6 flex-wrap" role="group" aria-label="Seleziona tipo di carburante">
+<fieldset
+  class="fuel-chips flex gap-3 mb-6 flex-wrap min-w-0 m-0 p-0 border-0"
+  aria-label="Seleziona tipo di carburante"
+>
   <button
-    id="fuel-metano"
-    class="chip metano flex-1 min-w-24 justify-center inline-flex items-center gap-2 rounded-xl px-4 py-3"
+    id="fuel-benzina"
+    class="chip benzina flex-1 min-w-24 justify-center inline-flex items-center gap-2 rounded-xl px-4 py-3"
     type="button"
   >
     <svg
@@ -64,21 +69,6 @@
     </svg>
     <span id="fuel-gasolio-text">Gasolio</span>
   </button>
-  <button id="fuel-GPL" class="chip GPL flex-1 min-w-24 justify-center inline-flex items-center gap-1" type="button">
-    <svg
-      aria-hidden="true"
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-    >
-      <circle cx="12" cy="12" r="10"></circle>
-      <path d="M12 6v6l4 2"></path>
-    </svg>
-    <span id="fuel-GPL-text">GPL</span>
-  </button>
   <button
     id="fuel-GPL"
     class="chip GPL flex-1 min-w-24 justify-center inline-flex items-center gap-2 rounded-xl px-4 py-3"
@@ -96,9 +86,28 @@
       <circle cx="12" cy="12" r="10"></circle>
       <path d="M12 6v6l4 2"></path>
     </svg>
+    <span id="fuel-GPL-text">GPL</span>
+  </button>
+  <button
+    id="fuel-metano"
+    class="chip metano flex-1 min-w-24 justify-center inline-flex items-center gap-2 rounded-xl px-4 py-3"
+    type="button"
+  >
+    <svg
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+    >
+      <circle cx="12" cy="12" r="10"></circle>
+      <path d="M12 6v6l4 2"></path>
+    </svg>
     <span id="fuel-metano-text">Metano</span>
   </button>
-</div>
+</fieldset>
 
 <!-- Search Controls -->
 <form id="search-form" aria-labelledby="search-form-title">
@@ -111,7 +120,12 @@
   <div class="search-settings-grid grid gap-4 mt-4">
     <!-- Radius Slider -->
     <div class="radius-control flex items-center gap-4 p-4 bg-[var(--bg-elevated)] rounded-xl">
-      <span class="text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap" id="radius-label"></span>
+      <span
+        class="text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap"
+        id="radius-label"
+        data-i18n="search_radius"
+        >Raggio di Ricerca</span
+      >
       <input
         type="range"
         id="radius-slider"
@@ -126,7 +140,12 @@
 
     <!-- Max Results Slider -->
     <div class="radius-control flex items-center gap-4 p-4 bg-[var(--bg-elevated)] rounded-xl">
-      <span class="text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap" id="results-label"></span>
+      <span
+        class="text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap"
+        id="results-label"
+        data-i18n="max_results"
+        >Limite Risultati</span
+      >
       <input
         type="range"
         id="results-slider"
@@ -146,7 +165,7 @@
     class="btn btn-primary w-full mt-4 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white border-none rounded-xl py-3 px-4 text-sm font-semibold cursor-pointer transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:-translate-y-0.5"
     type="submit"
   >
-    <span id="search-btn-text"></span>
+    <span id="search-btn-text">Cerca</span>
     <span id="loading-spinner" class="hidden">
       <svg
         aria-hidden="true"
@@ -163,10 +182,5 @@
       <span id="loading-text"></span>
     </span>
   </button>
-  <div
-    class="search-divider border-t border-[var(--border-color)] mt-4 mb-4"
-    role="separator"
-    aria-hidden="true"
-    aria-valuenow="0"
-  ></div>
+  <hr class="search-divider border-t border-[var(--border-color)] mt-4 mb-4" aria-hidden="true">
 </form>

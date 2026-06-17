@@ -363,56 +363,6 @@ input[type="range"]:focus-visible {
   outline-offset: 2px;
 }
 
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  cursor: pointer;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.3),
-    0 0 0 3px var(--bg-surface);
-  transition:
-    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.2s ease;
-}
-
-input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.4),
-    0 0 0 4px var(--bg-surface);
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  cursor: pointer;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.3),
-    0 0 0 3px var(--bg-surface);
-  border: none;
-  transition:
-    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.2s ease;
-}
-
-input[type="range"]::-moz-range-thumb:hover {
-  transform: scale(1.2);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.4),
-    0 0 0 4px var(--bg-surface);
-}
-
-input[type="range"]:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
 /* Skeleton shimmer animation */
 .animate-shimmer {
   background: linear-gradient(
@@ -489,12 +439,8 @@ input[type="range"]:focus-visible {
   color: var(--text-secondary);
 }
 
-/* Fuel chip indicator rotation */
-.map-card[open] summary::after {
-  transform: rotate(180deg);
-}
-
-summary::after {
+/* Map card summary arrow only */
+.map-card summary::after {
   content: "";
   margin-left: auto;
   width: 0;
@@ -503,6 +449,11 @@ summary::after {
   border-right: 6px solid transparent;
   border-top: 6px solid currentColor;
   transition: transform 0.15s ease;
+}
+
+/* Fuel chip indicator rotation */
+.map-card[open] summary::after {
+  transform: rotate(180deg);
 }
 
 /* Chip base styles - Floating Pills Design */
@@ -613,67 +564,23 @@ details[open] .recent-searches-title::before {
     0 0 0 3px var(--chip-color);
 }
 
-/* Fuel chip active state - Translucent with glowing bottom border */
+/* Fuel chip active state - Solid fill with clear accessible contrast */
 .chip.active {
-  background: var(--chip-bg);
+  background: var(--chip-color);
+  color: #fff;
   border-color: var(--chip-color);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.1);
   transform: scale(1.02);
 }
 
-.chip.active.benzina {
-  --chip-glow: rgba(234, 88, 12, 0.25);
-  box-shadow:
-    0 4px 16px var(--chip-glow),
-    inset 0 -2px 0 var(--chip-color);
+.chip.active:hover {
+  filter: brightness(1.1);
 }
 
-.chip.active.gasolio {
-  --chip-glow: rgba(71, 85, 105, 0.25);
-  box-shadow:
-    0 4px 16px var(--chip-glow),
-    inset 0 -2px 0 var(--chip-color);
-}
-
-.chip.active.GPL {
-  --chip-glow: rgba(220, 38, 38, 0.25);
-  box-shadow:
-    0 4px 16px var(--chip-glow),
-    inset 0 -2px 0 var(--chip-color);
-}
-
-.chip.active.metano {
-  --chip-glow: rgba(3, 105, 161, 0.25);
-  box-shadow:
-    0 4px 16px var(--chip-glow),
-    inset 0 -2px 0 var(--chip-color);
-}
-
-.chip.active.benzina {
-  --chip-glow: rgba(255, 152, 0, 0.3);
-  box-shadow:
-    0 4px 16px var(--chip-glow),
-    inset 0 -2px 0 var(--chip-color);
-}
-
-.chip.active.gasolio {
-  --chip-glow: rgba(120, 144, 156, 0.3);
-  box-shadow:
-    0 4px 16px var(--chip-glow),
-    inset 0 -2px 0 var(--chip-color);
-}
-
-.chip.active.GPL {
-  --chip-glow: rgba(255, 87, 34, 0.3);
-  box-shadow:
-    0 4px 16px var(--chip-glow),
-    inset 0 -2px 0 var(--chip-color);
-}
-
-.chip.active.metano {
-  --chip-glow: rgba(66, 165, 245, 0.3);
-  box-shadow:
-    0 4px 16px var(--chip-glow),
-    inset 0 -2px 0 var(--chip-color);
+.chip.active svg {
+  color: #fff;
 }
 
 /* ── CSV Update Startup Popup ─────────────────────────────── */

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import re
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -122,6 +123,17 @@ class CSVSchemaError(ValueError):
     """
 
 
+@dataclass(frozen=True)
+class AnagraficaIndices:
+    """Column indices used to parse anagrafica CSV rows."""
+
+    id_idx: int
+    lat_idx: int
+    lon_idx: int
+    gestore_idx: int
+    address_idx: int | None
+
+
 def _is_named_header(header_tokens: list[str]) -> bool:
     """Return True if header tokens look like named columns (not "col0,col1...").
 
@@ -234,10 +246,8 @@ def _parse_price(value: str | None, *, prefer_decimal_three_frac: bool = False) 
         # treat dot as decimal when 1-2 digits follow, and when parsing prezzo
         # fields (`prefer_decimal_three_frac=True`) also accept 3 fractional
         # digits as a decimal separator (e.g. "1.519" -> 1.519).
-        if after in (1, 2) or (after == 3 and prefer_decimal_three_frac):  # noqa: PLR2004
-            # keep dot as decimal point
-            pass
-        else:
+        keep_dot_as_decimal = after in (1, 2) or (after == 3 and prefer_decimal_three_frac)  # noqa: PLR2004
+        if not keep_dot_as_decimal:
             s = s.replace(".", "")
 
     # remove spaces used as grouping
@@ -245,10 +255,46 @@ def _parse_price(value: str | None, *, prefer_decimal_three_frac: bool = False) 
     if not s or s in ("-", "+"):
         return None
     try:
-        v = float(s)
-    except Exception:
+        parsed = float(s)
+    except ValueError:
         return None
-    return -v if negative else v
+    return -parsed if negative else parsed
+
+
+def _parse_anagrafica_row(
+    row: list[str],
+    *,
+    indices: AnagraficaIndices,
+) -> tuple[str, dict[str, Any]] | None:
+    """Parse one anagrafica row into a station record."""
+    if not row or len(row) <= max(indices.lat_idx, indices.lon_idx):
+        return None
+
+    id_impianto = row[indices.id_idx].strip() if indices.id_idx < len(row) else ""
+    if not id_impianto or not id_impianto.isdigit():
+        return None
+
+    try:
+        lat = float(row[indices.lat_idx].replace(",", "."))
+        lon = float(row[indices.lon_idx].replace(",", "."))
+    except ValueError:
+        logger.debug("Skipping row with invalid coordinates: id={}", id_impianto)
+        return None
+
+    if indices.address_idx is not None and indices.address_idx < len(row):
+        indirizzo = row[indices.address_idx].strip()
+    else:
+        indirizzo = " ".join(
+            [row[i] for i in range(ADDR_IDX_START, ADDR_IDX_END) if i < len(row) and row[i]],
+        ).strip()
+
+    return id_impianto, {
+        "gestore": row[indices.gestore_idx] if indices.gestore_idx < len(row) else "",
+        "indirizzo": indirizzo,
+        "latitudine": lat,
+        "longitudine": lon,
+        "prezzi": {},
+    }
 
 
 def _parse_anagrafica(csv_text: str, force_delimiter: str | None = None) -> dict[str, dict[str, Any]]:
@@ -279,40 +325,22 @@ def _parse_anagrafica(csv_text: str, force_delimiter: str | None = None) -> dict
             raise CSVSchemaError(msg)
 
     # resolve indices (fall back to legacy constants)
-    id_idx = header_map.get("id", 0)
-    lat_idx = header_map.get("lat", LAT_IDX)
-    lon_idx = header_map.get("lon", LON_IDX)
-    gestore_idx = header_map.get("gestore", GESTORE_IDX)
-    address_idx = header_map.get("address")
+    indices = AnagraficaIndices(
+        id_idx=header_map.get("id", 0),
+        lat_idx=header_map.get("lat", LAT_IDX),
+        lon_idx=header_map.get("lon", LON_IDX),
+        gestore_idx=header_map.get("gestore", GESTORE_IDX),
+        address_idx=header_map.get("address"),
+    )
 
     for row in rows[1:]:
-        # ensure we can reach lat/lon columns
-        if not row or len(row) <= max(lat_idx, lon_idx):
-            continue
-        id_impianto = row[id_idx].strip() if id_idx < len(row) else ""
-        if not id_impianto or not id_impianto.isdigit():
-            continue
-        try:
-            lat = float(row[lat_idx].replace(",", "."))
-            lon = float(row[lon_idx].replace(",", "."))
-        except Exception:
-            logger.debug("Skipping row with invalid coordinates: id={}", id_impianto)
-            continue
-
-        if address_idx is not None and address_idx < len(row):
-            indirizzo = row[address_idx].strip()
-        else:
-            indirizzo = " ".join(
-                [row[i] for i in range(ADDR_IDX_START, ADDR_IDX_END) if i < len(row) and row[i]],
-            ).strip()
-
-        data[id_impianto] = {
-            "gestore": row[gestore_idx] if gestore_idx < len(row) else "",
-            "indirizzo": indirizzo,
-            "latitudine": lat,
-            "longitudine": lon,
-            "prezzi": {},
-        }
+        parsed_row = _parse_anagrafica_row(
+            row,
+            indices=indices,
+        )
+        if parsed_row is not None:
+            id_impianto, station = parsed_row
+            data[id_impianto] = station
     return data
 
 

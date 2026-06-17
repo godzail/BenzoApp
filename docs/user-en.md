@@ -1,6 +1,6 @@
 # BenzoApp User Guide
 
-**Version 1.1** | Last Updated: February 2026
+**Version 1.2** | Last Updated: June 2026
 
 ---
 
@@ -13,7 +13,7 @@ BenzoApp provides real-time fuel price data from official sources, displayed thr
 ### Main View
 
 ![Main Interface](screenshots/main.jpg)
-*Figure 1: The main interface of BenzoApp showing the search input, filters, and interactive map*
+*Figure 1: The main interface of BenzoApp showing the search input, labeled radius and results sliders, fuel chips, and interactive map*
 
 ---
 
@@ -89,14 +89,13 @@ BenzoApp provides real-time fuel price data from official sources, displayed thr
    - Examples: "Roma", "Milano", "Napoli", "Torino"
 
 2. **Adjust search parameters** (optional):
-   - **Radius**: Drag the slider to set search distance (1-200 km)
-   - **Fuel Type**: Select your fuel preference from the fuel chips
+   - **Radius**: Drag the slider to set search distance (1-200 km). The slider is labelled "Search Radius" so the current value is always clear.
+   - **Fuel Type**: Select your fuel preference from the fuel chips. The selected chip is filled with the fuel colour and uses white text for maximum contrast.
      - Benzina (Gasoline)
      - Gasolio (Diesel)
      - GPL (LPG)
      - Metano (Methane)
-   - **Results**: Choose how many stations to display (1-20)
-   - **Current Location**: Click the location button to search near your current position
+    - **Results**: Choose how many stations to display (1-20). The slider is labelled "Max Results" so the limit is always clear.
 
 3. **Click "Cerca" (Search)** or press Enter
    - Wait for the loading indicator
@@ -421,7 +420,7 @@ See the project repository for contribution guidelines.
 ### Technologies Used
 
 - **Backend**: FastAPI, Pydantic, httpx, Tenacity, Loguru
-- **Frontend**: Alpine.js, Leaflet, i18next, TypeScript
+- **Frontend**: TypeScript (compiled to vanilla ES2020), Tailwind CSS, Leaflet, i18next
 - **Build Tools**: Bun for package management and scripting
 - **APIs**: OpenStreetMap Nominatim, Italian Ministry of Economic Development CSV downloads
 - **Design**: Custom CSS with Inter font
@@ -438,6 +437,13 @@ BenzoApp is released under the MIT License. See LICENSE file for details.
 ---
 
 ## Version History
+
+### v1.2.0 (June 2026)
+
+- Improved readability of all interactive labels (search radius and max results sliders, location button, recent searches heading)
+- Restyled active fuel chip state with a solid, high-contrast fill and white text
+- Removed duplicate and conflicting CSS rules for range sliders and disclosure arrows
+- Updated documentation to reflect the current TypeScript/Tailwind frontend stack
 
 ### v1.1.0 (February 2026)
 
