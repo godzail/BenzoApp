@@ -257,6 +257,18 @@ typings/
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 
+# Local assistant-control files: keep on disk, never in git
+/AGENTS.md
+/CLAUDE.md
+/.agent/
+/.agents/
+/.claude/
+/.github/agents/
+/.github/chatmodes/
+/.github/instructions/
+/.github/prompts/
+/docs/agents/
+
 # Next.js build output
 .next
 
@@ -296,3 +308,4 @@ public/
 test-results/
 playwright-report/
 data/
+.tokensave/
