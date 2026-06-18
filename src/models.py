@@ -116,6 +116,10 @@ class Settings(BaseSettings):
         "src/static/data/prezzi_data.json",
         description="Path to cached combined prezzi JSON file.",
     )
+    prezzi_csv_http_meta_path: str = Field(
+        "src/static/data/prezzi_csv_http_meta.json",
+        description="Path per salvare ETag/Last-Modified per richieste CSV condizionali.",
+    )
     prezzi_cache_hours: int = Field(24, description="Number of hours to consider the cache fresh.")
     prezzi_csv_delimiter: str = Field(
         "auto",
@@ -136,6 +140,10 @@ class Settings(BaseSettings):
     prezzi_keep_versions: int = Field(
         1,
         description="How many timestamped CSV versions to keep when new CSVs are saved.",
+    )
+    prezzi_min_csv_bytes: int = Field(
+        10_000,
+        description="Dimensione minima in bytes per un CSV locale valido. File più piccoli vengono scartati come stub.",
     )
     prezzi_preload_on_startup: bool = Field(
         default=True,

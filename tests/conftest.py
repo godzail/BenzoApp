@@ -86,7 +86,7 @@ class DummyClientCsv:
         self._prezzi = prezzi_text
         self.calls = 0
 
-    async def get(self, url, _params=None):
+    async def get(self, url: str, _params: Any = None, headers: dict | None = None) -> DummyResponseCsv:
         """Return the appropriate dummy response based on the requested URL path."""
         self.calls += 1
         if url.endswith("anagrafica_impianti_attivi.csv"):
@@ -95,6 +95,45 @@ class DummyClientCsv:
             return DummyResponseCsv(self._prezzi, url=url)
         msg = "Unexpected URL"
         raise RuntimeError(msg)
+
+
+class DummyClientCsvConditional:
+    """Mock async HTTP client per testare richieste CSV condizionali (ETag/304)."""
+
+    def __init__(
+        self,
+        anag_status: int = 200,
+        prezzi_status: int = 200,
+        anag_content: bytes = b"anag",
+        prezzi_content: bytes = b"prezzi",
+        anag_resp_headers: dict | None = None,
+        prezzi_resp_headers: dict | None = None,
+    ) -> None:
+        """Configura le risposte mock per i due endpoint CSV."""
+        self.sent_headers: list[dict] = []
+        self._anag_status = anag_status
+        self._prezzi_status = prezzi_status
+        self._anag_content = anag_content
+        self._prezzi_content = prezzi_content
+        self._anag_resp_headers = anag_resp_headers or {}
+        self._prezzi_resp_headers = prezzi_resp_headers or {}
+
+    async def get(self, url: str, headers: dict | None = None, **kwargs: Any) -> DummyResponseCsv:
+        """Registra gli header inviati e ritorna la risposta configurata."""
+        self.sent_headers.append(headers or {})
+        if "anagrafica" in url:
+            return DummyResponseCsv(
+                self._anag_content,
+                status_code=self._anag_status,
+                url=url,
+                headers=self._anag_resp_headers,
+            )
+        return DummyResponseCsv(
+            self._prezzi_content,
+            status_code=self._prezzi_status,
+            url=url,
+            headers=self._prezzi_resp_headers,
+        )
 
 
 class DummyClientException:

@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
-import httpx
+import httpx2 as httpx
 from cachetools import TTLCache
 from fastapi import HTTPException
 from loguru import logger

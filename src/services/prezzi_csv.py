@@ -29,7 +29,7 @@ from src.services.csv_cache import (
 )
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2 as httpx
 
     from src.models import Settings, StationSearchParams
 from src.services.csv_fetcher import (

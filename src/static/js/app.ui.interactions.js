@@ -440,10 +440,17 @@ Object.assign(window.appUiMixin, {
             });
             this.fetchCsvStatus()?.then((status) => {
                 this.csvLastUpdated = status.last_updated;
+                this.updateCsvStatusUI?.(status);
                 try {
-                    if (!(status.reload_in_progress || this.csvReloading)) {
+                    if (status.reload_in_progress) {
+                        // background worker in corso → poll ogni 5s, poi mostra popup se freshly_downloaded
+                        this._startCsvReloadPolling?.();
+                    }
+                    else if (status.freshly_downloaded) {
+                        // worker già terminato con nuovi dati (avvio veloce)
                         this.showCsvUpdatePopup?.();
                     }
+                    // 304 / dati invariati → nessun popup
                 }
                 catch (err) {
                     this.debug("CSV popup check failed:", err);

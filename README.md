@@ -39,7 +39,7 @@ BenzoApp is built with a modern, scalable architecture:
 
 - **FastAPI** - High-performance async Python web framework
 - **Pydantic** - Data validation and settings management
-- **httpx** - Async HTTP client with connection pooling
+- **httpx2** - Async HTTP client with connection pooling
 - **Tenacity** - Intelligent retry logic for external API calls
 - **Loguru** - Structured logging
 
@@ -112,12 +112,25 @@ BenzoApp is built with a modern, scalable architecture:
 
 The application uses environment variables for configuration. See [.env.example](.env.example) for all available options:
 
-| Variable                    | Description                                  | Default                                                   |
-|-----------------------------|----------------------------------------------|-----------------------------------------------------------|
-| `NOMINATIM_API_URL`         | OpenStreetMap geocoding API endpoint         | `https://nominatim.openstreetmap.org/search`              |
-| `PREZZI_CARBURANTE_CSV_URL` | Fuel price CSV download URL                  | `https://www.mimit.gov.it/it/open-data/elenco-dataset/carburanti-prezzi-praticati-e-anagrafica-degli-impianti` |
-| `CORS_ALLOWED_ORIGINS`      | Comma-separated list of allowed CORS origins | `http://localhost:3000,http://127.0.0.1:3000`              |
-| `USER_AGENT`                | Custom user agent for external API requests  | `GasStationFinder/1.0 (contact@example.com)`              |
+| Variable                       | Description                                                               | Default                                               |
+|--------------------------------|---------------------------------------------------------------------------|-------------------------------------------------------|
+| `NOMINATIM_API_URL`            | OpenStreetMap Nominatim geocoding endpoint                                | `https://nominatim.openstreetmap.org/search`          |
+| `PHOTON_API_URL`               | Photon geocoding fallback endpoint                                        | `https://photon.komoot.io/api/`                       |
+| `PREZZI_CSV_ANAGRAFICA_URL`    | MIMIT station registry CSV URL                                            | Official MIMIT URL                                    |
+| `PREZZI_CSV_PREZZI_URL`        | MIMIT fuel prices CSV URL                                                 | Official MIMIT URL                                    |
+| `PREZZI_CACHE_PATH`            | Path for the combined stations JSON cache                                 | `src/static/data/prezzi_data.json`                    |
+| `PREZZI_CACHE_HOURS`           | Hours before cached CSV data is considered stale                          | `24`                                                  |
+| `PREZZI_CSV_DELIMITER`         | CSV delimiter: `auto` to detect, or `\|` / `;` to force                  | `auto`                                                |
+| `PREZZI_LOCAL_DATA_DIR`        | Optional directory for persisting downloaded CSV files                    | `null` (uses project-level `src/static/data`)         |
+| `PREZZI_KEEP_VERSIONS`         | Number of timestamped CSV versions to retain                              | `1`                                                   |
+| `PREZZI_MIN_CSV_BYTES`         | Minimum bytes for a valid local CSV (smaller files treated as stubs)      | `10000`                                               |
+| `PREZZI_PRELOAD_ON_STARTUP`    | Preload latest local CSV into cache on startup (non-blocking)             | `true`                                                |
+| `PREZZI_RELOAD_ON_STARTUP`     | Trigger full remote CSV reload on startup (non-blocking)                  | `true`                                                |
+| `CORS_ALLOWED_ORIGINS`         | Comma-separated list of allowed CORS origins                              | `http://localhost:3000,http://127.0.0.1:3000`         |
+| `USER_AGENT`                   | **Must include contact info** (email or URL) per Nominatim usage policy   | `GasStationFinder/1.0 (contact@example.com)`          |
+| `SERVER_HOST`                  | Bind address                                                              | `127.0.0.1`                                           |
+| `SERVER_PORT`                  | Port number                                                               | `8000`                                                |
+| `SEARCH_TIMEOUT_SECONDS`       | Timeout for interactive search requests (seconds)                         | `12`                                                  |
 
 ## 📚 API Documentation
 
@@ -196,14 +209,24 @@ Returns CSV data freshness and source information.
 
 #### `POST /api/reload-csv`
 
-Forces CSV download and cache refresh.
+Forces CSV download and cache refresh (synchronous — waits for completion).
 
-**Response:**
+**Response (success):**
 
 ```json
 {
-  "message": "CSV reload started",
-  "status": "in_progress"
+  "status": "success",
+  "message": "CSV reload completed successfully",
+  "last_updated": "2026-06-18T10:30:00"
+}
+```
+
+**Response (error):**
+
+```json
+{
+  "status": "error",
+  "message": "Failed to trigger CSV reload"
 }
 ```
 
@@ -262,6 +285,7 @@ BenzoApp/
 │   │   ├── csv_fetcher.py      # CSV download and file management
 │   │   ├── csv_parser.py       # CSV parsing and record merging
 │   │   ├── csv_utils.py        # CSV utility functions
+│   │   ├── csv_admin.py        # CSV file administration (cleanup, listing)
 │   │   ├── distance_utils.py   # Haversine distance calculation
 │   │   └── static/             # Service-local static data
 │   └── static/                 # Frontend assets

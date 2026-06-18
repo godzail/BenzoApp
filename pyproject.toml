@@ -9,6 +9,7 @@ dependencies = [
   "cachetools",
   "fastapi[standard]",
   "httptools",
+  "httpx2",
   "humanize",
   "loguru",
   "markdown",
@@ -30,7 +31,6 @@ dependencies = [
 [dependency-groups]
 dev = [
   "datamodel-code-generator",
-  "httpx2",
   "pipgrip",
   "pytest",
   "pytest-asyncio",

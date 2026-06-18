@@ -7,12 +7,13 @@ saving fetched data, and managing the local data directory structure.
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import UTC
 from datetime import datetime as _datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import httpx
+import httpx2 as httpx
 from loguru import logger
 
 from src.services import csv_admin
@@ -28,13 +29,74 @@ LOCAL_DATA_DIR = csv_admin.LOCAL_DATA_DIR
 
 # Validation constants
 MIN_CONTENT_LENGTH = 50
+MIN_CSV_BYTES = 10_000  # file stub/test sotto questa soglia vengono scartati
+
+
+async def _load_http_meta(path: str) -> dict[str, str]:
+    """Carica i metadati HTTP (ETag/Last-Modified) salvati per richieste condizionali.
+
+    Parameters:
+    - path: Path del file JSON dei metadati.
+
+    Returns:
+    - Dizionario con chiavi anag_etag, anag_last_modified, prezzi_etag, prezzi_last_modified.
+      Ritorna dict vuoto se il file non esiste o non è leggibile.
+    """
+    p = Path(path)
+    exists = await asyncio.to_thread(p.exists)
+    if not exists:
+        return {}
+    try:
+        text = await asyncio.to_thread(p.read_text, "utf-8")
+        return json.loads(text)
+    except Exception:
+        logger.debug("Failed to load CSV HTTP meta from {}", path)
+        return {}
+
+
+async def _save_http_meta(path: str, meta: dict[str, str]) -> None:
+    """Salva i metadati HTTP (ETag/Last-Modified) per future richieste condizionali.
+
+    Parameters:
+    - path: Path del file JSON dei metadati.
+    - meta: Dizionario con i valori ETag/Last-Modified da persistere.
+    """
+    p = Path(path)
+    try:
+        await asyncio.to_thread(p.parent.mkdir, parents=True, exist_ok=True)
+        text = json.dumps(meta, indent=2, ensure_ascii=False)
+        await asyncio.to_thread(p.write_text, text, "utf-8")
+        logger.debug("Saved CSV HTTP meta to {}", path)
+    except Exception as err:
+        logger.warning("Failed to save CSV HTTP meta to {}: {}", path, err)
+
+
+async def _load_single_csv(settings: Settings, glob_pattern: str) -> str:
+    """Legge il primo CSV locale corrispondente al pattern dai candidate dirs.
+
+    Parameters:
+    - settings: Configurazione applicazione.
+    - glob_pattern: Pattern glob del filename (es. "anagrafica_impianti_attivi*.csv").
+
+    Returns:
+    - Testo CSV decodificato come ISO-8859-1.
+
+    Raises:
+    - FileNotFoundError: Se nessun file corrisponde in nessuna candidate dir.
+    """
+    for d in _candidate_local_csv_dirs(settings):
+        files = sorted(d.glob(glob_pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+        if files:
+            return await asyncio.to_thread(files[0].read_text, "iso-8859-1")
+    msg = f"No local CSV matching '{glob_pattern}' in candidate dirs"
+    raise FileNotFoundError(msg)
 
 
 async def _fetch_csvs(
     http_client: httpx.AsyncClient,
     settings: Settings,
 ) -> tuple[str, str]:
-    """Fetch CSVs from remote URLs.
+    """Fetch CSVs from remote URLs using conditional HTTP to skip unchanged files.
 
     Parameters:
     - http_client: The HTTP client to use for fetching.
@@ -47,13 +109,29 @@ async def _fetch_csvs(
     - httpx.HTTPStatusError: If the remote API returns an HTTP error.
     - httpx.RequestError: If there's a network error.
     """
+    meta = await _load_http_meta(settings.prezzi_csv_http_meta_path)
+
+    anag_req_headers: dict[str, str] = {}
+    prezzi_req_headers: dict[str, str] = {}
+    if etag := meta.get("anag_etag"):
+        anag_req_headers["If-None-Match"] = etag
+    if lm := meta.get("anag_last_modified"):
+        anag_req_headers["If-Modified-Since"] = lm
+    if etag := meta.get("prezzi_etag"):
+        prezzi_req_headers["If-None-Match"] = etag
+    if lm := meta.get("prezzi_last_modified"):
+        prezzi_req_headers["If-Modified-Since"] = lm
+
     try:
         resp_anag, resp_prezzi = await asyncio.gather(
-            http_client.get(settings.prezzi_csv_anagrafica_url),
-            http_client.get(settings.prezzi_csv_prezzi_url),
+            http_client.get(settings.prezzi_csv_anagrafica_url, headers=anag_req_headers),
+            http_client.get(settings.prezzi_csv_prezzi_url, headers=prezzi_req_headers),
         )
-        resp_anag.raise_for_status()
-        resp_prezzi.raise_for_status()
+        # 304 Not Modified è atteso — raise_for_status solo per errori 4xx/5xx
+        if resp_anag.status_code != 304:
+            resp_anag.raise_for_status()
+        if resp_prezzi.status_code != 304:
+            resp_prezzi.raise_for_status()
     except httpx.HTTPStatusError as e:
         logger.error("HTTP error fetching CSV: status={} url={}", e.response.status_code, e.response.url)
         logger.warning("Attempting to fallback to local CSV files in {}", LOCAL_DATA_DIR)
@@ -86,8 +164,62 @@ async def _fetch_csvs(
             logger.exception(original_exc)
             raise original_exc from e
 
-    anag_text = resp_anag.content.decode("iso-8859-1")
-    prezzi_text = resp_prezzi.content.decode("iso-8859-1")
+    # 304 Not Modified per entrambi — usa file locali
+    if resp_anag.status_code == 304 and resp_prezzi.status_code == 304:
+        logger.info("Both CSVs not modified (304), loading from local cache")
+        try:
+            return await _load_local_csvs(settings)
+        except FileNotFoundError:
+            logger.warning("304 ma cache locale assente/invalida — forzo download senza header condizionali")
+            await _save_http_meta(settings.prezzi_csv_http_meta_path, {})
+            resp_anag, resp_prezzi = await asyncio.gather(
+                http_client.get(settings.prezzi_csv_anagrafica_url),
+                http_client.get(settings.prezzi_csv_prezzi_url),
+            )
+            resp_anag.raise_for_status()
+            resp_prezzi.raise_for_status()
+            # continua sotto con le risposte 200
+
+    # 304 parziale — carica il file locale per quello non modificato
+    if resp_anag.status_code == 304:
+        logger.info("anagrafica CSV not modified (304), loading local copy")
+        try:
+            anag_text = await _load_single_csv(settings, "anagrafica_impianti_attivi*.csv")
+        except FileNotFoundError:
+            logger.warning("304 anag ma cache locale assente — scarico fresh")
+            resp_anag = await http_client.get(settings.prezzi_csv_anagrafica_url)
+            resp_anag.raise_for_status()
+            anag_text = resp_anag.content.decode("iso-8859-1")
+    else:
+        anag_text = resp_anag.content.decode("iso-8859-1")
+
+    if resp_prezzi.status_code == 304:
+        logger.info("prezzi CSV not modified (304), loading local copy")
+        try:
+            prezzi_text = await _load_single_csv(settings, "prezzo_alle_8*.csv")
+        except FileNotFoundError:
+            logger.warning("304 prezzi ma cache locale assente — scarico fresh")
+            resp_prezzi = await http_client.get(settings.prezzi_csv_prezzi_url)
+            resp_prezzi.raise_for_status()
+            prezzi_text = resp_prezzi.content.decode("iso-8859-1")
+    else:
+        prezzi_text = resp_prezzi.content.decode("iso-8859-1")
+
+    # Persisti ETag/Last-Modified dalle risposte 200 per richieste future
+    new_meta = dict(meta)
+    updated = False
+    if resp_anag.status_code != 304:
+        for key, hdr in (("anag_etag", "etag"), ("anag_last_modified", "last-modified")):
+            if val := resp_anag.headers.get(hdr):
+                new_meta[key] = val
+                updated = True
+    if resp_prezzi.status_code != 304:
+        for key, hdr in (("prezzi_etag", "etag"), ("prezzi_last_modified", "last-modified")):
+            if val := resp_prezzi.headers.get(hdr):
+                new_meta[key] = val
+                updated = True
+    if updated:
+        await _save_http_meta(settings.prezzi_csv_http_meta_path, new_meta)
 
     for name, text in (("anagrafica", anag_text), ("prezzi", prezzi_text)):
         if len(text) < MIN_CONTENT_LENGTH:
@@ -122,8 +254,8 @@ async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
     preferred_dir = Path(local_dir) if local_dir else PROJECT_ROOT / "src" / "static" / "data"
 
     for d in candidates:
-        anag_files = list(d.glob("anagrafica_impianti_attivi*.csv"))
-        prezzi_files = list(d.glob("prezzo_alle_8*.csv"))
+        anag_files = sorted(d.glob("anagrafica_impianti_attivi*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+        prezzi_files = sorted(d.glob("prezzo_alle_8*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
         if anag_files and prezzi_files:
             anag_path = anag_files[0]
             prezzi_path = prezzi_files[0]
@@ -133,8 +265,20 @@ async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
             except Exception as err:
                 logger.error("Failed to read local CSV files in {}: {}", d, err)
                 raise
+            min_bytes = getattr(settings, "prezzi_min_csv_bytes", MIN_CSV_BYTES)
+            if len(anag_text) < min_bytes or len(prezzi_text) < min_bytes:
+                logger.error(
+                    "CSV stub/test file rilevato e scartato — anag='{}' ({} bytes), prezzi='{}' ({} bytes). "
+                    "Minimo atteso: {} bytes. Eliminare i file stub dalla directory dati.",
+                    anag_path, len(anag_text), prezzi_path, len(prezzi_text), min_bytes,
+                )
+                missing.append(str(d))
+                continue
             else:
-                logger.info("Loaded CSV data from local files in {}: anag='{}', prezzi='{}'", d, anag_path, prezzi_path)
+                logger.info(
+                    "Loaded CSV data from local files in {}: anag='{}' ({} bytes), prezzi='{}' ({} bytes)",
+                    d, anag_path, len(anag_text), prezzi_path, len(prezzi_text),
+                )
 
                 try:
                     preferred = Path(preferred_dir)

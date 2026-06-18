@@ -58,6 +58,7 @@ dependencies = [
     { name = "cachetools" },
     { name = "fastapi", extra = ["standard"] },
     { name = "httptools" },
+    { name = "httpx2" },
     { name = "humanize" },
     { name = "loguru" },
     { name = "markdown" },
@@ -79,7 +80,6 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "datamodel-code-generator" },
-    { name = "httpx2" },
     { name = "pipgrip" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -99,6 +99,7 @@ requires-dist = [
     { name = "cachetools" },
     { name = "fastapi", extras = ["standard"] },
     { name = "httptools" },
+    { name = "httpx2" },
     { name = "humanize" },
     { name = "loguru" },
     { name = "markdown" },
@@ -120,7 +121,6 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "datamodel-code-generator" },
-    { name = "httpx2" },
     { name = "pipgrip" },
     { name = "pytest" },
     { name = "pytest-asyncio" },

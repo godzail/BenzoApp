@@ -51,6 +51,7 @@ BenzoApp is a web application for searching and analyzing gas stations in Italy.
 │  │  • csv_fetcher.py - CSV download management         │  │
 │  │  • csv_parser.py - CSV parsing and merging          │  │
 │  │  • csv_utils.py - CSV utility functions             │  │
+│  │  • csv_admin.py - CSV file cleanup and listing     │  │
 │  │  • distance_utils.py - Haversine calculation        │  │
 │  │  • fuel_type_utils.py - fuel normalization          │  │
 │  └─────────────────────────┬───────────────────────────┘  │
@@ -256,23 +257,25 @@ Settings are read from `.env` file (if present) or environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NOMINATIM_API_URL` | `https://nominatim.openstreetmap.org/search` | Nominatim endpoint |
-| `PREZZI_CARBURANTE_API_URL` | `https://prezzi-carburante.onrender.com/api/distributori` | **(Deprecated)** Old API URL, no longer used by fuel_api.py |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Allowed CORS origins |
-| `USER_AGENT` | `GasStationFinder/1.0 (contact@example.com)` | **Must include contact** per Nominatim policy |
-| `PREZZI_CSV_ANAGRAFICA_URL` | MIMIT official CSV | Station registry URL |
-| `PREZZI_CSV_PREZZI_URL` | MIMIT official CSV | Prices CSV URL |
-| `PREZZI_CACHE_PATH` | `src/static/data/prezzi_data.json` | Cache file location |
-| `PREZZI_CACHE_HOURS` | `24` | Freshness threshold (hours) |
-| `PREZZI_CSV_DELIMITER` | `auto` | CSV delimiter (auto/;/|) |
-| `PREZZI_LOCAL_DATA_DIR` | `null` | Optional custom CSV directory |
-| `PREZZI_KEEP_VERSIONS` | `1` | Number of old CSV versions to keep |
-| `PREZZI_PRELOAD_ON_STARTUP` | `true` | Preload CSVs on startup |
+| `NOMINATIM_API_URL` | `https://nominatim.openstreetmap.org/search` | Nominatim geocoding endpoint |
+| `PHOTON_API_URL` | `https://photon.komoot.io/api/` | Photon geocoding fallback endpoint |
+| `USER_AGENT` | `GasStationFinder/1.0 (contact@example.com)` | **Must include email or URL** per Nominatim policy |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Comma-separated allowed CORS origins |
+| `PREZZI_CSV_ANAGRAFICA_URL` | MIMIT official CSV | Station registry (anagrafica) CSV URL |
+| `PREZZI_CSV_PREZZI_URL` | MIMIT official CSV | Fuel prices CSV URL |
+| `PREZZI_CACHE_PATH` | `src/static/data/prezzi_data.json` | Combined stations JSON cache path |
+| `PREZZI_CACHE_HOURS` | `24` | Hours before cache is considered stale |
+| `PREZZI_CSV_DELIMITER` | `auto` | CSV delimiter: `auto` / `;` / `\|` |
+| `PREZZI_LOCAL_DATA_DIR` | `null` | Optional directory for downloaded CSVs |
+| `PREZZI_KEEP_VERSIONS` | `1` | Timestamped CSV versions to retain |
+| `PREZZI_MIN_CSV_BYTES` | `10000` | Minimum bytes to treat a CSV as valid |
+| `PREZZI_PRELOAD_ON_STARTUP` | `true` | Preload local CSVs into cache on startup |
+| `PREZZI_RELOAD_ON_STARTUP` | `true` | Fetch fresh CSVs from MIMIT on startup |
 | `SERVER_HOST` | `127.0.0.1` | Bind address |
 | `SERVER_PORT` | `8000` | Port number |
-| `SERVER_RELOAD` | `true` | Auto-reload on code changes (dev) |
+| `SERVER_RELOAD` | `true` | Auto-reload on code changes (dev only) |
 | `SERVER_WORKERS` | `1` | Number of worker processes |
-| `SEARCH_TIMEOUT_SECONDS` | `12` | Request timeout |
+| `SEARCH_TIMEOUT_SECONDS` | `12` | Interactive search timeout (seconds) |
 
 > **Note**: The `USER_AGENT` is validated to ensure it includes an email address or URL, complying with Nominatim's usage policy.
 

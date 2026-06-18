@@ -2,7 +2,7 @@
 
 from typing import Any
 
-import httpx
+import httpx2 as httpx
 from fastapi import HTTPException
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
