@@ -1,6 +1,6 @@
 # Deployment Checklist
 
-**Version 1.1** | Last Updated: February 2026
+**Version 1.2** | Last Updated: June 2026
 
 ---
 

@@ -3,7 +3,7 @@
 import json
 from datetime import UTC
 
-import httpx
+import httpx2 as httpx
 import pytest
 from fastapi import HTTPException
 

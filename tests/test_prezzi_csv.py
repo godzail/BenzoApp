@@ -27,7 +27,7 @@ from src.services.prezzi_csv import (
 )
 
 if TYPE_CHECKING:
-    import httpx
+    import httpx2 as httpx
 
 
 @pytest.fixture(autouse=True)
@@ -63,6 +63,7 @@ MIN_EXPECTED_CALLS = 2
 
 # Use typing.cast when passing dummy clients to async function to satisfy typecheckers
 from tests.conftest import DummyClientCsv as DummyClient  # noqa: E402
+from tests.conftest import DummyClientCsvConditional  # noqa: E402
 
 
 def _make_anagrafica_row(id_: str, lat: str, lon: str) -> str:
@@ -255,7 +256,7 @@ def test_fetch_csvs_raises_on_http_error(monkeypatch):
             raise RuntimeError(msg)
 
     class ErrClient:
-        async def get(self, _url, _params=None):
+        async def get(self, _url, _params=None, headers=None):
             return ErrResp()
 
     settings = Settings()
@@ -723,7 +724,7 @@ def test_load_local_csvs_uses_custom_dir(tmp_path):
         encoding="iso-8859-1",
     )
 
-    settings = Settings()
+    settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = str(tmp_path)
 
     anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))  # noqa: SLF001
@@ -810,7 +811,7 @@ def test_load_prefers_static_candidate(tmp_path, monkeypatch):
 
     monkeypatch.setattr(prezzi_csv, "_candidate_local_csv_dirs", fake_candidates)
 
-    settings = Settings()
+    settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = None
 
     anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
@@ -843,7 +844,7 @@ def test_load_from_project_src_static_data_dir():
         encoding="iso-8859-1",
     )
 
-    settings = Settings()
+    settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = None
 
     anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
@@ -877,7 +878,7 @@ def test_load_migrates_from_service_to_project_dir():
         encoding="iso-8859-1",
     )
 
-    settings = Settings()
+    settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = None
 
     anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
@@ -915,7 +916,7 @@ def test_load_migrates_from_project_data_to_src_static():
         encoding="iso-8859-1",
     )
 
-    settings = Settings()
+    settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = None
 
     anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
@@ -1020,3 +1021,81 @@ def test_check_preferred_local_dir_writable_warns(monkeypatch):
     mock_logger.warning.assert_called()
     warning_msg = mock_logger.warning.call_args[0][0]
     assert "not writable" in warning_msg
+
+
+# --- Test HTTP condizionale ---
+
+
+def test_fetch_csvs_304_both_uses_local(tmp_path):
+    """Quando entrambi i CSV tornano 304, usa i file locali senza scaricare."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "anagrafica_impianti_attivi.csv").write_bytes(b"local_anag_content")
+    (data_dir / "prezzo_alle_8.csv").write_bytes(b"local_prezzi_content")
+
+    meta_path = tmp_path / "meta.json"
+    meta_path.write_text('{"anag_etag": "\\"abc\\"", "prezzi_etag": "\\"def\\""}')
+
+    settings = Settings(
+        prezzi_csv_http_meta_path=str(meta_path),
+        prezzi_local_data_dir=str(data_dir),
+        prezzi_min_csv_bytes=0,
+    )
+    client = DummyClientCsvConditional(anag_status=304, prezzi_status=304)
+
+    anag_text, prezzi_text = asyncio.run(
+        _fetch_csvs(cast("httpx.AsyncClient", client), settings)
+    )
+
+    assert anag_text == "local_anag_content"
+    assert prezzi_text == "local_prezzi_content"
+    # Verifica che gli header condizionali siano stati inviati
+    assert all("If-None-Match" in h for h in client.sent_headers)
+
+
+def test_fetch_csvs_200_saves_http_meta(tmp_path):
+    """Una risposta 200 con ETag salva il meta file per future richieste condizionali."""
+    meta_path = tmp_path / "meta.json"
+
+    settings = Settings(
+        prezzi_csv_http_meta_path=str(meta_path),
+        prezzi_local_data_dir=str(tmp_path),
+    )
+    client = DummyClientCsvConditional(
+        anag_resp_headers={"etag": '"etag-anag"', "last-modified": "Wed, 18 Jun 2026 06:00:00 GMT"},
+        prezzi_resp_headers={"etag": '"etag-prezzi"'},
+        anag_content=b"x" * 100,
+        prezzi_content=b"x" * 100,
+    )
+
+    asyncio.run(_fetch_csvs(cast("httpx.AsyncClient", client), settings))
+
+    assert meta_path.exists()
+    saved = json.loads(meta_path.read_text())
+    assert saved["anag_etag"] == '"etag-anag"'
+    assert saved["prezzi_etag"] == '"etag-prezzi"'
+    assert saved["anag_last_modified"] == "Wed, 18 Jun 2026 06:00:00 GMT"
+
+
+def test_fetch_csvs_sends_conditional_headers_when_meta_exists(tmp_path):
+    """Se il meta file esiste, invia If-None-Match e If-Modified-Since."""
+    meta_path = tmp_path / "meta.json"
+    meta_path.write_text(json.dumps({
+        "anag_etag": '"stored-etag"',
+        "anag_last_modified": "Mon, 16 Jun 2026 08:00:00 GMT",
+    }))
+
+    settings = Settings(
+        prezzi_csv_http_meta_path=str(meta_path),
+        prezzi_local_data_dir=str(tmp_path),
+    )
+    client = DummyClientCsvConditional(
+        anag_content=b"x" * 100,
+        prezzi_content=b"x" * 100,
+    )
+
+    asyncio.run(_fetch_csvs(cast("httpx.AsyncClient", client), settings))
+
+    anag_sent = client.sent_headers[0]  # prima GET = anagrafica
+    assert anag_sent.get("If-None-Match") == '"stored-etag"'
+    assert anag_sent.get("If-Modified-Since") == "Mon, 16 Jun 2026 08:00:00 GMT"

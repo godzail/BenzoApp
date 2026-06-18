@@ -34,7 +34,7 @@ Object.assign(window.appUiMixin, {
             this.debug("Failed to fetch CSV status:", window.appUiMixin.error);
             this.csvRemoteReloadInProgress = false;
             this.updateReloadButtonUI?.();
-            return { last_updated: null, source: "unknown", is_stale: false };
+            return { last_updated: null, source: "unknown", is_stale: false, freshly_downloaded: false };
         }
         finally {
             this.csvStatusLoading = false;
@@ -239,6 +239,28 @@ Object.assign(window.appUiMixin, {
         finally {
             this.hideCsvUpdatePopup();
         }
+    },
+    /**
+     * Poll /api/csv-status ogni 5 secondi finché reload_in_progress è true.
+     * Quando termina, mostra il popup solo se freshly_downloaded === true.
+     */
+    _startCsvReloadPolling() {
+        const POLL_INTERVAL_MS = 5000;
+        const interval = setInterval(async () => {
+            let status;
+            try {
+                status = await this.fetchCsvStatus();
+            }
+            catch {
+                return;
+            }
+            if (!status.reload_in_progress) {
+                clearInterval(interval);
+                if (status.freshly_downloaded) {
+                    this.showCsvUpdatePopup?.();
+                }
+            }
+        }, POLL_INTERVAL_MS);
     },
     /**
      * Re-translate popup text elements when the active language changes.

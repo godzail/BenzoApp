@@ -1,6 +1,6 @@
 # Testing Guide
 
-**Version 1.1** | Last Updated: February 2026
+**Version 1.2** | Last Updated: June 2026
 
 ---
 
@@ -82,6 +82,7 @@ tests/
 ├── test_prezzi_csv.py    # CSV service tests
 ├── test_models.py        # Pydantic model tests
 ├── test_docs_page.py     # Docs page rendering test
+├── test_sensitive_scan.py     # Secret/credential leakage scan
 ├── test_ui_accessibility.py   # Accessibility tests
 ├── test_ui_buttons.py    # UI button tests
 └── e2e/                  # Playwright E2E tests

@@ -21,7 +21,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Annotated, Any, cast
 
-import httpx
+import httpx2 as httpx
 from dateutil.parser import parse as dateutil_parse
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -105,14 +105,21 @@ def _start_background_task(_app: FastAPI, name: str, coro: Any) -> asyncio.Task[
 
 
 async def _startup_reload_csv(settings: Settings, client: httpx.AsyncClient) -> None:
-    """Refresh CSV data during startup and log failures."""
+    """Refresh CSV data during startup; track whether new data was actually downloaded."""
     logger.info("Starting prezzi CSV reload on startup (background)")
+    before = await _get_meta_mtime(settings)
     try:
         await fetch_and_combine_csv_data(settings, client)
         logger.info("Startup CSV reload completed successfully")
     except Exception as err:
         logger.warning("Startup CSV reload failed: {}", err)
         logger.exception(err)
+        return
+    after = await _get_meta_mtime(settings)
+    # meta file updated ↔ 200 response ↔ nuovo CSV scaricato
+    freshly = after is not None and after != before
+    app.state._csv_freshly_downloaded = freshly  # noqa: SLF001
+    logger.info("Startup CSV reload: freshly_downloaded={}", freshly)
 
 
 async def _schedule_startup_work(_app: FastAPI, settings: Settings, client: httpx.AsyncClient) -> None:
@@ -137,8 +144,11 @@ async def _schedule_startup_work(_app: FastAPI, settings: Settings, client: http
 
     if not cache_fresh:
         logger.info("Prezzi cache missing or stale — running blocking CSV reload on startup")
+        before = await _get_meta_mtime(settings)
         try:
             await fetch_and_combine_csv_data(settings, client)
+            after = await _get_meta_mtime(settings)
+            _app.state._csv_freshly_downloaded = after is not None and after != before  # noqa: SLF001
             logger.info("Blocking startup CSV reload completed successfully")
         except Exception as err:
             logger.warning("Blocking startup CSV reload failed: {}", err)
@@ -261,6 +271,19 @@ def _is_reload_in_progress() -> bool:
     return False
 
 
+async def _get_meta_mtime(settings: Settings) -> float | None:
+    """Return mtime of CSV HTTP meta file, or None if not present."""
+    p = Path(settings.prezzi_csv_http_meta_path)
+    try:
+        exists = await asyncio.to_thread(p.exists)
+        if not exists:
+            return None
+        st = await asyncio.to_thread(p.stat)
+        return st.st_mtime
+    except OSError:
+        return None
+
+
 async def _build_csv_status(settings: Settings) -> dict[str, Any]:
     """Build the CSV status payload returned by the public endpoint."""
     last_updated = get_latest_csv_timestamp(settings)
@@ -289,6 +312,7 @@ async def _build_csv_status(settings: Settings) -> dict[str, Any]:
         "source": source,
         "is_stale": is_stale,
         "reload_in_progress": _is_reload_in_progress(),
+        "freshly_downloaded": getattr(app.state, "_csv_freshly_downloaded", False),
     }
 
 
@@ -342,6 +366,7 @@ async def lifespan(_app: FastAPI):
     headers = _csv_http_headers(settings)
     async with httpx.AsyncClient(timeout=timeout, headers=headers, follow_redirects=True) as client:
         _app.state.http_client = client
+        _app.state._csv_freshly_downloaded = False  # noqa: SLF001
         await _schedule_startup_work(_app, settings, client)
         try:
             yield
