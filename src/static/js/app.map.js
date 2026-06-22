@@ -24,24 +24,26 @@ window.appMapMixin = {
         if (!this.results || this.results.length === 0) {
             return;
         }
-        const validStations = this.results.filter((s) => s.latitude && s.longitude);
+        const validStations = this.results.filter((station) => typeof station.latitude === "number" &&
+            typeof station.longitude === "number");
         if (validStations.length === 0) {
             return;
         }
         const bounds = validStations.map((st) => [st.latitude, st.longitude]);
         for (const station of validStations) {
-            if (!station.id) {
+            if (station.id === undefined || station.id === null) {
                 continue;
             }
+            const stationId = station.id;
             const marker = L
                 .marker([station.latitude, station.longitude])
                 .addTo(this.map);
             marker.__station = station;
             marker.bindPopup(this.buildPopupContent(station));
             marker.on("click", () => {
-                this.highlightStationCard?.(station.id);
+                this.highlightStationCard?.(stationId);
             });
-            this.mapMarkers[station.id] = marker;
+            this.mapMarkers[stationId] = marker;
         }
         this.map?.invalidateSize?.();
         const validBounds = bounds;
@@ -77,9 +79,11 @@ window.appMapMixin = {
         this.map = L
             .map("map")
             .setView(window.CONFIG.DEFAULT_MAP_CENTER, window.CONFIG.DEFAULT_ZOOM);
+        const attributionUrl = "https://www.openstreetmap.org/copyright";
+        const attribution = `&copy; <a href="${attributionUrl}">OpenStreetMap</a> contributors`;
         L
             .tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            attribution,
         })
             .addTo(this.map);
         this.mapInitialized = true;
@@ -135,9 +139,9 @@ window.appMapMixin = {
      */
     highlightStationCard(stationId) {
         const cards = document.querySelectorAll(".station-card");
-        cards.forEach((card) => {
+        for (const card of Array.from(cards)) {
             card.classList.remove("selected");
-        });
+        }
         const targetCard = document.querySelector(`.station-card[data-station-id="${stationId}"]`);
         if (targetCard) {
             targetCard.classList.add("selected");

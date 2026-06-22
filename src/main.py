@@ -279,9 +279,10 @@ async def _get_meta_mtime(settings: Settings) -> float | None:
         if not exists:
             return None
         st = await asyncio.to_thread(p.stat)
-        return st.st_mtime
     except OSError:
         return None
+    else:
+        return st.st_mtime
 
 
 async def _build_csv_status(settings: Settings) -> dict[str, Any]:
@@ -307,12 +308,15 @@ async def _build_csv_status(settings: Settings) -> dict[str, Any]:
     except Exception as err:
         logger.debug("Failed to check cache status: {}", err)
 
+    freshly_downloaded = getattr(app.state, "_csv_freshly_downloaded", False)
+    if freshly_downloaded:
+        app.state._csv_freshly_downloaded = False  # noqa: SLF001
     return {
         "last_updated": last_updated,
         "source": source,
         "is_stale": is_stale,
         "reload_in_progress": _is_reload_in_progress(),
-        "freshly_downloaded": getattr(app.state, "_csv_freshly_downloaded", False),
+        "freshly_downloaded": freshly_downloaded,
     }
 
 
@@ -622,10 +626,9 @@ async def reload_csv(
             "status": "error",
             "message": "Failed to trigger CSV reload",
         }
-    else:
-        last_updated = get_latest_csv_timestamp(settings)
-        return {
-            "status": "success",
-            "message": "CSV reload completed successfully",
-            "last_updated": last_updated,
-        }
+    last_updated = get_latest_csv_timestamp(settings)
+    return {
+        "status": "success",
+        "message": "CSV reload completed successfully",
+        "last_updated": last_updated,
+    }

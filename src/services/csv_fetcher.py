@@ -30,6 +30,7 @@ LOCAL_DATA_DIR = csv_admin.LOCAL_DATA_DIR
 # Validation constants
 MIN_CONTENT_LENGTH = 50
 MIN_CSV_BYTES = 10_000  # file stub/test sotto questa soglia vengono scartati
+HTTP_NOT_MODIFIED = 304
 
 
 async def _load_http_meta(path: str) -> dict[str, str]:
@@ -92,7 +93,7 @@ async def _load_single_csv(settings: Settings, glob_pattern: str) -> str:
     raise FileNotFoundError(msg)
 
 
-async def _fetch_csvs(
+async def _fetch_csvs(  # noqa: C901, PLR0912, PLR0915
     http_client: httpx.AsyncClient,
     settings: Settings,
 ) -> tuple[str, str]:
@@ -128,9 +129,9 @@ async def _fetch_csvs(
             http_client.get(settings.prezzi_csv_prezzi_url, headers=prezzi_req_headers),
         )
         # 304 Not Modified è atteso — raise_for_status solo per errori 4xx/5xx
-        if resp_anag.status_code != 304:
+        if resp_anag.status_code != HTTP_NOT_MODIFIED:
             resp_anag.raise_for_status()
-        if resp_prezzi.status_code != 304:
+        if resp_prezzi.status_code != HTTP_NOT_MODIFIED:
             resp_prezzi.raise_for_status()
     except httpx.HTTPStatusError as e:
         logger.error("HTTP error fetching CSV: status={} url={}", e.response.status_code, e.response.url)
@@ -165,7 +166,7 @@ async def _fetch_csvs(
             raise original_exc from e
 
     # 304 Not Modified per entrambi — usa file locali
-    if resp_anag.status_code == 304 and resp_prezzi.status_code == 304:
+    if resp_anag.status_code == HTTP_NOT_MODIFIED and resp_prezzi.status_code == HTTP_NOT_MODIFIED:
         logger.info("Both CSVs not modified (304), loading from local cache")
         try:
             return await _load_local_csvs(settings)
@@ -181,7 +182,7 @@ async def _fetch_csvs(
             # continua sotto con le risposte 200
 
     # 304 parziale — carica il file locale per quello non modificato
-    if resp_anag.status_code == 304:
+    if resp_anag.status_code == HTTP_NOT_MODIFIED:
         logger.info("anagrafica CSV not modified (304), loading local copy")
         try:
             anag_text = await _load_single_csv(settings, "anagrafica_impianti_attivi*.csv")
@@ -193,7 +194,7 @@ async def _fetch_csvs(
     else:
         anag_text = resp_anag.content.decode("iso-8859-1")
 
-    if resp_prezzi.status_code == 304:
+    if resp_prezzi.status_code == HTTP_NOT_MODIFIED:
         logger.info("prezzi CSV not modified (304), loading local copy")
         try:
             prezzi_text = await _load_single_csv(settings, "prezzo_alle_8*.csv")
@@ -208,12 +209,12 @@ async def _fetch_csvs(
     # Persisti ETag/Last-Modified dalle risposte 200 per richieste future
     new_meta = dict(meta)
     updated = False
-    if resp_anag.status_code != 304:
+    if resp_anag.status_code != HTTP_NOT_MODIFIED:
         for key, hdr in (("anag_etag", "etag"), ("anag_last_modified", "last-modified")):
             if val := resp_anag.headers.get(hdr):
                 new_meta[key] = val
                 updated = True
-    if resp_prezzi.status_code != 304:
+    if resp_prezzi.status_code != HTTP_NOT_MODIFIED:
         for key, hdr in (("prezzi_etag", "etag"), ("prezzi_last_modified", "last-modified")):
             if val := resp_prezzi.headers.get(hdr):
                 new_meta[key] = val
@@ -274,37 +275,35 @@ async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
                 )
                 missing.append(str(d))
                 continue
-            else:
-                logger.info(
-                    "Loaded CSV data from local files in {}: anag='{}' ({} bytes), prezzi='{}' ({} bytes)",
-                    d, anag_path, len(anag_text), prezzi_path, len(prezzi_text),
-                )
+            logger.info(
+                "Loaded CSV data from local files in {}: anag='{}' ({} bytes), prezzi='{}' ({} bytes)",
+                d, anag_path, len(anag_text), prezzi_path, len(prezzi_text),
+            )
 
-                try:
-                    preferred = Path(preferred_dir)
-                    is_different = await asyncio.to_thread(lambda a, b: a.resolve() != b.resolve(), preferred, d)
-                    if is_different:
-                        await asyncio.to_thread(preferred.mkdir, parents=True, exist_ok=True)
-                        target_anag = preferred / "anagrafica_impianti_attivi.csv"
-                        target_prezzi = preferred / "prezzo_alle_8.csv"
-                        target_anag_exists = await asyncio.to_thread(Path.exists, target_anag)
-                        target_prezzi_exists = await asyncio.to_thread(Path.exists, target_prezzi)
-                        if not (target_anag_exists and target_prezzi_exists):
-                            await asyncio.to_thread(target_anag.write_text, anag_text, "iso-8859-1")
-                            await asyncio.to_thread(target_prezzi.write_text, prezzi_text, "iso-8859-1")
-                            logger.info(
-                                "Migrated local CSVs from {} to {}: anag='{}', prezzi='{}'",
-                                d,
-                                preferred,
-                                target_anag,
-                                target_prezzi,
-                            )
-                except Exception as err:
-                    logger.warning("Failed to migrate CSVs from {} to preferred dir {}: {}", d, preferred_dir, err)
+            try:
+                preferred = Path(preferred_dir)
+                is_different = await asyncio.to_thread(lambda a, b: a.resolve() != b.resolve(), preferred, d)
+                if is_different:
+                    await asyncio.to_thread(preferred.mkdir, parents=True, exist_ok=True)
+                    target_anag = preferred / "anagrafica_impianti_attivi.csv"
+                    target_prezzi = preferred / "prezzo_alle_8.csv"
+                    target_anag_exists = await asyncio.to_thread(Path.exists, target_anag)
+                    target_prezzi_exists = await asyncio.to_thread(Path.exists, target_prezzi)
+                    if not (target_anag_exists and target_prezzi_exists):
+                        await asyncio.to_thread(target_anag.write_text, anag_text, "iso-8859-1")
+                        await asyncio.to_thread(target_prezzi.write_text, prezzi_text, "iso-8859-1")
+                        logger.info(
+                            "Migrated local CSVs from {} to {}: anag='{}', prezzi='{}'",
+                            d,
+                            preferred,
+                            target_anag,
+                            target_prezzi,
+                        )
+            except Exception as err:
+                logger.warning("Failed to migrate CSVs from {} to preferred dir {}: {}", d, preferred_dir, err)
 
-                return anag_text, prezzi_text
-        else:
-            missing.append(str(d))
+            return anag_text, prezzi_text
+        missing.append(str(d))
     msg = f"Local CSV files not found in candidate dirs: {', '.join(missing)}"
     logger.error(msg)
     raise FileNotFoundError(msg)

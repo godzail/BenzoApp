@@ -64,7 +64,7 @@ def test_fuelprice_non_negative():  # noqa: D103
     with pytest.raises(ValidationError):
         FuelPrice(type="gasolio", price=-0.1)
     f = FuelPrice(type="gasolio", price=1.23)
-    assert f.price == 1.23  # noqa: PLR2004
+    assert f.price == 1.23
 
 
 def test_station_coords_and_distance_validation():  # noqa: D103

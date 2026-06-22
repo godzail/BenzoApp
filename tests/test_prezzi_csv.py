@@ -189,7 +189,7 @@ def test_read_json_file_invalid(tmp_path):
 
 def test_write_json_file_atomic_replace(tmp_path):
     """_write_json_file should publish the new JSON atomically and remove any .part files."""
-    from src.services.csv_cache import _write_json_file  # noqa: PLC0415
+    from src.services.csv_cache import _write_json_file
 
     cache_path = tmp_path / "prezzi_cache.json"
     cache_path.write_text(json.dumps({"orig": True}), encoding="utf-8")
@@ -203,9 +203,9 @@ def test_write_json_file_atomic_replace(tmp_path):
 
 def test_write_json_file_does_not_corrupt_on_replace_failure(tmp_path, monkeypatch):
     """If replace() fails, the original cache must remain unchanged and no .part file should leak."""
-    import pathlib  # noqa: PLC0415
+    import pathlib
 
-    from src.services.csv_cache import _write_json_file  # noqa: PLC0415
+    from src.services.csv_cache import _write_json_file
 
     cache_path = tmp_path / "prezzi_cache.json"
     orig = {"orig": True}
@@ -242,7 +242,7 @@ def test_fetch_csvs_raises_on_http_error(monkeypatch):
         msg = "local CSVs missing for test"
         raise FileNotFoundError(msg)
 
-    from src.services import csv_fetcher  # noqa: PLC0415
+    from src.services import csv_fetcher
 
     monkeypatch.setattr(csv_fetcher, "_load_local_csvs", raise_missing)
 
@@ -727,7 +727,7 @@ def test_load_local_csvs_uses_custom_dir(tmp_path):
     settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = str(tmp_path)
 
-    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))  # noqa: SLF001
+    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
     assert "GestoreX" in anag_text
     assert "benzina" in prezzi_text
 
@@ -1044,7 +1044,7 @@ def test_fetch_csvs_304_both_uses_local(tmp_path):
     client = DummyClientCsvConditional(anag_status=304, prezzi_status=304)
 
     anag_text, prezzi_text = asyncio.run(
-        _fetch_csvs(cast("httpx.AsyncClient", client), settings)
+        _fetch_csvs(cast("httpx.AsyncClient", client), settings),
     )
 
     assert anag_text == "local_anag_content"

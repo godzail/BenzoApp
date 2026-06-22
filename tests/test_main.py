@@ -40,7 +40,7 @@ def test_search_gas_stations_invalid_city(client: TestClient) -> None:
 
 def test_search_surfaces_csv_schema_error(client: TestClient, monkeypatch) -> None:
     """When upstream CSV parsing reports a schema error (422) surface that exact message to the client."""
-    from fastapi import HTTPException  # noqa: PLC0415
+    from fastapi import HTTPException
 
     def _raise_schema(_params, _settings, _http_client):
         raise HTTPException(status_code=422, detail="CSV schema error (prezzi): missing required column 'prezzo'")
@@ -49,7 +49,7 @@ def test_search_surfaces_csv_schema_error(client: TestClient, monkeypatch) -> No
 
     payload = {"city": "Florence", "radius": 5, "fuel": "benzina", "results": 2}
     response = client.post("/search", json=payload)
-    assert response.status_code == 200  # noqa: PLR2004
+    assert response.status_code == 200
     data = response.json()
     assert data["stations"] == []
     assert data["warning"] == "CSV schema error (prezzi): missing required column 'prezzo'"
@@ -76,10 +76,10 @@ def test_search_gas_stations_radius_bounds(client: TestClient) -> None:
 
 def test_search_timeout_behavior(client: TestClient, monkeypatch) -> None:
     """Ensure server-side search timeout returns a warning instead of hanging."""
-    import asyncio  # noqa: PLC0415
+    import asyncio
 
-    from src.main import get_settings  # noqa: PLC0415
-    from src.models import Settings  # noqa: PLC0415
+    from src.main import get_settings
+    from src.models import Settings
 
     # Override dependency to use a very short timeout and patch fetch_gas_stations to be slow
     class FastTimeoutSettings(Settings):

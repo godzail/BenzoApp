@@ -129,6 +129,7 @@ Object.assign(window.appUiMixin, {
             this.updateLanguageUI?.();
             this.updateFuelTypeUI?.();
             this.updateSearchFormUI?.();
+            this.updateSearchButtonUI?.();
             this.updateRecentSearchesUI?.();
             this.updateResultsUI?.();
         }
@@ -154,6 +155,8 @@ Object.assign(window.appUiMixin, {
             console.error(`Error loading component into ${elementId}:`, error);
         }
     },
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: wiring template events is clearer in one place.
+    // biome-ignore lint/complexity/noExcessiveLinesPerFunction: same template listener table, no useful split.
     attachEventListeners(container) {
         const reloadBtn = container.querySelector("#reload-btn");
         if (reloadBtn && !reloadBtn.hasAttribute("data-listener-attached")) {
@@ -220,6 +223,7 @@ Object.assign(window.appUiMixin, {
             docsLink.setAttribute("href", `/help/user-${this.currentLang || "it"}`);
             const title = this.translate("user_docs", "User Documentation");
             docsLink.setAttribute("title", title);
+            docsLink.setAttribute("aria-label", title);
         }
         const searchForm = container.querySelector("#search-form");
         if (searchForm && !searchForm.hasAttribute("data-listener-attached")) {
@@ -247,7 +251,7 @@ Object.assign(window.appUiMixin, {
             resultsSlider.setAttribute("data-listener-attached", "true");
         }
         const fuelButtons = ["benzina", "gasolio", "GPL", "metano"];
-        fuelButtons.forEach((fuel) => {
+        for (const fuel of fuelButtons) {
             const btn = container.querySelector(`#fuel-${fuel}`);
             if (btn && !btn.hasAttribute("data-listener-attached")) {
                 btn.addEventListener("click", () => {
@@ -255,7 +259,7 @@ Object.assign(window.appUiMixin, {
                 });
                 btn.setAttribute("data-listener-attached", "true");
             }
-        });
+        }
     },
     placeMapAccordingToViewport() {
         try {
