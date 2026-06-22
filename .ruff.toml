@@ -40,7 +40,7 @@ target-version = "py313"
 
 [lint]
     ignore           = ["ANN", "BLE001", "D203", "D213", "INP"]
-    per-file-ignores = { "__init__.py" = ["D104"], "test_*.py" = ["S101"] }
+    per-file-ignores = { "__init__.py" = ["D104"], "tests/*.py" = ["ARG", "PLC0415", "PLR0913", "PLR2004", "PLW0108", "S101", "SLF001"] }
     select           = ["ALL"]
 
     # Allow unused variables when underscore-prefixed.

@@ -26,7 +26,7 @@ BenzoApp is a fast, user-friendly web application that helps users find and comp
 - 📏 **Radius Control** - Adjustable search radius (1-200 km)
 - 🌐 **Multi-language** - Support for Italian and English (i18n with i18next)
 - 📱 **Responsive Design** - Works seamlessly on desktop and mobile devices
-- ⚡ **Fast & Efficient** - Async operations with connection pooling and local caching
+- ⚡ **Fast & Efficient** - Async operations with connection pooling, local caching, and conditional HTTP caching (ETag/304)
 - 🎨 **Modern UI** - Clean, accessible interface with Alpine.js, resizable layout
 - 🔄 **Data Management** - CSV data status indicator with manual reload capability
 - 📊 **Recent Searches** - Quick access to previous searches
@@ -131,6 +131,8 @@ The application uses environment variables for configuration. See [.env.example]
 | `SERVER_HOST`                  | Bind address                                                              | `127.0.0.1`                                           |
 | `SERVER_PORT`                  | Port number                                                               | `8000`                                                |
 | `SEARCH_TIMEOUT_SECONDS`       | Timeout for interactive search requests (seconds)                         | `12`                                                  |
+| `SERVER_RELOAD`                | Auto-reload on code changes (development only)                            | `false`                                               |
+| `SERVER_WORKERS`               | Number of worker processes                                                | `1`                                                   |
 
 ## 📚 API Documentation
 

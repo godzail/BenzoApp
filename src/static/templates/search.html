@@ -28,11 +28,13 @@
 <fieldset
   class="fuel-chips flex gap-3 mb-6 flex-wrap min-w-0 m-0 p-0 border-0"
   aria-label="Seleziona tipo di carburante"
+  data-i18n-aria-label="fuel_type"
 >
   <button
     id="fuel-benzina"
     class="chip benzina flex-1 min-w-24 justify-center inline-flex items-center gap-2 rounded-xl px-4 py-3"
     type="button"
+    aria-pressed="false"
   >
     <svg
       aria-hidden="true"
@@ -43,9 +45,10 @@
       stroke="currentColor"
       stroke-width="2"
     >
-      <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-      <path d="M2 17l10 5 10-5"></path>
-      <path d="M2 12l10 5 10-5"></path>
+      <path d="M3 22h12"></path>
+      <path d="M5 22V5a2 2 0 0 1 2-2h6v19"></path>
+      <path d="M9 7h2"></path>
+      <path d="M15 9h2a2 2 0 0 1 2 2v6a2 2 0 0 0 2 2"></path>
     </svg>
     <span id="fuel-benzina-text">Benzina</span>
   </button>
@@ -53,6 +56,7 @@
     id="fuel-gasolio"
     class="chip gasolio flex-1 min-w-24 justify-center inline-flex items-center gap-2 rounded-xl px-4 py-3"
     type="button"
+    aria-pressed="false"
   >
     <svg
       aria-hidden="true"
@@ -63,9 +67,10 @@
       stroke="currentColor"
       stroke-width="2"
     >
-      <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-      <path d="M2 17l10 5 10-5"></path>
-      <path d="M2 12l10 5 10-5"></path>
+      <path d="M4 16h16"></path>
+      <path d="M6 16l2-8h8l2 8"></path>
+      <path d="M8 20h8"></path>
+      <path d="M10 4h4"></path>
     </svg>
     <span id="fuel-gasolio-text">Gasolio</span>
   </button>
@@ -73,6 +78,7 @@
     id="fuel-GPL"
     class="chip GPL flex-1 min-w-24 justify-center inline-flex items-center gap-2 rounded-xl px-4 py-3"
     type="button"
+    aria-pressed="false"
   >
     <svg
       aria-hidden="true"
@@ -83,8 +89,9 @@
       stroke="currentColor"
       stroke-width="2"
     >
-      <circle cx="12" cy="12" r="10"></circle>
-      <path d="M12 6v6l4 2"></path>
+      <rect x="5" y="6" width="14" height="12" rx="4"></rect>
+      <path d="M9 6V4h6v2"></path>
+      <path d="M9 18v2h6v-2"></path>
     </svg>
     <span id="fuel-GPL-text">GPL</span>
   </button>
@@ -92,6 +99,7 @@
     id="fuel-metano"
     class="chip metano flex-1 min-w-24 justify-center inline-flex items-center gap-2 rounded-xl px-4 py-3"
     type="button"
+    aria-pressed="false"
   >
     <svg
       aria-hidden="true"
@@ -102,8 +110,8 @@
       stroke="currentColor"
       stroke-width="2"
     >
-      <circle cx="12" cy="12" r="10"></circle>
-      <path d="M12 6v6l4 2"></path>
+      <path d="M12 3c3 3 5 6 5 10a5 5 0 0 1-10 0c0-4 2-7 5-10z"></path>
+      <path d="M9 14a3 3 0 0 0 6 0"></path>
     </svg>
     <span id="fuel-metano-text">Metano</span>
   </button>
@@ -133,7 +141,7 @@
         min="1"
         max="50"
         step="1"
-        aria-label="Raggio di ricerca"
+        aria-labelledby="radius-label radius-value"
       >
       <span id="radius-value" class="font-bold text-[var(--color-primary)] min-w-12 text-center"></span>
     </div>
@@ -153,7 +161,7 @@
         min="1"
         max="20"
         step="1"
-        aria-label="Limite risultati"
+        aria-labelledby="results-label results-value"
       >
       <span id="results-value" class="font-bold text-[var(--color-primary)] min-w-8 text-center"></span>
     </div>
@@ -162,7 +170,7 @@
   <!-- Submit Button -->
   <button
     id="search-submit"
-    class="btn btn-primary w-full mt-4 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white border-none rounded-xl py-3 px-4 text-sm font-semibold cursor-pointer transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:-translate-y-0.5"
+    class="btn btn-primary w-full mt-4 bg-gradient-to-r from-[var(--color-primary-dark)] to-[var(--color-primary-darker)] text-white border-none rounded-xl py-3 px-4 text-sm font-semibold cursor-pointer transition-all duration-200 inline-flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:-translate-y-0.5"
     type="submit"
   >
     <span id="search-btn-text">Cerca</span>

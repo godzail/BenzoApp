@@ -70,11 +70,11 @@ We use **ruff** for both linting and formatting Python code.
 #### Linting & Formatting
 
 ```bash
-# Check for issues
-ruff check .
+# Check for issues (delivery gate)
+uv run ruff check src tests --select D,E,F,I,UP
 
 # Auto-fix issues
-ruff check . --fix
+uv run ruff check src tests --select D,E,F,I,UP --fix
 
 # Configuration is in .ruff.toml
 ```
@@ -87,7 +87,7 @@ We use **ty** for type checking:
 # Run type checker
 ty check .
 
-# Configuration is in .mypy.ini
+# Configuration is in pyproject.toml
 ```
 
 #### Python Best Practices
@@ -214,11 +214,11 @@ refactor/extract-fuel-service
 2. **Run all checks**
 
    ```bash
-   # Python linting
-   ruff check .
+   # Python linting (authoritative gate)
+   uv run ruff check src tests --select D,E,F,I,UP
    
    # Type checking
-   ty check .
+   uv run ty check
    
    # Frontend linting
    biome check src/static

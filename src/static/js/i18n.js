@@ -36,6 +36,7 @@ function t(key, fallback = "") {
  * Set the application language
  * @param lang - The language code ('en' or 'it')
  */
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: splitting this callback chain hides the fallback flow.
 window.setLang = (lang) => {
     const app = window.gasStationApp;
     if (app?.debugMode) {
@@ -56,6 +57,7 @@ window.setLang = (lang) => {
                 });
             }
             if (i18next.changeLanguage) {
+                // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: bundle fallback belongs with the language callback.
                 i18next.changeLanguage(lang, () => {
                     // Ensure texts are refreshed; if bundle still missing, load then update.
                     const i18nWithGetter2 = i18next;
@@ -162,14 +164,22 @@ function updateI18nTexts() {
  * Update all elements with data-i18n attributes
  */
 function updateDataI18nElements() {
-    const elements = document.querySelectorAll("[data-i18n]");
-    for (const el of Array.from(elements)) {
+    for (const el of Array.from(document.querySelectorAll("[data-i18n]"))) {
         const key = el.getAttribute("data-i18n");
         if (key) {
             const fallback = el.textContent?.trim() || "";
-            const translatedText = t(key, fallback);
-            el.innerText = translatedText;
+            el.innerText = t(key, fallback);
         }
+    }
+    for (const el of Array.from(document.querySelectorAll("[data-i18n-placeholder]"))) {
+        const key = el.getAttribute("data-i18n-placeholder");
+        if (key)
+            el.placeholder = t(key, el.placeholder);
+    }
+    for (const el of Array.from(document.querySelectorAll("[data-i18n-aria-label]"))) {
+        const key = el.getAttribute("data-i18n-aria-label");
+        if (key)
+            el.setAttribute("aria-label", t(key, el.getAttribute("aria-label") || ""));
     }
 }
 /**

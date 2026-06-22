@@ -106,7 +106,7 @@ Converts city names to latitude/longitude coordinates using OpenStreetMap Nomina
 
 **Features**:
 
-- Async HTTP calls with httpx
+- Async HTTP calls with httpx2
 - Retry logic with exponential backoff (tenacity)
 - Multi-level caching:
   - In-memory TTLCache (24-hour TTL, 1000 entries)
@@ -383,13 +383,14 @@ Two-level caching (memory + file) with graceful degradation:
 
 ## Performance Optimizations
 
-1. **Async I/O**: All external calls are async (httpx.AsyncClient)
+1. **Async I/O**: All external calls are async (httpx2.AsyncClient)
 2. **Connection pooling**: Shared HTTP client with connection reuse
-3. **Response caching**: Geocoding results cached in memory (TTL 24h)
-4. **CSV caching**: Combined JSON cache avoids re-parsing CSVs
-5. **Background preload**: CSVs preloaded on startup without blocking
-6. **Timeout configuration**: Separate connect/read timeouts to prevent hangs
-7. **Lazy loading**: Stations parsed only when needed
+3. **Conditional HTTP caching**: CSV fetches use `ETag`/`Last-Modified` headers to avoid redundant downloads (304 Not Modified support)
+4. **Response caching**: Geocoding results cached in memory (TTL 24h)
+5. **CSV caching**: Combined JSON cache avoids re-parsing CSVs
+6. **Background preload**: CSVs preloaded on startup without blocking
+7. **Timeout configuration**: Separate connect/read timeouts to prevent hangs
+8. **Lazy loading**: Stations parsed only when needed
 
 ---
 

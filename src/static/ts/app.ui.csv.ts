@@ -37,7 +37,12 @@ Object.assign(window.appUiMixin, {
       );
       this.csvRemoteReloadInProgress = false;
       this.updateReloadButtonUI?.();
-      return { last_updated: null, source: "unknown", is_stale: false, freshly_downloaded: false };
+      return {
+        last_updated: null,
+        source: "unknown",
+        is_stale: false,
+        freshly_downloaded: false,
+      };
     } finally {
       this.csvStatusLoading = false;
     }
@@ -152,6 +157,7 @@ Object.assign(window.appUiMixin, {
     }
   },
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: direct DOM state table is shorter than helpers.
   updateCsvStatusUI(status?: CsvStatus): void {
     const csvLoading = document.getElementById("csv-loading");
     const csvUpdated = document.getElementById("csv-updated");
@@ -180,7 +186,14 @@ Object.assign(window.appUiMixin, {
           csvUpdated?.classList.remove("hidden");
           if (csvUpdated) {
             const date = new Date(status.last_updated);
-            csvUpdated.textContent = date.toLocaleString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+            csvUpdated.textContent = date.toLocaleString("it-IT", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            });
           }
           csvNoData?.classList.add("hidden");
         } else {
@@ -198,6 +211,7 @@ Object.assign(window.appUiMixin, {
   showCsvUpdatePopup(): void {
     const popup = document.getElementById("csv-update-popup");
     if (!popup) return;
+    this._popupTrigger = document.activeElement as HTMLElement;
     popup.classList.remove("hidden");
     this._updatePopupTexts?.();
     const btn = document.getElementById(
@@ -207,6 +221,17 @@ Object.assign(window.appUiMixin, {
       btn.addEventListener("click", () => this.handlePopupReload());
       btn.dataset.popupListenerAttached = "1";
     }
+    // ponytail: single-element trap — Tab/Shift+Tab both stay on the one button
+    this._popupKeyHandler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        this.hideCsvUpdatePopup();
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        btn?.focus();
+      }
+    };
+    popup.addEventListener("keydown", this._popupKeyHandler);
+    btn?.focus();
   },
 
   /**
@@ -215,10 +240,16 @@ Object.assign(window.appUiMixin, {
   hideCsvUpdatePopup(): void {
     const popup = document.getElementById("csv-update-popup");
     if (!popup) return;
+    if (this._popupKeyHandler) {
+      popup.removeEventListener("keydown", this._popupKeyHandler);
+      this._popupKeyHandler = null;
+    }
     popup.classList.add("fade-out");
     setTimeout(() => {
       popup.classList.add("hidden");
       popup.classList.remove("fade-out");
+      this._popupTrigger?.focus();
+      this._popupTrigger = null;
     }, 280);
   },
 

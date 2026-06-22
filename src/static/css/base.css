@@ -5,6 +5,7 @@
   --color-primary-light: #fed7aa;
   --color-primary-hover: #ea580c;
   --color-primary-dark: #c2410c;
+  --color-primary-darker: #9a3412;
 
   /* Dark Theme - Warm Stone Tones */
   --bg-primary: #1c1917; /* stone-900 */
@@ -51,6 +52,7 @@
   --text-secondary: #78716c; /* stone-500 */
   --text-muted: #a8a29e; /* stone-400 */
   --color-primary-hover: #ea580c;
+  --color-primary-darker: #9a3412;
 }
 
 /* Fuel Type Colors - Warm Updates */
@@ -160,7 +162,7 @@ html {
   position: absolute;
   top: -40px;
   left: 6px;
-  background: var(--color-primary);
+  background: var(--color-primary-dark);
   color: #fff;
   padding: 8px 16px;
   text-decoration: none;

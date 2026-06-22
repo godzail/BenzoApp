@@ -14,6 +14,8 @@
         id="reload-btn"
         class="reload-btn p-1 rounded hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
         type="button"
+        aria-label="Ricarica dati"
+        data-i18n-aria-label="reload_data"
       >
         <svg
           aria-hidden="true"
@@ -92,11 +94,14 @@
         name="city"
         class="search-input flex-1 bg-transparent border-none text-[var(--text-primary)] text-base outline-none p-2 placeholder:text-[var(--text-muted)]"
         placeholder="Search city..."
+        data-i18n-placeholder="search_placeholder"
+        role="combobox"
         required
-        autocomplete="off"
+        autocomplete="address-level2"
         aria-labelledby="city-label-i18n"
         aria-autocomplete="list"
         aria-controls="city-suggestions"
+        aria-expanded="false"
       >
 
       <!-- Location Pill Button -->
@@ -126,6 +131,7 @@
       id="city-suggestions"
       class="autocomplete-list absolute left-0 right-0 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl z-50 hidden"
       role="listbox"
+      aria-labelledby="city-label-i18n"
     ></div>
   </div>
 
@@ -136,6 +142,7 @@
       id="theme-toggle"
       class="theme-toggle inline-flex items-center justify-center w-10 h-9 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] cursor-pointer p-0 transition-all duration-150 hover:bg-[var(--bg-elevated)] hover:border-[var(--color-primary)]"
       type="button"
+      aria-label="Cambia tema"
     >
       <!-- Sun Icon (Light Mode) -->
       <svg
@@ -192,6 +199,7 @@
       id="docs-link"
       href="/help/user-it"
       title="User Documentation"
+      aria-label="User Documentation"
       class="theme-toggle inline-flex items-center justify-center w-10 h-9 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] cursor-pointer p-0 hover:bg-[var(--bg-elevated)] hover:border-[var(--color-primary)]"
     >
       <svg

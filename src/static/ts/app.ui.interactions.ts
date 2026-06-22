@@ -13,6 +13,21 @@ function escapeHtml(value: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
+function getFuelIcon(type: string, size = 14): string {
+  const attrs = `aria-hidden="true" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"`;
+  const key = type.toLowerCase();
+  if (key.includes("gasolio") || key.includes("diesel")) {
+    return `<svg ${attrs}><path d="M4 16h16"></path><path d="M6 16l2-8h8l2 8"></path><path d="M8 20h8"></path><path d="M10 4h4"></path></svg>`;
+  }
+  if (key.includes("gpl") || key.includes("lpg")) {
+    return `<svg ${attrs}><rect x="5" y="6" width="14" height="12" rx="4"></rect><path d="M9 6V4h6v2"></path><path d="M9 18v2h6v-2"></path></svg>`;
+  }
+  if (key.includes("metano") || key.includes("methane")) {
+    return `<svg ${attrs}><path d="M12 3c3 3 5 6 5 10a5 5 0 0 1-10 0c0-4 2-7 5-10z"></path><path d="M9 14a3 3 0 0 0 6 0"></path></svg>`;
+  }
+  return `<svg ${attrs}><path d="M3 22h12"></path><path d="M5 22V5a2 2 0 0 1 2-2h6v19"></path><path d="M9 7h2"></path><path d="M15 9h2a2 2 0 0 1 2 2v6a2 2 0 0 0 2 2"></path></svg>`;
+}
+
 Object.assign(window.appUiMixin, {
   setFuelType(fuel: string): void {
     this.formData.fuel = fuel;
@@ -49,18 +64,26 @@ Object.assign(window.appUiMixin, {
 
   updateCitySuggestionsUI(): void {
     const suggestions = document.getElementById("city-suggestions");
+    const cityInput = document.getElementById(
+      "city",
+    ) as HTMLInputElement | null;
     if (!suggestions) return;
     if (!this.showCitySuggestions || this.filteredCities.length === 0) {
       suggestions.classList.add("hidden");
       suggestions.innerHTML = "";
+      suggestions.setAttribute("aria-hidden", "true");
+      cityInput?.setAttribute("aria-expanded", "false");
+      cityInput?.removeAttribute("aria-activedescendant");
       return;
     }
     suggestions.innerHTML = "";
-    for (const city of this.filteredCities.slice(0, 15)) {
+    for (const [index, city] of this.filteredCities.slice(0, 15).entries()) {
       const item = document.createElement("div");
       item.className =
         "autocomplete-item px-3 py-2 cursor-pointer text-sm text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]";
+      item.id = `city-suggestion-${index}`;
       item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", "false");
       item.textContent = city;
       item.addEventListener("mousedown", (e) => {
         e.preventDefault();
@@ -69,6 +92,8 @@ Object.assign(window.appUiMixin, {
       suggestions.appendChild(item);
     }
     suggestions.classList.remove("hidden");
+    suggestions.setAttribute("aria-hidden", "false");
+    cityInput?.setAttribute("aria-expanded", "true");
   },
 
   selectCity(city: string): void {
@@ -86,6 +111,7 @@ Object.assign(window.appUiMixin, {
     }, window.CONFIG.CITY_SUGGESTION_HIDE_DELAY);
   },
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: key handling is a compact state machine.
   handleCityKeydown(e: KeyboardEvent): void {
     const suggestions = document.getElementById("city-suggestions");
     const suggestionsHidden =
@@ -100,10 +126,10 @@ Object.assign(window.appUiMixin, {
 
     const items = suggestions.querySelectorAll(".autocomplete-item");
     let highlightedIndex = -1;
-    items.forEach((item, idx) => {
+    for (const [idx, item] of Array.from(items).entries()) {
       if (item.classList.contains("bg-[var(--bg-elevated)]"))
         highlightedIndex = idx;
-    });
+    }
 
     if (e.key === "Escape") {
       this.showCitySuggestions = false;
@@ -137,9 +163,15 @@ Object.assign(window.appUiMixin, {
     const suggestions = document.getElementById("city-suggestions");
     if (!suggestions) return;
     const items = suggestions.querySelectorAll(".autocomplete-item");
-    items.forEach((item, idx) => {
-      item.classList.toggle("bg-[var(--bg-elevated)]", idx === index);
-    });
+    for (const [idx, item] of Array.from(items).entries()) {
+      const selected = idx === index;
+      item.classList.toggle("bg-[var(--bg-elevated)]", selected);
+      item.setAttribute("aria-selected", selected ? "true" : "false");
+    }
+    const cityInput = document.getElementById("city");
+    const selected = items[index];
+    if (selected?.id)
+      cityInput?.setAttribute("aria-activedescendant", selected.id);
   },
 
   updateRecentSearchesUI(): void {
@@ -156,7 +188,7 @@ Object.assign(window.appUiMixin, {
           "recent-search-btn flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-full px-3 py-2 text-sm text-[var(--text-secondary)] cursor-pointer transition-all duration-150 min-h-10 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]";
         btn.type = "button";
         // Static SVG markup is safe; user-supplied city/fuel go through textContent.
-        btn.innerHTML = `\n          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n            <circle cx="12" cy="12" r="10"></circle>\n            <polyline points="12 6 12 16 16 14"></polyline>\n </svg>`;
+        btn.innerHTML = `\n          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n            <circle cx="12" cy="12" r="10"></circle>\n            <polyline points="12 6 12 16 16 14"></polyline>\n </svg>`;
         const fuelLabel = window.translateFuel
           ? window.translateFuel(search.fuel)
           : search.fuel;
@@ -171,13 +203,15 @@ Object.assign(window.appUiMixin, {
     }
   },
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: direct chip state update is shorter than helper churn.
   updateFuelTypeUI(): void {
     const fuels = ["benzina", "gasolio", "GPL", "metano"];
-    fuels.forEach((fuel) => {
+    for (const fuel of fuels) {
       const btn = document.getElementById(`fuel-${fuel}`);
       if (btn) {
         const isSelected = this.formData.fuel === fuel;
         btn.classList.toggle("active", isSelected);
+        btn.setAttribute("aria-pressed", isSelected ? "true" : "false");
         if (isSelected) btn.classList.add("border-[var(--color-primary)]");
         else btn.classList.remove("border-[var(--color-primary)]");
 
@@ -194,7 +228,7 @@ Object.assign(window.appUiMixin, {
           textEl.textContent = label;
         }
       }
-    });
+    }
   },
 
   /**
@@ -246,6 +280,11 @@ Object.assign(window.appUiMixin, {
     if (resultsSlider) resultsSlider.value = this.formData.results;
     if (radiusValue) radiusValue.textContent = `${this.formData.radius}km`;
     if (resultsValue) resultsValue.textContent = this.formData.results;
+    radiusSlider?.setAttribute("aria-valuetext", `${this.formData.radius} km`);
+    resultsSlider?.setAttribute(
+      "aria-valuetext",
+      `${this.formData.results} ${this.translate("results_heading", "Results")}`,
+    );
     if (radiusLabel)
       radiusLabel.textContent = this.translate(
         "search_radius",
@@ -328,38 +367,43 @@ Object.assign(window.appUiMixin, {
   /**
    * Render the list of station cards into the results container.
    */
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: result-card rendering is one contained template.
   renderResults(): void {
     const list = document.getElementById("stations-list");
     if (!list) return;
 
     list.innerHTML = "";
-    this.results.forEach((station, index) => {
+    for (const [index, station] of this.results.entries()) {
       const article = document.createElement("article");
       const fuelType = station.fuel_prices?.[0]?.type || "";
       const price = station.fuel_prices?.[0]?.price || 0;
       const isCheapest = this.isCheapestStation(index);
       const fuelColorClass = this.getFuelColorClass(fuelType);
+      const stationName =
+        station.gestore || this.translate("station", "Gas Station");
+      const hasCoordinates = Boolean(station.latitude && station.longitude);
+      const stationFuelIcon = getFuelIcon(fuelType || this.formData.fuel, 18);
 
       article.className =
         "station-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 shadow-md transition-all duration-200 cursor-pointer relative min-h-[160px] hover:translate-y-[-2px] hover:shadow-xl hover:scale-[1.01] hover:border-[var(--color-primary-light)]";
-      article.setAttribute("tabindex", "0");
       article.setAttribute("data-station-id", String(station.id ?? ""));
-      article.setAttribute(
-        "aria-label",
-        `${station.gestore || this.translate("station", "Gas Station")}, ${this.formatCurrency(price)}`,
-      );
+      article.setAttribute("tabindex", "0");
 
-      article.innerHTML = `\n        <div class="station-card-header mb-4 min-w-0">\n          <div class="flex items-center justify-between gap-4 mb-2">\n            <div class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1">\n              <div class="station-icon w-10 h-10 bg-gradient-to-br from-[var(--color-primary-light)] to-[var(--color-primary)] rounded-xl flex items-center justify-center text-white shadow-sm">\n                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                  <path d="M12 2L2 7l10 5 10-5-10-5z"></path>\n                  <path d="M2 17l10 5 10-5"></path>\n                  <path d="M2 12l10 5 10-5"></path>\n                </svg>\n              </div>\n              <span class="truncate overflow-hidden text-ellipsis whitespace-nowrap">${escapeHtml(station.gestore || this.translate("station", "Gas Station"))}</span>\n            </div>\n            <div class="station-price flex flex-row items-center gap-2 flex-nowrap">\n              ${station.fuel_prices && station.fuel_prices.length > 0 ? `\n                <span class="uppercase tracking-wide text-sm ${fuelColorClass}">${escapeHtml(window.translateFuel ? window.translateFuel(fuelType) : fuelType)}</span>\n                <span class="text-2xl font-bold text-[var(--color-primary)]">${this.formatCurrency(price)}</span>\n              ` : ""}\n            </div>\n          </div>\n          <div class="flex items-center justify-end gap-3 pl-[calc(8px+2rem)]">\n            ${isCheapest ? `<span class="inline-block bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-hover)] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md whitespace-nowrap">${this.translate("best_price", "Miglior Prezzo!")}</span>` : ""}\n            ${station.fuel_prices && station.fuel_prices.length > 0 && !isCheapest ? `<span class="text-sm text-red-500 font-medium">${this.getPriceDifference(index)}</span>` : ""}\n            ${station.distance ? `<span class="flex items-center gap-1 text-sm text-[var(--text-muted)]">\n              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <circle cx="12" cy="12" r="10"></circle>\n                <polyline points="12 6 12 12 16 14"></polyline>\n              </svg>\n              ${this.formatDistance(station.distance)}\n            </span>` : ""}\n          </div>\n        </div>\n        <div class="station-card-body flex flex-col gap-2">\n          <div class="station-address-row flex items-start gap-2 text-sm text-[var(--text-secondary)] break-word overflow-wrap-break-word">\n            <svg class="address-icon w-4 h-4 text-[var(--text-muted)] mt-0.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n              <circle cx="12" cy="10" r="3"></circle>\n            </svg>\n            <span class="break-word overflow-wrap-break-word leading-relaxed max-w-full">${escapeHtml(station.address || "")}</span>\n          </div>\n          <div class="station-actions-row flex gap-2 mt-4 pt-4 border-t border-[var(--border-color)]">\n            <button class="btn btn-primary flex-1 min-w-0 whitespace-nowrap bg-[var(--color-primary)] text-white border-none rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--color-primary-hover)] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale disabled:transform-none ${!(station.latitude && station.longitude) ? "disabled" : ""}" data-action="directions" data-id="${escapeHtml(station.id)}">\n              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M9 18l6-6-6-6"></path>\n              </svg>\n              <span>${this.translate("navigate", "Navigate")}</span>\n            </button>\n            <button class="btn btn-secondary flex-1 min-w-0 whitespace-nowrap bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed ${!(station.latitude && station.longitude) ? "disabled" : ""}" data-action="show-map" data-id="${escapeHtml(station.id)}">\n              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n                <circle cx="12" cy="10" r="3"></circle>\n              </svg>\n              <span>${this.translate("show_on_map", "Show on Map")}</span>\n            </button>\n          </div>\n        </div>\n      `;
+      article.innerHTML = `\n        <div class="station-card-header mb-4 min-w-0">\n          <div class="flex items-center justify-between gap-4 mb-2">\n            <div class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1">\n              <div class="station-icon w-10 h-10 bg-gradient-to-br from-[var(--color-primary-light)] to-[var(--color-primary)] rounded-xl flex items-center justify-center text-white shadow-sm">\n                ${stationFuelIcon}\n              </div>\n              <span class="truncate overflow-hidden text-ellipsis whitespace-nowrap">${escapeHtml(stationName)}</span>\n            </div>\n            <div class="station-price flex flex-row items-center gap-2 flex-nowrap">\n              ${station.fuel_prices && station.fuel_prices.length > 0 ? `\n                <span class="uppercase tracking-wide text-sm ${fuelColorClass}">${escapeHtml(window.translateFuel ? window.translateFuel(fuelType) : fuelType)}</span>\n                <span class="text-2xl font-bold text-[var(--color-primary)]">${this.formatCurrency(price)}</span>\n              ` : ""}\n            </div>\n          </div>\n          <div class="flex items-center justify-end gap-3 pl-[calc(8px+2rem)]">\n            ${isCheapest ? `<span class="inline-block bg-gradient-to-r from-[var(--color-primary-dark)] to-[var(--color-primary-darker)] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md whitespace-nowrap">${this.translate("best_price", "Miglior Prezzo!")}</span>` : ""}\n            ${station.fuel_prices && station.fuel_prices.length > 0 && !isCheapest ? `<span class="text-sm text-red-500 font-medium">${this.getPriceDifference(index)}</span>` : ""}\n            ${station.distance ? `<span class="flex items-center gap-1 text-sm text-[var(--text-muted)]">\n              <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <circle cx="12" cy="12" r="10"></circle>\n                <polyline points="12 6 12 12 16 14"></polyline>\n              </svg>\n              ${this.formatDistance(station.distance)}\n            </span>` : ""}\n          </div>\n        </div>\n        <div class="station-card-body flex flex-col gap-2">\n          <div class="station-address-row flex items-start gap-2 text-sm text-[var(--text-secondary)] break-word overflow-wrap-break-word">\n            <svg aria-hidden="true" class="address-icon w-4 h-4 text-[var(--text-muted)] mt-0.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n              <circle cx="12" cy="10" r="3"></circle>\n            </svg>\n            <span class="break-word overflow-wrap-break-word leading-relaxed max-w-full">${escapeHtml(station.address || "")}</span>\n          </div>\n          <div class="station-actions-row flex gap-2 mt-4 pt-4 border-t border-[var(--border-color)]">\n            <button class="btn btn-primary flex-1 min-w-0 whitespace-nowrap bg-[var(--color-primary-dark)] text-white border-none rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--color-primary-darker)] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale disabled:transform-none" data-action="directions" data-id="${escapeHtml(station.id)}" aria-label="${escapeHtml(`${this.translate("navigate", "Navigate")}: ${stationName}`)}" ${hasCoordinates ? "" : "disabled"}>\n              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M9 18l6-6-6-6"></path>\n              </svg>\n              <span>${this.translate("navigate", "Navigate")}</span>\n            </button>\n            <button class="btn btn-secondary flex-1 min-w-0 whitespace-nowrap bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed" data-action="show-map" data-id="${escapeHtml(station.id)}" aria-label="${escapeHtml(`${this.translate("show_on_map", "Show on Map")}: ${stationName}`)}" ${hasCoordinates ? "" : "disabled"}>\n              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n                <circle cx="12" cy="10" r="3"></circle>\n              </svg>\n              <span>${this.translate("show_on_map", "Show on Map")}</span>\n            </button>\n          </div>\n        </div>\n      `;
 
       article.addEventListener("click", () =>
         this.selectStationForMap(station.id),
       );
-      article.addEventListener("keyup", (e) => {
-        if (e.key === "Enter") this.selectStationForMap(station.id);
+
+      article.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          this.selectStationForMap(station.id);
+        }
       });
 
       list.appendChild(article);
-    });
+    }
 
     const actionButtons = list.querySelectorAll("button[data-action]");
     for (const btnEl of Array.from(actionButtons) as HTMLButtonElement[]) {
@@ -413,6 +457,7 @@ Object.assign(window.appUiMixin, {
    * Initialize UI components, load templates and attach event listeners.
    * This is the primary entry point called on page load.
    */
+  // biome-ignore lint/complexity/noExcessiveLinesPerFunction: startup flow is linear and already localized.
   async init(): Promise<void> {
     try {
       this.placeMapAccordingToViewport?.();
@@ -461,6 +506,7 @@ Object.assign(window.appUiMixin, {
         this.updateFuelTypeUI?.();
         setTimeout(() => this.updateFuelTypeUI?.(), 50);
         this.updateSearchFormUI?.();
+        this.updateSearchButtonUI?.();
         this.updateRecentSearchesUI?.();
         this.updateResultsUI?.();
         this.updateMap?.();
@@ -518,6 +564,7 @@ Object.assign(window.appUiMixin, {
   /**
    * Submit search form to backend API and update UI with results.
    */
+  // biome-ignore lint/complexity/noExcessiveLinesPerFunction: submit flow keeps request, success, and failure together.
   async submitForm(): Promise<void> {
     this.loading = true;
     this.setLoadingBar?.(true);
@@ -649,6 +696,7 @@ Object.assign(window.appUiMixin, {
       docsLink.setAttribute("href", `/help/user-${this.currentLang || "it"}`);
       const title = this.translate("user_docs", "User Documentation");
       docsLink.setAttribute("title", title);
+      docsLink.setAttribute("aria-label", title);
     }
   },
 } as Partial<AppUiMixin>);

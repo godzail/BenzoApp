@@ -15,12 +15,12 @@ from tests.conftest import DummyClientException
 @pytest.fixture(autouse=True)
 def clear_geocoding_cache():
     """Clear geocoding cache before each test."""
-    import src.services.geocoding as geo  # noqa: PLC0415
+    import src.services.geocoding as geo
 
-    geo._LOCAL_CITY_COORDS = None  # noqa: SLF001
+    geo._LOCAL_CITY_COORDS = None
     geo.geocoding_cache.clear()
     yield
-    geo._LOCAL_CITY_COORDS = None  # noqa: SLF001
+    geo._LOCAL_CITY_COORDS = None
     geo.geocoding_cache.clear()
 
 
@@ -41,14 +41,14 @@ async def test_geocode_fallback_to_local_coords(tmp_path):
 
     result = await geocode_city("Firenze", settings, client)  # type: ignore[arg-type] - DummyClientException is a test mock, not full AsyncClient
     assert isinstance(result, dict)
-    assert round(result["latitude"], 2) == 43.77  # noqa: PLR2004
-    assert round(result["longitude"], 2) == 11.25  # noqa: PLR2004
+    assert round(result["latitude"], 2) == 43.77
+    assert round(result["longitude"], 2) == 11.25
 
 
 @pytest.mark.asyncio
 async def test_geocode_respects_retry_after_http_date_and_uses_local_fallback(tmp_path, monkeypatch):
     """A Retry-After provided as an HTTP-date is parsed and respected (clamped), and local fallback is used."""
-    from datetime import datetime, timedelta  # noqa: PLC0415
+    from datetime import datetime, timedelta
 
     settings = Settings()
     settings.prezzi_cache_path = str(tmp_path / "prezzi_cache.json")
@@ -78,7 +78,7 @@ async def test_geocode_respects_retry_after_http_date_and_uses_local_fallback(tm
     assert isinstance(result, dict)
     assert called, "asyncio.sleep should have been called for Retry-After"
     # should be clamped to MAX_RETRY_AFTER_SECONDS (60)
-    assert called[0] <= 60  # noqa: PLR2004
+    assert called[0] <= 60
 
 
 @pytest.mark.asyncio
