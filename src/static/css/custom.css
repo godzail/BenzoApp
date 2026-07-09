@@ -53,6 +53,25 @@
     max-height: calc(100vh - 120px);
     overflow-y: auto;
     padding-right: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(120, 113, 108, 0.45) transparent;
+  }
+
+  .search-column::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .search-column::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .search-column::-webkit-scrollbar-thumb {
+    background: rgba(120, 113, 108, 0.45);
+    border-radius: 9999px;
+  }
+
+  .search-column::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 113, 108, 0.65);
   }
 
   #map-column {

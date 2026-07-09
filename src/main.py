@@ -15,6 +15,7 @@ Intended for use as the backend of a web application to help users find nearby g
 import asyncio
 import html as _html
 import sys
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -31,7 +32,7 @@ from loguru import logger
 from markdown import markdown as py_markdown
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
+from slowapi.util import get_ipaddr, get_remote_address
 from tenacity import RetryError
 
 from src.models import (
@@ -44,19 +45,20 @@ from src.models import (
     StationSearchParams,
 )
 from src.services import csv_admin, fuel_api
+from src.services.csv_cache import (
+    _is_cache_fresh,
+    _load_cached_combined,
+    _write_json_file,
+    check_preferred_local_dir_writable,
+    preload_local_csv_cache,
+)
+from src.services.csv_fetcher import _fetch_csvs, _save_csv_files
+from src.services.csv_parser import _parse_and_combine_sync
 from src.services.fuel_type_utils import normalize_fuel_type
 from src.services.geocoding import geocode_city
 from src.services.prezzi_csv import (
-    _fetch_csvs,
-    _is_cache_fresh,
-    _load_cached_combined,
-    _parse_and_combine_sync,
-    _save_csv_files,
-    _write_json_file,
-    check_preferred_local_dir_writable,
     fetch_and_combine_csv_data,
     get_latest_csv_timestamp,
-    preload_local_csv_cache,
 )
 
 _cached_settings: Settings | None = None
@@ -64,6 +66,18 @@ _cached_settings: Settings | None = None
 FAVICON_CACHE_SECONDS = 3600
 STATIC_CACHE_SECONDS = 3600
 CSV_SCHEMA_ERROR_STATUS = 422
+
+
+class AppContext:
+    """Container for runtime state shared across the FastAPI application."""
+
+    __slots__ = ("csv_freshly_downloaded", "http_client", "settings")
+
+    def __init__(self, settings: Settings, http_client: httpx.AsyncClient) -> None:
+        """Initialize with immutable settings and shared HTTP client."""
+        self.settings = settings
+        self.http_client = http_client
+        self.csv_freshly_downloaded: bool = False
 
 
 def get_settings() -> Settings:
@@ -104,8 +118,10 @@ def _start_background_task(_app: FastAPI, name: str, coro: Any) -> asyncio.Task[
     return task
 
 
-async def _startup_reload_csv(settings: Settings, client: httpx.AsyncClient) -> None:
+async def _startup_reload_csv(app_context: AppContext) -> None:
     """Refresh CSV data during startup; track whether new data was actually downloaded."""
+    settings = app_context.settings
+    client = app_context.http_client
     logger.info("Starting prezzi CSV reload on startup (background)")
     before = await _get_meta_mtime(settings)
     try:
@@ -118,12 +134,13 @@ async def _startup_reload_csv(settings: Settings, client: httpx.AsyncClient) -> 
     after = await _get_meta_mtime(settings)
     # meta file updated ↔ 200 response ↔ nuovo CSV scaricato
     freshly = after is not None and after != before
-    app.state._csv_freshly_downloaded = freshly  # noqa: SLF001
+    app_context.csv_freshly_downloaded = freshly
     logger.info("Startup CSV reload: freshly_downloaded={}", freshly)
 
 
-async def _schedule_startup_work(_app: FastAPI, settings: Settings, client: httpx.AsyncClient) -> None:
+async def _schedule_startup_work(_app: FastAPI, app_context: AppContext) -> None:
     """Run startup CSV checks, preload, and optional reload work."""
+    settings = app_context.settings
     await _check_preferred_csv_dir(settings)
 
     if settings.prezzi_preload_on_startup:
@@ -146,23 +163,27 @@ async def _schedule_startup_work(_app: FastAPI, settings: Settings, client: http
         logger.info("Prezzi cache missing or stale — running blocking CSV reload on startup")
         before = await _get_meta_mtime(settings)
         try:
-            await fetch_and_combine_csv_data(settings, client)
+            await fetch_and_combine_csv_data(settings, app_context.http_client)
             after = await _get_meta_mtime(settings)
-            _app.state._csv_freshly_downloaded = after is not None and after != before  # noqa: SLF001
+            app_context.csv_freshly_downloaded = after is not None and after != before
             logger.info("Blocking startup CSV reload completed successfully")
         except Exception as err:
             logger.warning("Blocking startup CSV reload failed: {}", err)
             logger.exception(err)
         return
 
-    _start_background_task(_app, "_startup_reload_task", _startup_reload_csv(settings, client))
+    _start_background_task(_app, "_startup_reload_task", _startup_reload_csv(app_context))
 
 
-async def _geocode_for_search(city: str, settings: Settings) -> dict[str, float] | SearchResponse:
+async def _geocode_for_search(
+    city: str,
+    settings: Settings,
+    app_context: AppContext,
+) -> dict[str, float] | SearchResponse:
     """Geocode a search city or return the existing error response."""
     try:
         location = await asyncio.wait_for(
-            geocode_city(city, settings, app.state.http_client),
+            geocode_city(city, settings, app_context.http_client),
             timeout=settings.search_timeout_seconds,
         )
     except TimeoutError:
@@ -190,11 +211,12 @@ async def _fetch_stations_for_search(
     params: StationSearchParams,
     settings: Settings,
     city: str,
+    app_context: AppContext,
 ) -> dict | list | SearchResponse:
     """Fetch station data or return the existing error response."""
     try:
         return await asyncio.wait_for(
-            fuel_api.fetch_gas_stations(params, settings, app.state.http_client),
+            fuel_api.fetch_gas_stations(params, settings, app_context.http_client),
             timeout=settings.search_timeout_seconds,
         )
     except TimeoutError:
@@ -285,7 +307,7 @@ async def _get_meta_mtime(settings: Settings) -> float | None:
         return st.st_mtime
 
 
-async def _build_csv_status(settings: Settings) -> dict[str, Any]:
+async def _build_csv_status(settings: Settings, app_context: AppContext) -> dict[str, Any]:
     """Build the CSV status payload returned by the public endpoint."""
     last_updated = get_latest_csv_timestamp(settings)
     is_stale = False
@@ -308,9 +330,9 @@ async def _build_csv_status(settings: Settings) -> dict[str, Any]:
     except Exception as err:
         logger.debug("Failed to check cache status: {}", err)
 
-    freshly_downloaded = getattr(app.state, "_csv_freshly_downloaded", False)
+    freshly_downloaded = app_context.csv_freshly_downloaded
     if freshly_downloaded:
-        app.state._csv_freshly_downloaded = False  # noqa: SLF001
+        app_context.csv_freshly_downloaded = False
     return {
         "last_updated": last_updated,
         "source": source,
@@ -369,9 +391,9 @@ async def lifespan(_app: FastAPI):
     timeout = httpx.Timeout(60.0, connect=15.0)
     headers = _csv_http_headers(settings)
     async with httpx.AsyncClient(timeout=timeout, headers=headers, follow_redirects=True) as client:
-        _app.state.http_client = client
-        _app.state._csv_freshly_downloaded = False  # noqa: SLF001
-        await _schedule_startup_work(_app, settings, client)
+        app_context = AppContext(settings=settings, http_client=client)
+        _app.state.app_context = app_context
+        await _schedule_startup_work(_app, app_context)
         try:
             yield
         except (asyncio.CancelledError, KeyboardInterrupt):
@@ -383,8 +405,23 @@ async def lifespan(_app: FastAPI):
 # --- FastAPI App Initialization ---
 app = FastAPI(title="Gas Station Finder API", lifespan=lifespan)
 
-# Configure rate limiter
-limiter = Limiter(key_func=get_remote_address)
+
+def _resolve_slowapi_key_func(name: str) -> Callable[[Request], str]:
+    mapping: dict[str, Callable[[Request], str]] = {
+        "remote-address": get_remote_address,
+        "x-forwarded-for": get_ipaddr,
+        "x-real-ip": lambda request: request.headers.get("X-Real-IP")
+        or (request.client.host if request.client else "127.0.0.1"),
+    }
+    try:
+        return mapping[name]
+    except KeyError:
+        message = f"slowapi_key_func must be one of {sorted(mapping)!r} (got {name!r})"
+        raise ValueError(message) from None
+
+
+_key_func = _resolve_slowapi_key_func(get_settings().slowapi_key_func)
+limiter = Limiter(key_func=_key_func)
 app.state.limiter = limiter
 app.add_exception_handler(
     RateLimitExceeded,
@@ -469,12 +506,13 @@ async def search_gas_stations(
     results: int = request.results if request.results and request.results > 0 else DEFAULT_RESULTS_COUNT
     radius: int = min(max(request.radius or 1, 1), MAX_SEARCH_RADIUS_KM)
 
-    location_or_response = await _geocode_for_search(city, settings)
+    app_context = _request.app.state.app_context
+    location_or_response = await _geocode_for_search(city, settings, app_context)
     if isinstance(location_or_response, SearchResponse):
         return location_or_response
 
     params, normalized_fuel = _build_station_search_params(request, location_or_response, radius, results)
-    stations_payload = await _fetch_stations_for_search(params, settings, city)
+    stations_payload = await _fetch_stations_for_search(params, settings, city, app_context)
     if isinstance(stations_payload, SearchResponse):
         return stations_payload
 
@@ -527,9 +565,9 @@ async def render_docs(page: str) -> HTMLResponse:
             <link rel='icon' href='/favicon.ico'>
             <base href='/docs-static/'>
             <title>Documentation</title>
-            <script src='https://cdn.tailwindcss.com'></script>
             <script>
-            tailwind.config = {{
+            window.tailwind = window.tailwind || {{}};
+            window.tailwind.config = {{
               darkMode: 'class',
               theme: {{
                 extend: {{
@@ -539,6 +577,7 @@ async def render_docs(page: str) -> HTMLResponse:
               }},
             }};
             </script>
+            <script src='https://cdn.tailwindcss.com'></script>
         </head>
         <body class='bg-[var(--bg-primary)] text-[var(--text-primary)]
         min-h-screen font-sans transition-colors duration-250'>
@@ -588,7 +627,10 @@ async def health_check() -> dict[str, str]:
 
 
 @app.get("/api/csv-status")
-async def get_csv_status(settings: Annotated[Settings, Depends(get_settings)]) -> dict[str, Any]:
+async def get_csv_status(
+    request: Request,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict[str, Any]:
     """Get the current status of CSV data.
 
     Returns:
@@ -597,7 +639,7 @@ async def get_csv_status(settings: Annotated[Settings, Depends(get_settings)]) -
       - source: "local" | "remote" | "cache" | "unknown"
       - is_stale: boolean indicating if cache is older than cache_hours
     """
-    return await _build_csv_status(settings)
+    return await _build_csv_status(settings, request.app.state.app_context)
 
 
 @app.post("/api/reload-csv")

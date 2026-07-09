@@ -165,6 +165,13 @@ class Settings(BaseSettings):
     server_workers: int = Field(1, description="Number of worker processes.")
     # Timeout for interactive search requests (seconds)
     search_timeout_seconds: int = Field(12, description="Timeout in seconds for interactive search requests.")
+    slowapi_key_func: str = Field(
+        "remote-address",
+        description=(
+            "Determines how the remote address for rate limiting is derived. "
+            "Accepted values: remote-address, x-forwarded-for, x-real-ip."
+        ),
+    )
 
     # Geocoding configuration
     photon_api_url: str = Field(

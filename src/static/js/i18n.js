@@ -36,83 +36,35 @@ function t(key, fallback = "") {
  * Set the application language
  * @param lang - The language code ('en' or 'it')
  */
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: splitting this callback chain hides the fallback flow.
 window.setLang = (lang) => {
     const app = window.gasStationApp;
     if (app?.debugMode) {
         console.debug("[DEBUG] i18next.changeLanguage called with lang:", lang);
     }
-    if (typeof i18next !== "undefined" && i18next.reloadResources) {
-        // Try to reload resources (some i18next backends populate bundles via reloadResources),
-        // but if the bundle is still missing, fall back to fetch-based loader `loadTranslations`.
-        i18next.reloadResources(lang, "translation", () => {
-            // If resources are not present after reloadResources, fetch them explicitly.
-            const i18nWithGetter = i18next;
-            const hasBundle = typeof i18nWithGetter.getResourceBundle === "function" &&
-                Boolean(i18nWithGetter.getResourceBundle?.(lang, "translation"));
-            if (!hasBundle) {
-                // best-effort fetch; do not block the UI if it fails
-                loadTranslations(lang).catch(() => {
-                    /* noop */
-                });
-            }
-            if (i18next.changeLanguage) {
-                // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: bundle fallback belongs with the language callback.
-                i18next.changeLanguage(lang, () => {
-                    // Ensure texts are refreshed; if bundle still missing, load then update.
-                    const i18nWithGetter2 = i18next;
-                    const bundleNow = typeof i18nWithGetter2.getResourceBundle === "function" &&
-                        Boolean(i18nWithGetter2.getResourceBundle?.(lang, "translation"));
-                    if (!bundleNow) {
-                        loadTranslations(lang)
-                            .then(() => updateI18nTexts())
-                            .catch(() => updateI18nTexts());
-                    }
-                    else {
-                        updateI18nTexts();
-                    }
-                    const statusEl = document.getElementById("status-messages");
-                    if (statusEl) {
-                        const langName = lang === "it" ? "Italian" : "English";
-                        statusEl.textContent = `Language reset and changed to ${langName}`;
-                        setTimeout(() => {
-                            statusEl.textContent = "";
-                        }, STATUS_MESSAGE_DURATION);
-                    }
-                    window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
-                });
-            }
-        });
-    }
-    else {
-        // No reloadResources support — explicitly load the JSON bundle then change language
-        loadTranslations(lang)
-            .then(() => {
-            if (i18next.changeLanguage) {
-                i18next.changeLanguage(lang, () => {
-                    updateI18nTexts();
-                    window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
-                });
-            }
-            else {
-                updateI18nTexts();
-                window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
-            }
-        })
-            .catch(() => {
-            // If loading translations fails, still set language and update texts (best-effort)
-            if (i18next.changeLanguage) {
-                i18next.changeLanguage(lang, () => {
-                    updateI18nTexts();
-                    window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
-                });
-            }
-            else {
-                updateI18nTexts();
-                window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
-            }
-        });
-    }
+    const refreshUi = () => {
+        updateI18nTexts();
+        window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
+        const statusEl = document.getElementById("status-messages");
+        if (statusEl) {
+            const langName = lang === "it" ? "Italian" : "English";
+            statusEl.textContent = `Language reset and changed to ${langName}`;
+            setTimeout(() => {
+                statusEl.textContent = "";
+            }, STATUS_MESSAGE_DURATION);
+        }
+    };
+    loadTranslations(lang)
+        .catch(() => {
+        /* best effort */
+    })
+        .finally(() => {
+        if (typeof i18next !== "undefined" && i18next.changeLanguage) {
+            i18next.changeLanguage(lang, refreshUi);
+        }
+        else {
+            refreshUi();
+        }
+    });
     try {
         localStorage.setItem("lang", lang);
         window.APP_USER_LANG = lang;

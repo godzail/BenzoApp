@@ -106,7 +106,7 @@ def run_git_command(args: list[str]) -> subprocess.CompletedProcess[str]:
         msg = "git executable not found in PATH"
         raise FileNotFoundError(msg)
 
-    return subprocess.run(  # noqa: S603
+    return subprocess.run(  # noqa: S603 - safe: resolved via shutil.which, args list, no shell
         [git_executable, *args],
         cwd=REPO_ROOT,
         text=True,

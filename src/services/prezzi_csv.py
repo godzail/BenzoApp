@@ -21,74 +21,28 @@ from loguru import logger
 from src.services.csv_cache import (
     _is_cache_fresh,
     _load_cached_combined,
-    _read_json_file,
     _write_json_file,
     check_preferred_local_dir_writable,
     get_latest_csv_timestamp,
     preload_local_csv_cache,
+)
+from src.services.csv_fetcher import (
+    _fetch_csvs,
+    _load_local_csvs,
+    _save_csv_files,
+)
+from src.services.csv_parser import (
+    _filter_and_transform_combined,
+    _parse_and_combine_sync,
 )
 
 if TYPE_CHECKING:
     import httpx2 as httpx
 
     from src.models import Settings, StationSearchParams
-from src.services.csv_fetcher import (
-    LOCAL_DATA_DIR,
-    MIN_CONTENT_LENGTH,
-    PROJECT_ROOT,
-    _candidate_local_csv_dirs,
-    _cleanup_old_csvs,
-    _fetch_csvs,
-    _load_local_csvs,
-    _save_csv_files,
-)
-from src.services.csv_parser import (
-    ADDR_IDX_END,
-    ADDR_IDX_START,
-    DATE_IDX,
-    DAYS_RECENCY,
-    GESTORE_IDX,
-    LAT_IDX,
-    LON_IDX,
-    MIN_CSV_COLUMNS,
-    PREZZI_MIN_COLS,
-    PRICE_IDX,
-    SELF_IDX,
-    _filter_and_transform_combined,
-    _is_recent,
-    _parse_and_combine_sync,
-    _parse_date,
-)
 
-# Re-export for backward compatibility
+# Public surface only
 __all__ = [
-    "ADDR_IDX_END",
-    "ADDR_IDX_START",
-    "DATE_IDX",
-    "DAYS_RECENCY",
-    "GESTORE_IDX",
-    "LAT_IDX",
-    "LOCAL_DATA_DIR",
-    "LON_IDX",
-    "MIN_CONTENT_LENGTH",
-    "MIN_CSV_COLUMNS",
-    "PREZZI_MIN_COLS",
-    "PRICE_IDX",
-    "PROJECT_ROOT",
-    "SELF_IDX",
-    "_candidate_local_csv_dirs",
-    "_cleanup_old_csvs",
-    "_fetch_csvs",
-    "_filter_and_transform_combined",
-    "_is_cache_fresh",
-    "_is_recent",
-    "_load_cached_combined",
-    "_load_local_csvs",
-    "_parse_and_combine_sync",
-    "_parse_date",
-    "_read_json_file",
-    "_save_csv_files",
-    "_write_json_file",
     "check_preferred_local_dir_writable",
     "fetch_and_combine_csv_data",
     "get_latest_csv_timestamp",

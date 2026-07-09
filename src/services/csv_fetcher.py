@@ -133,37 +133,28 @@ async def _fetch_csvs(  # noqa: C901, PLR0912, PLR0915
             resp_anag.raise_for_status()
         if resp_prezzi.status_code != HTTP_NOT_MODIFIED:
             resp_prezzi.raise_for_status()
-    except httpx.HTTPStatusError as e:
-        logger.error("HTTP error fetching CSV: status={} url={}", e.response.status_code, e.response.url)
+    except Exception as original_exc:
+        status = getattr(original_exc, "response", None)
+        kind = "HTTPStatusError" if isinstance(original_exc, httpx.HTTPStatusError) else (
+            "RequestError" if isinstance(original_exc, httpx.RequestError) else type(original_exc).__name__
+        )
+        if isinstance(original_exc, httpx.HTTPStatusError) and status is not None:
+            logger.error(
+                "HTTP error fetching CSV: kind={} status={} url={}",
+                kind, status.status_code, original_exc.response.url,
+            )
+        elif isinstance(original_exc, httpx.RequestError):
+            url = str(getattr(getattr(original_exc, "request", None), "url", "unknown"))
+            logger.error("Network error fetching CSV: kind={} url={}", kind, url)
+        else:
+            logger.error("Unexpected error fetching CSV: kind={} err={}", kind, original_exc)
         logger.warning("Attempting to fallback to local CSV files in {}", LOCAL_DATA_DIR)
-        original_exc = e
         try:
             return await _load_local_csvs(settings)
         except Exception:
-            logger.error("Local fallback failed, re-raising original HTTP error")
+            logger.error("Local fallback failed, re-raising original exception")
             logger.exception(original_exc)
-            raise original_exc from e
-    except httpx.RequestError as e:
-        url = str(e.request.url) if e.request else "unknown"
-        logger.error("Network error fetching CSV: {} - url={}", type(e).__name__, url)
-        logger.warning("Attempting to fallback to local CSV files in {}", LOCAL_DATA_DIR)
-        original_exc = e
-        try:
-            return await _load_local_csvs(settings)
-        except Exception:
-            logger.error("Local fallback failed, re-raising original network error")
-            logger.exception(original_exc)
-            raise original_exc from e
-    except Exception as e:
-        logger.error("Unexpected error fetching CSV: {} - {}", type(e).__name__, e)
-        logger.warning("Attempting to fallback to local CSV files in {}", LOCAL_DATA_DIR)
-        original_exc = e
-        try:
-            return await _load_local_csvs(settings)
-        except Exception:
-            logger.error("Local fallback failed, re-raising original unexpected exception")
-            logger.exception(original_exc)
-            raise original_exc from e
+            raise original_exc from original_exc
 
     # 304 Not Modified per entrambi — usa file locali
     if resp_anag.status_code == HTTP_NOT_MODIFIED and resp_prezzi.status_code == HTTP_NOT_MODIFIED:

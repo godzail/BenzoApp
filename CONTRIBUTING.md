@@ -127,13 +127,13 @@ biome check src/static --write
 
 ```bash
 # Run all tests
-uv run pytest tests/
+uv run python -m pytest tests/
 
 # Run specific test file
-uv run pytest tests/test_main.py
+uv run python -m pytest tests/test_main.py
 
 # Run with coverage
-uv run pytest tests/ --cov=src --cov-report=html
+uv run python -m pytest tests/ --cov=src --cov-report=html
 
 # View coverage report
 # Open coverage/index.html in browser
@@ -224,7 +224,7 @@ refactor/extract-fuel-service
    biome check src/static
    
    # Tests
-   uv run pytest tests/
+   uv run python -m pytest tests/
    ```
 
 3. **Update documentation** if needed

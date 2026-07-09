@@ -16,13 +16,11 @@ from fastapi import HTTPException
 import src.services.fuel_api as fa
 from src.models import Settings, StationSearchParams
 from src.services import csv_cache, csv_fetcher, prezzi_csv
-from src.services.csv_parser import CSVSchemaError
+from src.services.csv_cache import _read_json_file
+from src.services.csv_parser import CSVSchemaError, _is_recent, _parse_date
 from src.services.prezzi_csv import (
     _fetch_csvs,
     _is_cache_fresh,
-    _is_recent,
-    _parse_date,
-    _read_json_file,
     fetch_and_combine_csv_data,
 )
 
@@ -33,7 +31,7 @@ if TYPE_CHECKING:
 @pytest.fixture(autouse=True)
 def cleanup_project_csv_files():
     """Guarantee cleanup of CSV files created in src/static/data for tests."""
-    project_dir = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    project_dir = csv_fetcher.PROJECT_ROOT / "src" / "static" / "data"
     project_dir.mkdir(parents=True, exist_ok=True)
     files_to_clean = [
         project_dir / "anagrafica_impianti_attivi.csv",
@@ -736,8 +734,8 @@ def test_candidate_dir_order_preference():
     """Verify that the preferred candidate directory is 'src/static/data' (project-level) when no custom dir is set."""
     settings = Settings()
     settings.prezzi_local_data_dir = None
-    candidates = prezzi_csv._candidate_local_csv_dirs(settings)
-    expected_first = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    candidates = csv_fetcher._candidate_local_csv_dirs(settings)
+    expected_first = csv_fetcher.PROJECT_ROOT / "src" / "static" / "data"
     assert candidates[0] == expected_first
 
 
@@ -809,7 +807,7 @@ def test_load_prefers_static_candidate(tmp_path, monkeypatch):
     def fake_candidates(settings):
         return [preferred, other]
 
-    monkeypatch.setattr(prezzi_csv, "_candidate_local_csv_dirs", fake_candidates)
+    monkeypatch.setattr(csv_fetcher, "_candidate_local_csv_dirs", fake_candidates)
 
     settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = None
@@ -821,7 +819,7 @@ def test_load_prefers_static_candidate(tmp_path, monkeypatch):
 
 def test_load_from_project_src_static_data_dir():
     """When project-level src/static/data contains CSVs, _load_local_csvs should load them."""
-    project_dir = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    project_dir = csv_fetcher.PROJECT_ROOT / "src" / "static" / "data"
     project_dir.mkdir(parents=True, exist_ok=True)
     anag = project_dir / "anagrafica_impianti_attivi.csv"
     pre = project_dir / "prezzo_alle_8.csv"
@@ -855,7 +853,7 @@ def test_load_from_project_src_static_data_dir():
 def test_load_migrates_from_service_to_project_dir():
     """If CSVs exist in service-local dir but not in project src/static/data, they should be copied over and loaded."""
     service_dir = Path(prezzi_csv.__file__).parent / "static" / "data"
-    project_dir = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    project_dir = csv_fetcher.PROJECT_ROOT / "src" / "static" / "data"
     service_dir.mkdir(parents=True, exist_ok=True)
     anag = service_dir / "anagrafica_impianti_attivi.csv"
     pre = service_dir / "prezzo_alle_8.csv"
@@ -891,8 +889,8 @@ def test_load_migrates_from_service_to_project_dir():
 
 def test_load_migrates_from_project_data_to_src_static():
     """If CSVs exist in project-level `data/` they should be migrated to `src/static/data` and loaded."""
-    project_data = prezzi_csv.PROJECT_ROOT / "data"
-    project_src = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    project_data = csv_fetcher.PROJECT_ROOT / "data"
+    project_src = csv_fetcher.PROJECT_ROOT / "src" / "static" / "data"
     project_data.mkdir(parents=True, exist_ok=True)
 
     anag = project_data / "anagrafica_impianti_attivi.csv"
@@ -929,7 +927,7 @@ def test_load_migrates_from_project_data_to_src_static():
 
 def test_get_latest_csv_timestamp_prefers_project_src_static():
     """get_latest_csv_timestamp should pick up timestamped CSVs from project src/static/data."""
-    project_dir = prezzi_csv.PROJECT_ROOT / "src" / "static" / "data"
+    project_dir = csv_fetcher.PROJECT_ROOT / "src" / "static" / "data"
     project_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
     anag_name = project_dir / f"anagrafica_impianti_attivi_{ts}.csv"

@@ -97,85 +97,7 @@ def set_in_cache(key: str, value: dict[str, float]) -> None:
 ALIASES: dict[str, str] = {"florence": "firenze", "firenze": "firenze"}
 
 # Built-in fallback: major Italian cities with coordinates
-# This eliminates API calls for the most common searches
-BUILTIN_ITALIAN_CITIES: dict[str, dict[str, float]] = {
-    "roma": {"latitude": 41.9028, "longitude": 12.4964},
-    "milano": {"latitude": 45.4642, "longitude": 9.19},
-    "napoli": {"latitude": 40.8518, "longitude": 14.2681},
-    "torino": {"latitude": 45.0703, "longitude": 7.6869},
-    "palermo": {"latitude": 38.1157, "longitude": 13.3615},
-    "genova": {"latitude": 44.4056, "longitude": 8.9463},
-    "bologna": {"latitude": 44.4949, "longitude": 11.3426},
-    "firenze": {"latitude": 43.7696, "longitude": 11.2558},
-    "bari": {"latitude": 41.1171, "longitude": 16.8543},
-    "catania": {"latitude": 37.5079, "longitude": 15.0833},
-    "venezia": {"latitude": 45.4408, "longitude": 12.3155},
-    "verona": {"latitude": 45.4421, "longitude": 10.9988},
-    "messina": {"latitude": 38.1938, "longitude": 15.5540},
-    "padova": {"latitude": 45.4069, "longitude": 11.8768},
-    "trieste": {"latitude": 45.6495, "longitude": 13.7768},
-    "brescia": {"latitude": 45.5402, "longitude": 10.2225},
-    "taranto": {"latitude": 40.4643, "longitude": 17.2471},
-    "prato": {"latitude": 43.8777, "longitude": 11.1022},
-    "reggio calabria": {"latitude": 38.1034, "longitude": 15.6475},
-    "modena": {"latitude": 44.6471, "longitude": 10.9254},
-    "parma": {"latitude": 44.8015, "longitude": 10.3279},
-    "reggio emilia": {"latitude": 44.6989, "longitude": 10.6314},
-    "perugia": {"latitude": 43.1107, "longitude": 12.3908},
-    "ravenna": {"latitude": 44.4186, "longitude": 12.2025},
-    "livorno": {"latitude": 43.5485, "longitude": 10.3105},
-    "cagliari": {"latitude": 39.2238, "longitude": 9.1217},
-    "foggia": {"latitude": 41.4634, "longitude": 15.5519},
-    "rimini": {"latitude": 44.0593, "longitude": 12.5684},
-    "salerno": {"latitude": 40.6825, "longitude": 14.7696},
-    "ferrara": {"latitude": 44.8374, "longitude": 11.6188},
-    "sassari": {"latitude": 40.7279, "longitude": 8.5569},
-    "latina": {"latitude": 41.5316, "longitude": 12.8986},
-    "giugliano in campania": {"latitude": 40.9313, "longitude": 14.2345},
-    "monza": {"latitude": 45.5845, "longitude": 9.2725},
-    "siracusa": {"latitude": 37.0596, "longitude": 15.2933},
-    "bergamo": {"latitude": 45.6983, "longitude": 9.6772},
-    "pescara": {"latitude": 42.4618, "longitude": 14.2140},
-    "trento": {"latitude": 46.0740, "longitude": 11.1210},
-    "vicenza": {"latitude": 45.5407, "longitude": 11.5416},
-    "terni": {"latitude": 42.5617, "longitude": 12.6428},
-    "novara": {"latitude": 45.4469, "longitude": 8.6231},
-    "ancona": {"latitude": 43.6168, "longitude": 13.5187},
-    "piacenza": {"latitude": 45.0512, "longitude": 9.6936},
-    "lecce": {"latitude": 40.3510, "longitude": 18.1751},
-    "bolzano": {"latitude": 46.4983, "longitude": 11.3547},
-    "catanzaro": {"latitude": 38.9060, "longitude": 16.5944},
-    "udine": {"latitude": 46.0631, "longitude": 13.2359},
-    "cesena": {"latitude": 44.1391, "longitude": 12.2431},
-    "barletta": {"latitude": 41.3171, "longitude": 16.2833},
-    "viterbo": {"latitude": 42.4191, "longitude": 12.1050},
-    "cremona": {"latitude": 45.1331, "longitude": 9.9815},
-    "sondrio": {"latitude": 46.1699, "longitude": 9.8714},
-    "l'aquila": {"latitude": 42.3505, "longitude": 13.3995},
-    "pisa": {"latitude": 43.7167, "longitude": 10.3967},
-    "lucca": {"latitude": 43.8378, "longitude": 10.5032},
-    "siena": {"latitude": 43.3188, "longitude": 11.3308},
-    "pesaro": {"latitude": 43.9101, "longitude": 12.9039},
-    "urbino": {"latitude": 43.7262, "longitude": 12.6365},
-    "san marino": {"latitude": 43.9424, "longitude": 12.4578},
-    "civitavecchia": {"latitude": 42.0929, "longitude": 11.7921},
-    "massa": {"latitude": 44.0370, "longitude": 10.1413},
-    "grosseto": {"latitude": 42.7637, "longitude": 11.1128},
-    "asti": {"latitude": 44.8008, "longitude": 8.2065},
-    "alessandria": {"latitude": 44.9111, "longitude": 8.6162},
-    "cosenza": {"latitude": 39.2983, "longitude": 16.2526},
-    "crotone": {"latitude": 39.0807, "longitude": 17.1274},
-    "vibo valentia": {"latitude": 38.5534, "longitude": 16.2024},
-    "potenza": {"latitude": 40.6333, "longitude": 15.8083},
-    "campobasso": {"latitude": 41.5601, "longitude": 14.6562},
-    "avellino": {"latitude": 40.9581, "longitude": 14.7933},
-    "benevento": {"latitude": 41.1337, "longitude": 14.7815},
-    "caserta": {"latitude": 41.0746, "longitude": 14.3283},
-    "agrigento": {"latitude": 37.3115, "longitude": 13.5765},
-    "caltanissetta": {"latitude": 37.4898, "longitude": 14.0634},
-    "enna": {"latitude": 37.5958, "longitude": 14.2786},
-    "ragusa": {"latitude": 36.9251, "longitude": 14.7255},
-}
+# Lives in a JSON data file to keep the module compact.
 
 
 def _parse_cities_json(data: dict | list) -> dict[str, dict[str, float]]:
@@ -233,12 +155,21 @@ def _load_local_city_coords(settings: Settings) -> dict[str, dict[str, float]]:
                     mapping = _parse_cities_json(data)
                     _LOCAL_CITY_COORDS = mapping
                     logger.debug("Loaded local city coords from {} (entries={})", p, len(mapping))
-                    return _LOCAL_CITY_COORDS  # noqa: TRY300
                 except Exception as exc:  # pragma: no cover - defensive file handling
                     logger.debug("Failed to parse local cities file {}: {}", p, exc)
+                else:
+                    return _LOCAL_CITY_COORDS
 
-        _LOCAL_CITY_COORDS = BUILTIN_ITALIAN_CITIES.copy()
-        logger.debug("Using built-in Italian cities fallback (entries={})", len(_LOCAL_CITY_COORDS))
+        builtin_path = Path(__file__).parent / "data" / "italian_cities.json"
+        try:
+            with builtin_path.open("r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            mapping = _parse_cities_json(data)
+            _LOCAL_CITY_COORDS = mapping
+            logger.debug("Loaded built-in Italian cities fallback from {} (entries={})", builtin_path, len(mapping))
+        except Exception as exc:
+            logger.debug("Failed to load built-in Italian cities fallback: {}", exc)
+            _LOCAL_CITY_COORDS = {}
         return _LOCAL_CITY_COORDS
 
 

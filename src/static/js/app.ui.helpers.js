@@ -3,6 +3,15 @@
  * Small helper utilities split out of `app.ui.ts`.
  */
 // @ts-nocheck
+/** Escape a value for safe interpolation into HTML text contexts. */
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
 Object.assign(window.appUiMixin, {
     /** Format an ISO timestamp into localized string */
     formatTimestamp(isoTimestamp) {
@@ -130,10 +139,15 @@ Object.assign(window.appUiMixin, {
     buildPopupContent(station) {
         const title = station.gestore || this.translate("translation.station", "Gas Station");
         const addressLabel = this.translate("translation.address", "Address");
+        const titleValue = escapeHtml(title);
+        const addressValue = station.address ? escapeHtml(station.address) : "";
+        const addressBlock = addressValue
+            ? `<span class="map-popup-address">${addressLabel}: ${addressValue}</span>`
+            : "";
         return `
       <div class="map-popup">
-        <strong>${title}</strong><br>
-        <span class="map-popup-address">${addressLabel}: ${station.address}</span>
+        <strong>${titleValue}</strong><br>
+        ${addressBlock}
       </div>`;
     },
 });

@@ -247,10 +247,10 @@ The project uses modern Python tooling:
 
 ```bash
 # Run all tests
-uv run pytest tests/
+uv run python -m pytest tests/
 
 # Run with coverage
-uv run pytest tests/ --cov=src --cov-report=html
+uv run python -m pytest tests/ --cov=src --cov-report=html
 ```
 
 ### Code Formatting & Linting

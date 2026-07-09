@@ -41,98 +41,40 @@ function t(key: string, fallback = ""): string {
  * Set the application language
  * @param lang - The language code ('en' or 'it')
  */
-// biome-ignore lint/complexity/noExcessiveLinesPerFunction: splitting this callback chain hides the fallback flow.
 window.setLang = (lang: SupportedLang): void => {
   const app = window.gasStationApp;
   if (app?.debugMode) {
     console.debug("[DEBUG] i18next.changeLanguage called with lang:", lang);
   }
 
-  if (typeof i18next !== "undefined" && i18next.reloadResources) {
-    // Try to reload resources (some i18next backends populate bundles via reloadResources),
-    // but if the bundle is still missing, fall back to fetch-based loader `loadTranslations`.
-    i18next.reloadResources(lang, "translation", () => {
-      // If resources are not present after reloadResources, fetch them explicitly.
-      const i18nWithGetter = i18next as unknown as {
-        getResourceBundle?: (lng: string, ns: string) => unknown;
-      };
-      const hasBundle =
-        typeof i18nWithGetter.getResourceBundle === "function" &&
-        Boolean(i18nWithGetter.getResourceBundle?.(lang, "translation"));
-      if (!hasBundle) {
-        // best-effort fetch; do not block the UI if it fails
-        loadTranslations(lang).catch(() => {
-          /* noop */
-        });
-      }
+  const refreshUi = (): void => {
+    updateI18nTexts();
+    window.dispatchEvent(
+      new CustomEvent("languageChanged", { detail: { lang } }),
+    );
 
-      if (i18next.changeLanguage) {
-        // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: bundle fallback belongs with the language callback.
-        i18next.changeLanguage(lang, () => {
-          // Ensure texts are refreshed; if bundle still missing, load then update.
-          const i18nWithGetter2 = i18next as unknown as {
-            getResourceBundle?: (lng: string, ns: string) => unknown;
-          };
-          const bundleNow =
-            typeof i18nWithGetter2.getResourceBundle === "function" &&
-            Boolean(i18nWithGetter2.getResourceBundle?.(lang, "translation"));
-          if (!bundleNow) {
-            loadTranslations(lang)
-              .then(() => updateI18nTexts())
-              .catch(() => updateI18nTexts());
-          } else {
-            updateI18nTexts();
-          }
+    const statusEl = document.getElementById("status-messages");
+    if (statusEl) {
+      const langName = lang === "it" ? "Italian" : "English";
+      statusEl.textContent = `Language reset and changed to ${langName}`;
+      setTimeout(() => {
+        statusEl.textContent = "";
+      }, STATUS_MESSAGE_DURATION);
+    }
+  };
 
-          const statusEl = document.getElementById("status-messages");
-          if (statusEl) {
-            const langName = lang === "it" ? "Italian" : "English";
-            statusEl.textContent = `Language reset and changed to ${langName}`;
-            setTimeout(() => {
-              statusEl.textContent = "";
-            }, STATUS_MESSAGE_DURATION);
-          }
-          window.dispatchEvent(
-            new CustomEvent("languageChanged", { detail: { lang } }),
-          );
-        });
+  loadTranslations(lang)
+    .catch(() => {
+      /* best effort */
+    })
+    .finally(() => {
+      if (typeof i18next !== "undefined" && i18next.changeLanguage) {
+        i18next.changeLanguage(lang, refreshUi);
+      } else {
+        refreshUi();
       }
     });
-  } else {
-    // No reloadResources support — explicitly load the JSON bundle then change language
-    loadTranslations(lang)
-      .then(() => {
-        if (i18next.changeLanguage) {
-          i18next.changeLanguage(lang, () => {
-            updateI18nTexts();
-            window.dispatchEvent(
-              new CustomEvent("languageChanged", { detail: { lang } }),
-            );
-          });
-        } else {
-          updateI18nTexts();
-          window.dispatchEvent(
-            new CustomEvent("languageChanged", { detail: { lang } }),
-          );
-        }
-      })
-      .catch(() => {
-        // If loading translations fails, still set language and update texts (best-effort)
-        if (i18next.changeLanguage) {
-          i18next.changeLanguage(lang, () => {
-            updateI18nTexts();
-            window.dispatchEvent(
-              new CustomEvent("languageChanged", { detail: { lang } }),
-            );
-          });
-        } else {
-          updateI18nTexts();
-          window.dispatchEvent(
-            new CustomEvent("languageChanged", { detail: { lang } }),
-          );
-        }
-      });
-  }
+
   try {
     localStorage.setItem("lang", lang);
     window.APP_USER_LANG = lang;
@@ -194,13 +136,25 @@ function updateDataI18nElements(): void {
       (el as HTMLElement).innerText = t(key, fallback);
     }
   }
-  for (const el of Array.from(document.querySelectorAll("[data-i18n-placeholder]"))) {
+  for (const el of Array.from(
+    document.querySelectorAll("[data-i18n-placeholder]"),
+  )) {
     const key = el.getAttribute("data-i18n-placeholder");
-    if (key) (el as HTMLInputElement).placeholder = t(key, (el as HTMLInputElement).placeholder);
+    if (key)
+      (el as HTMLInputElement).placeholder = t(
+        key,
+        (el as HTMLInputElement).placeholder,
+      );
   }
-  for (const el of Array.from(document.querySelectorAll("[data-i18n-aria-label]"))) {
+  for (const el of Array.from(
+    document.querySelectorAll("[data-i18n-aria-label]"),
+  )) {
     const key = el.getAttribute("data-i18n-aria-label");
-    if (key) (el as HTMLElement).setAttribute("aria-label", t(key, el.getAttribute("aria-label") || ""));
+    if (key)
+      (el as HTMLElement).setAttribute(
+        "aria-label",
+        t(key, el.getAttribute("aria-label") || ""),
+      );
   }
 }
 
