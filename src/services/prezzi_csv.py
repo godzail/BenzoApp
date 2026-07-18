@@ -26,11 +26,7 @@ from src.services.csv_cache import (
     get_latest_csv_timestamp,
     preload_local_csv_cache,
 )
-from src.services.csv_fetcher import (
-    _fetch_csvs,
-    _load_local_csvs,
-    _save_csv_files,
-)
+from src.services.csv_fetcher import _fetch_csvs, _save_csv_files
 from src.services.csv_parser import (
     _filter_and_transform_combined,
     _parse_and_combine_sync,
@@ -110,15 +106,6 @@ async def fetch_and_combine_csv_data(
             )
             logger.debug("Combined CSV stations count: %d", len(combined) if combined else 0)
             await _write_json_file(settings.prezzi_cache_path, combined)
-            saved_dir = await _save_csv_files(anag_text, prezzi_text, settings)
-            if saved_dir:
-                try:
-                    anag_text2, prezzi_text2 = await _load_local_csvs(settings)
-                    combined2 = await asyncio.to_thread(
-                        lambda: _parse_and_combine_sync(anag_text2, prezzi_text2, force_delimiter),
-                    )
-                    await _write_json_file(settings.prezzi_cache_path, combined2)
-                except Exception as e:
-                    logger.warning("Failed to refresh cache after saving CSVs: {}", e)
+            await _save_csv_files(anag_text, prezzi_text, settings)
 
     return _filter_and_transform_combined(combined, params)

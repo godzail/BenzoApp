@@ -1,57 +1,35 @@
 /**
  * Docs theme toggle - handles light/dark mode with SVG icons.
- * Uses global window.themeUtils for core theme logic.
+ * Uses global window.themeManager (app.config.js) for core theme logic.
  */
-
 (() => {
   const btn = document.getElementById("docs-theme-toggle");
-  const theme = (
-    window as unknown as {
-      themeUtils: {
-        initTheme(): void;
-        getStoredTheme(): string | null;
-        getSystemPreference(): string;
-        updateThemeIcons(theme: string): void;
-        toggleTheme(): string;
-      };
-    }
-  ).themeUtils;
+  const theme = window.themeManager;
+  if (!(btn && theme)) return;
+
+  const updateIcons = (t: string): void => {
+    const sun = document.getElementById("theme-icon-sun");
+    const moon = document.getElementById("theme-icon-moon");
+    const isLight = t === "light";
+    sun?.classList.toggle("hidden", isLight);
+    moon?.classList.toggle("hidden", !isLight);
+  };
 
   const init = (): void => {
-    // Initialize theme (applies stored or system preference)
-    theme.initTheme();
-
-    // Ensure icons match current theme
-    const currentTheme =
-      document.documentElement.getAttribute("data-theme") ||
-      theme.getStoredTheme() ||
-      theme.getSystemPreference();
-    theme.updateThemeIcons(currentTheme);
-
-    // Listen for system theme changes (when not overridden by user)
-    if (window.matchMedia) {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: light)");
-      const handler = (e: MediaQueryListEvent) => {
-        if (!theme.getStoredTheme()) {
-          theme.updateThemeIcons(e.matches ? "light" : "dark");
-        }
-      };
-      mediaQuery.addEventListener("change", handler);
-    }
+    theme.init();
+    updateIcons(document.documentElement.getAttribute("data-theme") || "light");
   };
 
-  const toggle = (): void => {
-    const newTheme = theme.toggleTheme();
-    theme.updateThemeIcons(newTheme);
-  };
+  const toggle = (): void => updateIcons(theme.toggle());
 
   try {
-    init();
-    if (btn) {
-      btn.removeEventListener("click", toggle); // guard against duplicates
-      btn.addEventListener("click", toggle);
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
     }
-  } catch (e) {
-    console.error(e);
+    btn.addEventListener("click", toggle);
+  } catch (err) {
+    console.error("Docs theme init failed:", err);
   }
 })();

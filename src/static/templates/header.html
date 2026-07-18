@@ -12,7 +12,7 @@
       <span id="csv-reload-done" class="hidden ml-2 text-sm text-[var(--text-secondary)]"></span>
       <button
         id="reload-btn"
-        class="reload-btn p-1 rounded hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+        class="reload-btn p-2 min-w-11 min-h-11 inline-flex items-center justify-center rounded hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
         type="button"
         aria-label="Ricarica dati"
         data-i18n-aria-label="reload_data"
@@ -69,7 +69,7 @@
   </div>
 
   <!-- Floating Search Bar -->
-  <div class="search-container flex-1 max-w-xl">
+  <div class="search-container relative flex-1 max-w-xl">
     <div
       class="search-bar flex items-center gap-3 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl px-4 py-2 shadow-md transition-all duration-200 hover:shadow-lg focus-within:border-[var(--color-primary)] focus-within:shadow-md"
     >
@@ -142,7 +142,7 @@
     <!-- Theme Toggle -->
     <button
       id="theme-toggle"
-      class="theme-toggle inline-flex items-center justify-center w-10 h-9 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] cursor-pointer p-0 transition-all duration-150 hover:bg-[var(--bg-elevated)] hover:border-[var(--color-primary)]"
+      class="theme-toggle inline-flex items-center justify-center w-11 h-11 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] cursor-pointer p-0 transition-all duration-150 hover:bg-[var(--bg-elevated)] hover:border-[var(--color-primary)]"
       type="button"
       aria-label="Cambia tema"
     >
@@ -182,7 +182,7 @@
     <fieldset class="lang-switcher flex gap-1 m-0 p-0 border-0" data-i18n-aria-label="language">
       <button
         id="lang-en"
-        class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--text-primary)]"
+        class="lang-btn px-3 py-2 min-h-11 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--text-primary)]"
         type="button"
         aria-pressed="false"
       >
@@ -190,7 +190,7 @@
       </button>
       <button
         id="lang-it"
-        class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--text-primary)]"
+        class="lang-btn px-3 py-2 min-h-11 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--text-primary)]"
         type="button"
         aria-pressed="true"
       >
@@ -204,7 +204,7 @@
       href="/help/user-it"
       title="User Documentation"
       aria-label="User Documentation"
-      class="theme-toggle inline-flex items-center justify-center w-10 h-9 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] cursor-pointer p-0 hover:bg-[var(--bg-elevated)] hover:border-[var(--color-primary)]"
+      class="theme-toggle inline-flex items-center justify-center w-11 h-11 rounded-lg border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] cursor-pointer p-0 hover:bg-[var(--bg-elevated)] hover:border-[var(--color-primary)]"
     >
       <svg
         aria-hidden="true"

@@ -5,7 +5,7 @@ It provides endpoints for geocoding city names, fetching gas station data, and s
 
 Features:
 - Geocodes city names to latitude/longitude using OpenStreetMap Nominatim.
-- Fetches gas station data from Prezzi Carburante API with retry logic.
+- Fetches gas station data from the MIMIT Prezzi Carburante CSVs with retry logic.
 - Serves static files and frontend HTML.
 - Provides health check and favicon endpoints.
 
@@ -302,6 +302,17 @@ def _resolve_docs_page(page: str) -> Path:
     raise HTTPException(status_code=404, detail="Not found")
 
 
+def _load_docs_content(page: str) -> tuple[str, str]:
+    """Resolve and read a docs Markdown page plus docs CSS.
+
+    This function performs blocking I/O and must be called via ``asyncio.to_thread``.
+    """
+    md_path = _resolve_docs_page(page)
+    md_text = md_path.read_text(encoding="utf-8")
+    docs_css_path = static_dir / "css" / "docs.css"
+    return md_text, docs_css_path.read_text(encoding="utf-8")
+
+
 def _render_markdown(md_text: str) -> str:
     """Render Markdown to HTML with an escaped fallback."""
     try:
@@ -369,33 +380,19 @@ async def _build_csv_status(settings: Settings, app_context: AppContext) -> dict
     }
 
 
-async def _remove_cache_file(cache_path: Path) -> None:
-    """Remove the CSV cache file if it exists, logging non-fatal failures."""
-    cache_exists = await asyncio.to_thread(cache_path.exists)
-    logger.debug("Cache exists: {}", cache_exists)
-    if not cache_exists:
-        return
-    try:
-        await asyncio.to_thread(cache_path.unlink)
-        logger.info("Cleared cache file: {}", cache_path)
-    except OSError as err:
-        logger.warning("Could not remove cache file (it may be in use); continuing reload: {} - {}", cache_path, err)
-
-
-async def _run_csv_reload(settings: Settings) -> bool:
+async def _run_csv_reload(settings: Settings, app_context: AppContext) -> bool:
     """Fetch, parse, cache, save, and clean CSV data for manual reload.
+
+    Runs under ``app_context.csv_fetch_lock`` so it cannot interleave cache
+    writes with the search cold path; reuses the shared lifespan HTTP client.
 
     Returns:
     - True on success, False if any step raised an exception.
     """
     try:
         logger.debug("Starting CSV fetch...")
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(60.0, connect=15.0),
-            headers=_csv_http_headers(settings),
-            follow_redirects=True,
-        ) as client:
-            anag_text, prezzi_text = await _fetch_csvs(client, settings)
+        async with app_context.csv_fetch_lock:
+            anag_text, prezzi_text = await _fetch_csvs(app_context.http_client, settings)
             force_delimiter = None if settings.prezzi_csv_delimiter == "auto" else settings.prezzi_csv_delimiter
             combined = await asyncio.to_thread(
                 lambda: _parse_and_combine_sync(anag_text, prezzi_text, force_delimiter),
@@ -476,17 +473,17 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 # Serve static files
 static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Serve docs assets (images, included files) under a static route
+# Serve only docs screenshot assets; other docs/ content (plans, agents) stays private.
 docs_dir = Path(__file__).parent.parent / "docs"
-app.mount("/docs-static", StaticFiles(directory=docs_dir), name="docs_static")
+app.mount("/docs-static/screenshots", StaticFiles(directory=docs_dir / "screenshots"), name="docs_static")
 
 
 # --- API Endpoints ---
@@ -597,19 +594,35 @@ async def read_root() -> FileResponse:
 @app.get("/help/{page}", response_class=HTMLResponse)
 async def render_docs(page: str) -> HTMLResponse:
     """Render Markdown docs pages from the `docs` directory (safe filename)."""
-    md_path = _resolve_docs_page(page)
-    md_text = md_path.read_text(encoding="utf-8")
+    md_text, docs_css = await asyncio.to_thread(_load_docs_content, page)
     rendered = _render_markdown(md_text)
 
-    # Read docs CSS for inlining
-    docs_css_path = static_dir / "css" / "docs.css"
-    docs_css = docs_css_path.read_text(encoding="utf-8")
-
+    doc_lang = "en" if page.endswith("-en") else "it"
     html_page = dedent(f"""<!doctype html>
-        <html>
+        <html lang='{doc_lang}'>
         <head>
+            <script>
+            (() => {{
+              try {{
+                const stored = localStorage.getItem("app-theme");
+                const theme = stored === "light" || stored === "dark" ? stored
+                  : window.matchMedia?.("(prefers-color-scheme: light)").matches
+                    ? "light"
+                    : "dark";
+                document.documentElement.setAttribute("data-theme", theme);
+              }} catch (_e) {{
+                document.documentElement.setAttribute("data-theme", "light");
+              }}
+            }})();
+            </script>
             <meta charset='utf-8'>
             <meta name='viewport' content='width=device-width,initial-scale=1'>
+            <link rel='preconnect' href='https://fonts.googleapis.com'>
+            <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>
+            <link
+              href='https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap'
+              rel='stylesheet'
+            >
             <link rel='stylesheet' href='/static/css/styles.split.css'>
             <style>{docs_css}</style>
             <link rel='icon' href='/favicon.ico'>
@@ -621,16 +634,26 @@ async def render_docs(page: str) -> HTMLResponse:
               darkMode: 'class',
               theme: {{
                 extend: {{
-                  colors: {{ primary: {{ DEFAULT: '#00c853' }} }},
-                  fontFamily: {{ sans: ['Inter', 'system-ui'] }},
+                  fontFamily: {{
+                    sans: ['Instrument Sans', 'system-ui', 'sans-serif'],
+                    display: ['Bricolage Grotesque', 'Instrument Sans', 'system-ui', 'sans-serif'],
+                  }},
+                  borderRadius: {{ sm: '8px', md: '12px', lg: '16px', xl: '24px' }},
+                  boxShadow: {{
+                    sm: 'var(--shadow-sm)',
+                    md: 'var(--shadow-md)',
+                    lg: 'var(--shadow-lg)',
+                    xl: 'var(--shadow-xl)',
+                    card: 'var(--shadow-card)',
+                  }},
                 }},
               }},
             }};
             </script>
-            <script src='https://cdn.tailwindcss.com'></script>
+            <script defer src='https://cdn.tailwindcss.com'></script>
         </head>
         <body class='bg-[var(--bg-primary)] text-[var(--text-primary)]
-        min-h-screen font-sans transition-colors duration-250'>
+        min-h-screen font-sans transition-colors duration-[250ms]'>
             <div class='max-w-3xl mx-auto px-6 py-12 relative'>
                 <div class='docs-content mt-4'>{rendered}</div>
                 <button
@@ -662,7 +685,7 @@ async def render_docs(page: str) -> HTMLResponse:
                     </svg>
                 </button>
             </div>
-            <script src='/static/js/theme-utils.js' defer></script>
+            <script src='/static/js/app.config.js' defer></script>
             <script src='/static/js/docs-theme.js' defer></script>
         </body>
         </html>""")
@@ -692,39 +715,35 @@ async def get_csv_status(
     return await _build_csv_status(settings, request.app.state.app_context)
 
 
-@app.post("/api/reload-csv")
+@limiter.limit("3/minute")
+@app.post("/api/reload-csv", response_model=None)
 async def reload_csv(
+    request: Request,
     settings: Annotated[Settings, Depends(get_settings)],
-) -> dict[str, Any]:
-    """Force reload of CSV data by clearing cache and triggering async fetch.
+) -> dict[str, Any] | JSONResponse:
+    """Force reload of CSV data.
 
     Returns:
-    - dict with status message and new CSV status.
+    - 200 with status message and new CSV timestamp on success.
+    - 409 if a reload (manual or startup) is already in progress.
+    - 502 if the fetch/parse/save flow fails.
     """
+    if _is_reload_in_progress():
+        return JSONResponse(
+            status_code=409,
+            content={"status": "error", "message": "CSV reload already in progress"},
+        )
     logger.info("Manual CSV reload requested via API")
-    logger.debug("reload_csv endpoint called")
-
-    try:
-        cache_path = Path(settings.prezzi_cache_path)
-        await _remove_cache_file(cache_path)
-    except Exception as err:
-        logger.error("Failed to clear cache before reload: {}", err)
-        logger.exception(err)
-        return {
-            "status": "error",
-            "message": "Failed to clear CSV cache",
-        }
-
-    ok = await _run_csv_reload(settings)
+    app_context: AppContext = request.app.state.app_context
+    task = _start_background_task(request.app, "_reload_task", _run_csv_reload(settings, app_context))
+    ok = await task
     if not ok:
-        return {
-            "status": "error",
-            "message": "CSV reload failed; see server logs",
-        }
-
-    last_updated = get_latest_csv_timestamp(settings)
+        return JSONResponse(
+            status_code=HTTP_STATUS_BAD_GATEWAY,
+            content={"status": "error", "message": "CSV reload failed; see server logs"},
+        )
     return {
         "status": "success",
         "message": "CSV reload completed successfully",
-        "last_updated": last_updated,
+        "last_updated": get_latest_csv_timestamp(settings),
     }

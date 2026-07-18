@@ -2,6 +2,22 @@
 /**
  * Map-related helper methods for the gas station application.
  */
+function getStationMarkerIcon() {
+    return L.divIcon({
+        className: "station-marker",
+        html: '<span class="station-marker-dot" aria-hidden="true"></span>',
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+    });
+}
+function getUserLocationIcon() {
+    return L.divIcon({
+        className: "user-location-marker",
+        html: "",
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+    });
+}
 window.appMapMixin = {
     /**
      * Remove all markers from the map and clear the internal registry.
@@ -16,6 +32,8 @@ window.appMapMixin = {
             }
             this.mapMarkers = {};
         }
+        this._userMarker?.remove?.();
+        this._userMarker = null;
     },
     /**
      * Add markers for the current `results` to the map and adjust view to fit them.
@@ -36,7 +54,9 @@ window.appMapMixin = {
             }
             const stationId = station.id;
             const marker = L
-                .marker([station.latitude, station.longitude])
+                .marker([station.latitude, station.longitude], {
+                icon: getStationMarkerIcon(),
+            })
                 .addTo(this.map);
             marker.__station = station;
             marker.bindPopup(this.buildPopupContent(station));
@@ -51,6 +71,15 @@ window.appMapMixin = {
             padding: window.CONFIG.MAP_PADDING,
             maxZoom: window.CONFIG.MAX_ZOOM,
         });
+        // Render the user's own position when a locate-me search is active.
+        if (this.userLocation) {
+            this._userMarker?.remove?.();
+            this._userMarker = L
+                .marker([this.userLocation.lat, this.userLocation.lon], {
+                icon: getUserLocationIcon(),
+            })
+                .addTo(this.map);
+        }
     },
     /**
      * Fit the map view to contain all current markers, respecting configured padding and max zoom.

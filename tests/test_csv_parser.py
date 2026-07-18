@@ -126,22 +126,22 @@ def test_parse_prezzi_self_flag_variants(self_raw, expected):  # noqa: D103
     assert data["1"]["prezzi"]["benzina"]["self"] is expected
 
 
-def test_parse_prezzi_duplicate_station_ids_keeps_lowest_price():
-    """When the same station/fuel appears twice, the lower price should win regardless of row order."""
+def test_parse_prezzi_duplicate_station_ids_keeps_newest():
+    """When the same station/fuel appears twice, the row with the newest date wins."""
     data = _base_data("1")
-    csv_text = "col0|col1|col2|col3|col4\n1|benzina|1,80|1|01/01/2026\n1|benzina|1,50|1|02/01/2026\n"
+    csv_text = "col0|col1|col2|col3|col4\n1|benzina|1,50|1|01/01/2026\n1|benzina|1,80|1|02/01/2026\n"
 
     _parse_prezzi(csv_text, data)
 
-    assert data["1"]["prezzi"]["benzina"]["prezzo"] == 1.5
+    assert data["1"]["prezzi"]["benzina"]["prezzo"] == 1.8
 
-    # Reverse order should yield the same result.
+    # Reverse row order must yield the same result (newest date wins).
     data2 = _base_data("1")
-    csv_text2 = "col0|col1|col2|col3|col4\n1|benzina|1,50|1|01/01/2026\n1|benzina|1,80|1|02/01/2026\n"
+    csv_text2 = "col0|col1|col2|col3|col4\n1|benzina|1,80|1|02/01/2026\n1|benzina|1,50|1|01/01/2026\n"
 
     _parse_prezzi(csv_text2, data2)
 
-    assert data2["1"]["prezzi"]["benzina"]["prezzo"] == 1.5
+    assert data2["1"]["prezzi"]["benzina"]["prezzo"] == 1.8
 
 
 def test_parse_prezzi_named_header_missing_price_raises_schema_error():

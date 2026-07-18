@@ -331,42 +331,4 @@ Object.assign(window.appUiMixin, {
       }
     }
   },
-
-  placeMapAccordingToViewport(): void {
-    try {
-      const mapContainer = document.getElementById("map-container");
-      const mapColumn = document.getElementById("map-column");
-      const searchColumn = document.getElementById("search-column");
-      const resultsContainer = document.getElementById("results-container");
-      const isMobile = window.matchMedia("(max-width: 1023px)").matches;
-      if (!(mapContainer && searchColumn)) return;
-      if (isMobile) {
-        if (mapContainer.parentElement !== searchColumn) {
-          if (
-            resultsContainer &&
-            resultsContainer.parentElement === searchColumn
-          ) {
-            searchColumn.insertBefore(mapContainer, resultsContainer);
-          } else {
-            searchColumn.appendChild(mapContainer);
-          }
-          mapContainer.classList.remove("hidden");
-          mapContainer.style.display = "";
-        }
-      } else {
-        if (mapColumn && mapContainer.parentElement !== mapColumn) {
-          mapColumn.appendChild(mapContainer);
-          mapContainer.classList.remove("hidden");
-          mapContainer.style.display = "";
-        }
-      }
-
-      setTimeout(() => {
-        (this.map as { invalidateSize?: () => void })?.invalidateSize?.();
-        this.initMap?.();
-      }, 100);
-    } catch (err) {
-      console.debug("placeMapAccordingToViewport failed:", err);
-    }
-  },
 } as Partial<AppUiMixin>);

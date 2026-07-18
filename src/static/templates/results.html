@@ -3,7 +3,7 @@
   <div id="skeleton-loader" class="hidden flex flex-col gap-4">
     <div class="skeleton-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-6">
       <div class="skeleton-header flex items-center gap-4 mb-4">
-        <div class="skeleton-avatar w-10 h-10 rounded-lg animate-shimmer"></div>
+        <div class="skeleton-avatar w-10 h-10 rounded-xl animate-shimmer"></div>
         <div class="skeleton-title flex-1 h-4 rounded animate-shimmer"></div>
       </div>
       <div class="skeleton-body">
@@ -23,7 +23,7 @@
     </div>
     <div class="skeleton-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-6">
       <div class="skeleton-header flex items-center gap-4 mb-4">
-        <div class="skeleton-avatar w-10 h-10 rounded-lg animate-shimmer"></div>
+        <div class="skeleton-avatar w-10 h-10 rounded-xl animate-shimmer"></div>
         <div class="skeleton-title flex-1 h-4 rounded animate-shimmer"></div>
       </div>
       <div class="skeleton-body">
@@ -77,10 +77,12 @@
   <!-- Error Message -->
   <div
     id="error-message"
-    class="hidden flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 mt-4"
+    class="error-message hidden flex items-start gap-3 p-4 rounded-xl bg-[var(--color-error-bg)] border border-[var(--color-error-border)] mt-4"
     role="alert"
   >
-    <div class="error-icon w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center flex-shrink-0">
+    <div
+      class="error-icon w-8 h-8 rounded-lg bg-[var(--color-error-border)] flex items-center justify-center flex-shrink-0"
+    >
       <svg
         aria-hidden="true"
         width="20"
@@ -89,7 +91,7 @@
         fill="none"
         stroke="currentColor"
         stroke-width="2"
-        class="text-red-500"
+        class="text-[var(--color-error)]"
       >
         <circle cx="12" cy="12" r="10"></circle>
         <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -97,7 +99,7 @@
       </svg>
     </div>
     <div>
-      <p class="text-sm font-medium text-red-500" id="error-text"></p>
+      <p class="text-sm font-medium text-[var(--color-error)]" id="error-text"></p>
     </div>
   </div>
 </div>

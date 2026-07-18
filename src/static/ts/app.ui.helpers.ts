@@ -91,10 +91,14 @@ Object.assign(window.appUiMixin, {
     return `${num.toFixed(1)} km`;
   },
 
-  translate(key: string, fallback = ""): string {
-    if (typeof window.t === "function") return window.t(key, fallback);
+  translate(
+    key: string,
+    fallback = "",
+    params?: Record<string, unknown>,
+  ): string {
+    if (typeof window.t === "function") return window.t(key, fallback, params);
     if (typeof i18next !== "undefined" && i18next.t) {
-      const translated = i18next.t(key);
+      const translated = i18next.t(key, params);
       if (translated === key) return fallback || key;
       return translated;
     }

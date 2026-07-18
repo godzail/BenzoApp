@@ -1,5 +1,12 @@
 /* Custom CSS - Animations, Third-party overrides, and Layout styles */
 
+.app-title,
+.station-price,
+.empty-message,
+.csv-popup-title {
+  font-family: var(--font-display);
+}
+
 /* Header content for desktop */
 .header-content {
   max-width: 1600px;
@@ -54,7 +61,8 @@
     overflow-y: auto;
     padding-right: 16px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(120, 113, 108, 0.45) transparent;
+    scrollbar-color: color-mix(in srgb, var(--text-muted) 45%, transparent)
+      transparent;
   }
 
   .search-column::-webkit-scrollbar {
@@ -66,12 +74,12 @@
   }
 
   .search-column::-webkit-scrollbar-thumb {
-    background: rgba(120, 113, 108, 0.45);
+    background: color-mix(in srgb, var(--text-muted) 45%, transparent);
     border-radius: 9999px;
   }
 
   .search-column::-webkit-scrollbar-thumb:hover {
-    background: rgba(120, 113, 108, 0.65);
+    background: color-mix(in srgb, var(--text-muted) 65%, transparent);
   }
 
   #map-column {
@@ -107,11 +115,11 @@
   border-left: 4px solid var(--color-primary);
   box-shadow:
     var(--shadow-card),
-    0 0 20px rgba(249, 115, 22, 0.15);
+    0 0 20px color-mix(in srgb, var(--color-primary) 15%, transparent);
   transform: translateY(-2px);
   background: linear-gradient(
     90deg,
-    rgba(249, 115, 22, 0.05) 0%,
+    color-mix(in srgb, var(--color-primary) 5%, transparent) 0%,
     var(--bg-surface) 20%
   );
 }
@@ -128,7 +136,7 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   box-shadow:
-    0 0 0 4px rgba(249, 115, 22, 0.2),
+    0 0 0 4px color-mix(in srgb, var(--color-primary) 20%, transparent),
     var(--shadow-md);
 }
 
@@ -250,22 +258,6 @@
   }
 }
 
-/* Best Price Badge - Entrance Animation */
-@keyframes badge-entrance {
-  from {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.best-price-badge {
-  animation: badge-entrance 0.4s ease-out;
-}
-
 @keyframes pulse-ring {
   0% {
     transform: translate(-50%, -50%) scale(0.5);
@@ -295,16 +287,6 @@
   }
   50% {
     opacity: 0.6;
-  }
-}
-
-@keyframes pulse-badge {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.6);
-  }
-  50% {
-    box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
   }
 }
 
@@ -388,6 +370,33 @@ input[type="range"]::-moz-range-thumb:hover {
 input[type="range"]:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* Themed station map markers (replace default Leaflet blue pins) */
+.station-marker {
+  background: transparent;
+  border: none;
+}
+
+.station-marker-dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  background: var(--color-primary);
+  border: 3px solid var(--bg-surface);
+  border-radius: 50%;
+  box-shadow:
+    var(--shadow-md),
+    0 0 0 2px color-mix(in srgb, var(--color-primary) 45%, transparent);
+}
+
+/* User position dot (pulse ring comes from the existing ::after rule) */
+.user-location-marker {
+  background: var(--color-primary);
+  border: 3px solid var(--bg-surface);
+  border-radius: 50%;
+  box-shadow: var(--shadow-md);
 }
 
 /* User location pulse ring */
@@ -633,7 +642,7 @@ details[open] .recent-searches-title::before {
 .csv-popup-icon {
   width: 48px;
   height: 48px;
-  background: rgba(249, 115, 22, 0.15);
+  background: color-mix(in srgb, var(--color-primary) 15%, transparent);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -657,7 +666,7 @@ details[open] .recent-searches-title::before {
 
 .csv-popup-status {
   font-size: 0.8rem;
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   min-height: 1.25em;
   display: flex;
   align-items: center;
@@ -701,7 +710,8 @@ details[open] .recent-searches-title::before {
 
 .csv-popup-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  box-shadow: 0 4px 12px
+    color-mix(in srgb, var(--color-primary) 30%, transparent);
 }
 
 .csv-popup-btn:disabled {

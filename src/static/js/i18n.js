@@ -22,9 +22,9 @@ window.APP_USER_LANG = userLang;
  * @param fallback - The fallback text if translation not found
  * @returns Translated text or fallback
  */
-function t(key, fallback = "") {
+function t(key, fallback = "", params) {
     if (typeof i18next !== "undefined" && i18next.t) {
-        const translated = i18next.t(key);
+        const translated = i18next.t(key, params);
         if (translated === key) {
             return fallback || key;
         }
@@ -126,19 +126,30 @@ function updateDataI18nElements() {
     for (const el of Array.from(document.querySelectorAll("[data-i18n]"))) {
         const key = el.getAttribute("data-i18n");
         if (key) {
-            const fallback = el.textContent?.trim() || "";
-            el.innerText = t(key, fallback);
+            const htmlEl = el;
+            // Cache the server-rendered text once so translated text never becomes fallback text.
+            if (!htmlEl.dataset.i18nFallback)
+                htmlEl.dataset.i18nFallback = (htmlEl.textContent || "").trim();
+            htmlEl.innerText = t(key, htmlEl.dataset.i18nFallback);
         }
     }
     for (const el of Array.from(document.querySelectorAll("[data-i18n-placeholder]"))) {
         const key = el.getAttribute("data-i18n-placeholder");
-        if (key)
-            el.placeholder = t(key, el.placeholder);
+        if (key) {
+            const input = el;
+            if (!input.dataset.i18nFallback)
+                input.dataset.i18nFallback = input.placeholder;
+            input.placeholder = t(key, input.dataset.i18nFallback);
+        }
     }
     for (const el of Array.from(document.querySelectorAll("[data-i18n-aria-label]"))) {
         const key = el.getAttribute("data-i18n-aria-label");
-        if (key)
-            el.setAttribute("aria-label", t(key, el.getAttribute("aria-label") || ""));
+        if (key) {
+            const htmlEl = el;
+            if (!htmlEl.dataset.i18nFallback)
+                htmlEl.dataset.i18nFallback = htmlEl.getAttribute("aria-label") || "";
+            htmlEl.setAttribute("aria-label", t(key, htmlEl.dataset.i18nFallback));
+        }
     }
 }
 /**
@@ -147,6 +158,10 @@ function updateDataI18nElements() {
  * This sets the initial language and triggers loading of translation resources.
  */
 function initI18next() {
+    if (typeof i18next === "undefined") {
+        // CDN unavailable: keep the server-rendered text, translations disabled.
+        return;
+    }
     i18next.init({
         lng: window.APP_USER_LANG,
         fallbackLng: "it",
@@ -165,6 +180,8 @@ function initI18next() {
  * @param lang - Language code to load (e.g., 'it' or 'en').
  */
 async function loadTranslations(lang) {
+    if (typeof i18next === "undefined")
+        return;
     try {
         const response = await fetch(`/static/locales/${lang}.json`);
         if (response.ok) {

@@ -6,7 +6,7 @@ from typing import Any
 import httpx2 as httpx
 from fastapi import HTTPException
 from loguru import logger
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_not_exception_type, stop_after_attempt, wait_exponential
 
 from src.models import (
     MAX_RESULTS_COUNT,
@@ -20,14 +20,19 @@ from src.services.distance_utils import calculate_distance
 from src.services.prezzi_csv import fetch_and_combine_csv_data
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(), reraise=True)
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(),
+    retry=retry_if_not_exception_type(HTTPException),
+    reraise=True,
+)
 async def fetch_gas_stations(
     params: StationSearchParams,
     settings: Settings,
     http_client: httpx.AsyncClient,
     cold_path_lock: asyncio.Lock | None = None,
 ) -> dict | list[Any]:
-    """Fetch gas stations from Prezzi Carburante API.
+    """Fetch gas stations from the MIMIT CSV sources.
 
     Parameters:
     - params: Station search parameters including latitude, longitude, distance, fuel, and results.
@@ -36,7 +41,7 @@ async def fetch_gas_stations(
     - cold_path_lock: Optional lock to serialize cold-cache downloads.
 
     Returns:
-    - The JSON response from the Prezzi Carburante API.
+    - The combined station payload from the CSV pipeline.
 
     Raises:
     - HTTPException: If the API returns an HTTP error.

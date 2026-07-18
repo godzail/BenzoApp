@@ -85,14 +85,22 @@ def test_search_timeout_behavior(client: TestClient, monkeypatch) -> None:
     class FastTimeoutSettings(Settings):
         search_timeout_seconds: int = 1
 
-    async def _slow_fetch(params, settings, http_client) -> list:
+    async def _slow_fetch(params, settings, http_client, cold_path_lock=None) -> list:
         await asyncio.sleep(5)
         return []
 
     # Apply overrides - pass a lambda that returns an instance, not the class itself
     # Use try/finally to ensure cleanup even if test fails
     original_override = app.dependency_overrides.get(get_settings)
-    app.dependency_overrides[get_settings] = lambda: FastTimeoutSettings()
+    app.dependency_overrides[get_settings] = lambda: FastTimeoutSettings(search_timeout_seconds=1)
+    import src.main as _main
+
+    monkeypatch.setattr(_main, "_cached_settings", FastTimeoutSettings(search_timeout_seconds=1))
+
+    async def _fast_geocode(city, settings, app_context) -> dict[str, float]:
+        return {"latitude": 41.9028, "longitude": 12.4964}
+
+    monkeypatch.setattr(_main, "_geocode_for_search", _fast_geocode)
 
     # Monkeypatch the actual fetcher using monkeypatch for automatic cleanup
     import src.services.fuel_api as _fa
@@ -156,6 +164,7 @@ def test_reload_csv_triggers_fetch_and_saves(client: TestClient, monkeypatch) ->
     monkeypatch.setattr(_main, "_write_json_file", _fake_write_json_file)
     monkeypatch.setattr(_main, "_save_csv_files", _fake_save_csv_files)
     monkeypatch.setattr(_main, "get_latest_csv_timestamp", lambda s: "2026-02-13T12:00:00+00:00")
+    monkeypatch.setattr(_main, "_is_reload_in_progress", lambda: False)
 
     response = client.post("/api/reload-csv")
     assert response.status_code == status.HTTP_200_OK

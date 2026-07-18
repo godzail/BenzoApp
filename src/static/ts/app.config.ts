@@ -98,15 +98,11 @@ window.themeManager = {
    */
   init(): void {
     const storedTheme = this.getStoredTheme();
-    // Apply stored preference when present. When none exists, start with
-    // the configured DEFAULT_THEME so headless/test environments remain
-    // deterministic. If there is no stored preference we still listen to
-    // system changes and update accordingly.
-    const theme: "light" | "dark" = (
+    // No stored preference: follow the OS (headless/test environments report light).
+    const theme: "light" | "dark" =
       storedTheme === "dark" || storedTheme === "light"
         ? storedTheme
-        : (window.CONFIG.DEFAULT_THEME as "light" | "dark")
-    ) as "light" | "dark";
+        : this.getSystemPreference();
     this.applyTheme(theme);
 
     if (window.matchMedia) {

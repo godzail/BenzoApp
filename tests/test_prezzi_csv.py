@@ -725,7 +725,7 @@ def test_load_local_csvs_uses_custom_dir(tmp_path):
     settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = str(tmp_path)
 
-    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+    anag_text, prezzi_text = asyncio.run(csv_fetcher._load_local_csvs(settings))
     assert "GestoreX" in anag_text
     assert "benzina" in prezzi_text
 
@@ -812,7 +812,7 @@ def test_load_prefers_static_candidate(tmp_path, monkeypatch):
     settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = None
 
-    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+    anag_text, prezzi_text = asyncio.run(csv_fetcher._load_local_csvs(settings))
     assert "GestoreX" in anag_text
     assert "benzina" in prezzi_text
 
@@ -845,7 +845,7 @@ def test_load_from_project_src_static_data_dir():
     settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = None
 
-    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+    anag_text, prezzi_text = asyncio.run(csv_fetcher._load_local_csvs(settings))
     assert "GestoreX" in anag_text
     assert "benzina" in prezzi_text
 
@@ -879,7 +879,7 @@ def test_load_migrates_from_service_to_project_dir():
     settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = None
 
-    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+    anag_text, prezzi_text = asyncio.run(csv_fetcher._load_local_csvs(settings))
     assert "GestoreX" in anag_text
     assert "benzina" in prezzi_text
 
@@ -916,7 +916,7 @@ def test_load_migrates_from_project_data_to_src_static():
     settings = Settings(prezzi_min_csv_bytes=0)
     settings.prezzi_local_data_dir = None
 
-    anag_text, prezzi_text = asyncio.run(prezzi_csv._load_local_csvs(settings))
+    anag_text, prezzi_text = asyncio.run(csv_fetcher._load_local_csvs(settings))
     assert "GestoreX" in anag_text
     assert "benzina" in prezzi_text
 

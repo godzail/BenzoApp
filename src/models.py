@@ -51,10 +51,6 @@ class Settings(BaseSettings):
         "https://nominatim.openstreetmap.org/search",
         description="The base URL for the OpenStreetMap Nominatim API.",
     )
-    prezzi_carburante_api_url: str = Field(
-        "https://prezzi-carburante.onrender.com/api/distributori",
-        description="The base URL for the Prezzi Carburante API.",
-    )
     cors_allowed_origins: list[str] | str = Field(
         default_factory=lambda: os.getenv(
             "CORS_ALLOWED_ORIGINS",

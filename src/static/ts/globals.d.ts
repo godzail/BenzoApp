@@ -3,7 +3,11 @@
 interface Window {
   APP_USER_LANG: string;
   setLang: (lang: "it" | "en") => void;
-  t: (key: string, fallback?: string) => string;
+  t: (
+    key: string,
+    fallback?: string,
+    params?: Record<string, unknown>,
+  ) => string;
   updateI18nTexts: () => void;
   gasStationApp: {
     formData: {
@@ -83,7 +87,7 @@ interface Window {
   appStorageMixin: Record<string, unknown>;
   appMapMixin: Record<string, unknown>;
   i18next: {
-    t: (key: string) => string;
+    t: (key: string, params?: Record<string, unknown>) => string;
     changeLanguage?: (lang: string, callback?: () => void) => void;
     language?: string;
     reloadResources?: (lang: string, ns: string, callback?: () => void) => void;
@@ -110,7 +114,7 @@ interface Window {
 }
 
 declare const i18next: {
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, unknown>) => string;
   changeLanguage?: (lang: string, callback?: () => void) => void;
   language?: string;
   reloadResources?: (lang: string, ns: string, callback?: () => void) => void;

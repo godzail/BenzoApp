@@ -87,7 +87,13 @@ async def _load_single_csv(settings: Settings, glob_pattern: str) -> str:
     - FileNotFoundError: Se nessun file corrisponde in nessuna candidate dir.
     """
     for d in _candidate_local_csv_dirs(settings):
-        files = sorted(d.glob(glob_pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+        files = await asyncio.to_thread(
+            lambda directory=d: sorted(
+                directory.glob(glob_pattern),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            ),
+        )
         if files:
             return await asyncio.to_thread(files[0].read_text, "iso-8859-1")
     msg = f"No local CSV matching '{glob_pattern}' in candidate dirs"
@@ -305,8 +311,20 @@ async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
     preferred_dir = Path(local_dir) if local_dir else PROJECT_DATA_DIR
 
     for d in candidates:
-        anag_files = sorted(d.glob("anagrafica_impianti_attivi*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
-        prezzi_files = sorted(d.glob("prezzo_alle_8*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+        anag_files = await asyncio.to_thread(
+            lambda directory=d: sorted(
+                directory.glob("anagrafica_impianti_attivi*.csv"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            ),
+        )
+        prezzi_files = await asyncio.to_thread(
+            lambda directory=d: sorted(
+                directory.glob("prezzo_alle_8*.csv"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            ),
+        )
         if anag_files and prezzi_files:
             anag_path = anag_files[0]
             prezzi_path = prezzi_files[0]

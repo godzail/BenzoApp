@@ -11,7 +11,7 @@ import httpx2 as httpx
 from cachetools import TTLCache
 from fastapi import HTTPException
 from loguru import logger
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_not_exception_type, stop_after_attempt, wait_exponential
 
 from src.models import Settings
 
@@ -454,7 +454,12 @@ def _handle_nominatim_request_error(
     ) from err
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_not_exception_type(HTTPException),
+    reraise=True,
+)
 async def geocode_city(
     city: str,
     settings: Settings,

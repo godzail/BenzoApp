@@ -13,7 +13,7 @@ test('reload button shows spinner while reloading and becomes enabled after', as
   // toggles back before Playwright can observe it.
   await page.route('**/api/reload-csv', async (route) => {
     // simulate network latency
-    await page.waitForTimeout(50);
+    await page.waitForTimeout(250);
     await route.fulfill({
       status: 200,
       headers: { 'Content-Type': 'application/json' },

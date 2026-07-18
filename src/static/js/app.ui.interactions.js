@@ -33,6 +33,11 @@ Object.assign(window.appUiMixin, {
         return this.formData.fuel === fuel;
     },
     onCityInput() {
+        // Manual typing invalidates one-shot locate-me state; otherwise stale
+        // coordinates silently override the city because the backend prefers them.
+        this.formData.latitude = null;
+        this.formData.longitude = null;
+        this.userLocation = null;
         const value = (this.formData.city || "").trim().toLowerCase();
         if (value.length === 0) {
             this.filteredCities = [];
@@ -361,7 +366,7 @@ Object.assign(window.appUiMixin, {
             const doubled = Math.min(currentRadius * 2, 50);
             if (doubled !== currentRadius) {
                 actions.push({
-                    label: this.translate("empty_increase_radius", `Search within ${doubled} km`),
+                    label: this.translate("empty_increase_radius", `Search within ${doubled} km`, { km: doubled }),
                     onClick: () => {
                         this.formData.radius = String(doubled);
                         this.updateSearchFormUI?.();
@@ -385,7 +390,7 @@ Object.assign(window.appUiMixin, {
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className =
-                "chip inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]";
+                "inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]";
             btn.textContent = action.label;
             btn.addEventListener("click", action.onClick);
             container.appendChild(btn);
@@ -414,14 +419,25 @@ Object.assign(window.appUiMixin, {
             article.className =
                 "station-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 shadow-md transition-all duration-200 cursor-pointer relative min-h-[160px] hover:translate-y-[-2px] hover:shadow-xl hover:scale-[1.01] hover:border-[var(--color-primary-light)]";
             article.setAttribute("data-station-id", String(station.id ?? ""));
-            // Card is clickable but not focusable as a single button to avoid
-            // nested <button> elements (the action buttons handle their own focus).
-            article.innerHTML = `\n        <div class="station-card-header mb-4 min-w-0">\n          <div class="flex items-center justify-between gap-4 mb-2">\n            <div class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1">\n              <div class="station-icon w-10 h-10 bg-gradient-to-br from-[var(--color-primary-light)] to-[var(--color-primary)] rounded-xl flex items-center justify-center text-white shadow-sm">\n                ${stationFuelIcon}\n              </div>\n              <span class="truncate overflow-hidden text-ellipsis whitespace-nowrap">${escapeHtml(stationName)}</span>\n            </div>\n            <div class="station-price flex flex-row items-center gap-2 flex-nowrap">\n              ${station.fuel_prices && station.fuel_prices.length > 0 ? `\n                <span class="uppercase tracking-wide text-sm ${fuelColorClass}">${escapeHtml(window.translateFuel ? window.translateFuel(fuelType) : fuelType)}</span>\n                <span class="text-2xl font-bold text-[var(--color-primary)]">${hasPrice ? this.formatCurrency(price) : escapeHtml(naLabel)}</span>\n              ` : ""}\n            </div>\n          </div>\n          <div class="flex items-center justify-end gap-3 pl-[calc(8px+2rem)]">\n            ${isCheapest ? `<span class="inline-block bg-gradient-to-r from-[var(--color-primary-dark)] to-[var(--color-primary-darker)] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md whitespace-nowrap">${this.translate("best_price", "Miglior Prezzo!")}</span>` : ""}\n            ${station.fuel_prices && station.fuel_prices.length > 0 && !isCheapest ? `<span class="text-sm text-red-500 font-medium">${this.getPriceDifference(index)}</span>` : ""}\n            ${station.distance ? `<span class="flex items-center gap-1 text-sm text-[var(--text-muted)]">\n              <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <circle cx="12" cy="12" r="10"></circle>\n                <polyline points="12 6 12 12 16 14"></polyline>\n              </svg>\n              ${this.formatDistance(station.distance)}\n            </span>` : ""}\n          </div>\n        </div>\n        <div class="station-card-body flex flex-col gap-2">\n          <div class="station-address-row flex items-start gap-2 text-sm text-[var(--text-secondary)] break-word overflow-wrap-break-word">\n            <svg aria-hidden="true" class="address-icon w-4 h-4 text-[var(--text-muted)] mt-0.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n              <circle cx="12" cy="10" r="3"></circle>\n            </svg>\n            <span class="break-word overflow-wrap-break-word leading-relaxed max-w-full">${escapeHtml(station.address || "")}</span>\n          </div>\n          <div class="station-actions-row flex gap-2 mt-4 pt-4 border-t border-[var(--border-color)]">\n            <button class="btn btn-primary flex-1 min-w-0 whitespace-nowrap bg-[var(--color-primary-dark)] text-white border-none rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--color-primary-darker)] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale disabled:transform-none" data-action="directions" data-id="${escapeHtml(station.id)}" aria-label="${escapeHtml(`${this.translate("navigate", "Navigate")}: ${stationName}`)}" ${hasCoordinates ? "" : "disabled"}>\n              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M9 18l6-6-6-6"></path>\n              </svg>\n              <span>${this.translate("navigate", "Navigate")}</span>\n            </button>\n            <button class="btn btn-secondary flex-1 min-w-0 whitespace-nowrap bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed" data-action="show-map" data-id="${escapeHtml(station.id)}" aria-label="${escapeHtml(`${this.translate("show_on_map", "Show on Map")}: ${stationName}`)}" ${hasCoordinates ? "" : "disabled"}>\n              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n                <circle cx="12" cy="10" r="3"></circle>\n              </svg>\n              <span>${this.translate("show_on_map", "Show on Map")}</span>\n            </button>\n          </div>\n        </div>\n      `;
+            // Card acts as one focusable control; inner action buttons keep their own focus.
+            const stationTypeLabel = this.translate("station", "Gas Station");
+            article.setAttribute("aria-label", station.gestore ? `${stationTypeLabel} ${stationName}` : stationName);
+            article.tabIndex = 0;
+            article.setAttribute("role", "button");
+            article.innerHTML = `\n        <div class="station-card-header mb-4 min-w-0">\n          <div class="flex items-center justify-between gap-4 mb-2">\n            <div class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1">\n              <div class="station-icon w-10 h-10 bg-gradient-to-br from-[var(--color-primary-light)] to-[var(--color-primary)] rounded-xl flex items-center justify-center text-white shadow-sm">\n                ${stationFuelIcon}\n              </div>\n              <span class="truncate overflow-hidden text-ellipsis whitespace-nowrap">${escapeHtml(stationName)}</span>\n            </div>\n            <div class="station-price flex flex-row items-center gap-2 flex-nowrap">\n              ${station.fuel_prices && station.fuel_prices.length > 0 ? `\n                <span class="uppercase tracking-wide text-sm ${fuelColorClass}">${escapeHtml(window.translateFuel ? window.translateFuel(fuelType) : fuelType)}</span>\n                <span class="text-2xl font-bold text-[var(--color-primary-text)]">${hasPrice ? this.formatCurrency(price) : escapeHtml(naLabel)}</span>\n              ` : ""}\n            </div>\n          </div>\n          <div class="flex items-center justify-end gap-3 pl-[calc(8px+2rem)]">\n            ${isCheapest ? `<span class="inline-block bg-gradient-to-r from-[var(--color-primary-dark)] to-[var(--color-primary-darker)] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md whitespace-nowrap">${this.translate("best_price", "Miglior Prezzo!")}</span>` : ""}\n            ${station.fuel_prices && station.fuel_prices.length > 0 && !isCheapest ? `<span class="text-sm text-[var(--color-error)] font-medium">${this.getPriceDifference(index)}</span>` : ""}\n            ${station.distance ? `<span class="flex items-center gap-1 text-sm text-[var(--text-muted)]">\n              <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <circle cx="12" cy="12" r="10"></circle>\n                <polyline points="12 6 12 12 16 14"></polyline>\n              </svg>\n              ${this.formatDistance(station.distance)}\n            </span>` : ""}\n          </div>\n        </div>\n        <div class="station-card-body flex flex-col gap-2">\n          <div class="station-address-row flex items-start gap-2 text-sm text-[var(--text-secondary)] break-words">\n            <svg aria-hidden="true" class="address-icon w-4 h-4 text-[var(--text-muted)] mt-0.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n              <circle cx="12" cy="10" r="3"></circle>\n            </svg>\n            <span class="break-words leading-relaxed max-w-full">${escapeHtml(station.address || "")}</span>\n          </div>\n          <div class="station-actions-row flex gap-2 mt-4 pt-4 border-t border-[var(--border-color)]">\n            <button class="btn btn-primary flex-1 min-w-0 whitespace-nowrap bg-[var(--color-primary-dark)] text-white border-none rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--color-primary-darker)] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale disabled:transform-none" data-action="directions" data-id="${escapeHtml(station.id)}" aria-label="${escapeHtml(`${this.translate("navigate", "Navigate")}: ${stationName}`)}" ${hasCoordinates ? "" : "disabled"}>\n              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M9 18l6-6-6-6"></path>\n              </svg>\n              <span>${this.translate("navigate", "Navigate")}</span>\n            </button>\n            <button class="btn btn-secondary flex-1 min-w-0 whitespace-nowrap bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed" data-action="show-map" data-id="${escapeHtml(station.id)}" aria-label="${escapeHtml(`${this.translate("show_on_map", "Show on Map")}: ${stationName}`)}" ${hasCoordinates ? "" : "disabled"}>\n              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n                <circle cx="12" cy="10" r="3"></circle>\n              </svg>\n              <span>${this.translate("show_on_map", "Show on Map")}</span>\n            </button>\n          </div>\n        </div>\n      `;
             article.addEventListener("click", (e) => {
                 // Ignore clicks on inner buttons (they handle their own action).
                 const target = e.target;
                 if (target.closest("button"))
                     return;
+                this.selectStationForMap(station.id);
+            });
+            article.addEventListener("keydown", (e) => {
+                if (e.key !== "Enter" && e.key !== " ")
+                    return;
+                if (e.target.closest("button"))
+                    return;
+                e.preventDefault();
                 this.selectStationForMap(station.id);
             });
             list.appendChild(article);
@@ -585,8 +601,6 @@ Object.assign(window.appUiMixin, {
         this.updateSearchButtonUI?.();
         this.error = "";
         this.searched = true;
-        this.saveRecentSearch?.({ ...this.formData });
-        this.updateRecentSearchesUI?.();
         const fuelToSend = this.formData.fuel === "diesel" ? "gasolio" : this.formData.fuel;
         const hasCoords = typeof this.formData.latitude === "number" &&
             typeof this.formData.longitude === "number";
@@ -634,18 +648,28 @@ Object.assign(window.appUiMixin, {
             if (requestSeq !== this._requestSeq) {
                 return;
             }
+            this.results =
+                data.stations?.map((station) => ({
+                    ...station,
+                    gestore: window.extractGestore(station),
+                    distance: station.distance || "",
+                })) || [];
+            // A warning accompanying stations is non-fatal: keep results and announce it.
             if (data.warning) {
-                this.error = data.warning;
-                this.results = [];
+                this.error = this.results.length === 0 ? data.warning : "";
+                if (this.results.length > 0) {
+                    const statusEl = document.getElementById("status-messages");
+                    if (statusEl)
+                        statusEl.textContent = data.warning;
+                }
             }
             else {
-                this.results =
-                    data.stations?.map((station) => ({
-                        ...station,
-                        gestore: window.extractGestore(station),
-                        distance: station.distance || "",
-                    })) || [];
                 this.error = "";
+            }
+            // Coordinate-based locate-me searches are one-shot and must not pollute recents.
+            if (!(hasCoords && this.userLocation)) {
+                this.saveRecentSearch?.({ ...this.formData });
+                this.updateRecentSearchesUI?.();
             }
             // After geocoded search, drop coords so future city edits use the geocoder.
             if (hasCoords && !this.userLocation) {
@@ -665,9 +689,12 @@ Object.assign(window.appUiMixin, {
                 return;
             }
             if (err.name === "AbortError")
-                this.error = "Request timed out. Please try again.";
+                this.error = this.translate("search_timeout", "Request timed out. Please try again.");
             else
-                this.error = err instanceof Error ? err.message : "Unknown error";
+                this.error =
+                    err instanceof Error && err.message
+                        ? err.message
+                        : this.translate("search_failed", "Search failed. Please try again.");
             this.results = [];
             this.debug?.("Search failed:", this.error);
             this.updateResultsUI?.();
@@ -698,7 +725,9 @@ Object.assign(window.appUiMixin, {
             msg = window.t("results_count_one", "1 station found");
         }
         else {
-            msg = window.t("results_count_other", `${n} stations found`);
+            msg = window.t("results_count_other", `${n} stations found`, {
+                count: n,
+            });
         }
         statusEl.textContent = msg;
     },
@@ -742,6 +771,8 @@ Object.assign(window.appUiMixin, {
         if (this.mapInitialized) {
             const mapContainer = document.getElementById("map");
             if (!mapContainer) {
+                // Destroy the Leaflet instance (removes map and listeners) before dropping the ref.
+                this.map?.remove?.();
                 this.mapInitialized = false;
                 this.map = null;
                 this.initMap?.();

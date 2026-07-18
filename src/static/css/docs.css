@@ -78,7 +78,7 @@
 }
 
 .docs-content a {
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   text-decoration: none;
 }
 
@@ -96,4 +96,11 @@
 .docs-content hr {
   border-color: var(--border-color);
   margin: 2rem 0;
+}
+
+/* Display font for docs headings */
+.docs-content h1,
+.docs-content h2,
+.docs-content h3 {
+  font-family: var(--font-display);
 }

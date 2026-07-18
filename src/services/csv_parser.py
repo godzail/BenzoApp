@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from dateutil.parser import parse as dateutil_parse
 from loguru import logger
 
+from src.models import DEFAULT_RESULTS_COUNT
 from src.services.csv_utils import strip_bom
 from src.services.distance_utils import calculate_distance
 from src.services.fuel_type_utils import normalize_fuel_type
@@ -417,13 +418,23 @@ def _parse_prezzi(csv_text: str, data: dict[str, dict[str, Any]], force_delimite
         # Prefer decimal interpretation when parsing prezzo fields.
         price = _parse_price(price_raw, prefer_decimal_three_frac=True)
         existing = data[id_impianto]["prezzi"].get(canonical)
-        if price is not None and (existing is None or price < existing.get("prezzo", float("inf"))):
-            data[id_impianto]["prezzi"][canonical] = {
-                "prezzo": price,
-                "self": (row[self_idx] == "1") if self_idx < len(row) else False,
-                "data": row[date_idx] if date_idx < len(row) else "",
-            }
-            updates_applied += 1
+        if price is not None:
+            new_date = _parse_date(row[date_idx] if date_idx < len(row) else "")
+            existing_date = _parse_date(existing.get("data")) if existing else None
+            # Newest report wins; equal/unparseable dates fall back to lowest price.
+            should_replace = (
+                existing is None
+                or (new_date is not None and existing_date is None)
+                or (new_date is not None and existing_date is not None and new_date > existing_date)
+                or (new_date == existing_date and price < existing.get("prezzo", float("inf")))
+            )
+            if should_replace:
+                data[id_impianto]["prezzi"][canonical] = {
+                    "prezzo": price,
+                    "self": (row[self_idx] == "1") if self_idx < len(row) else False,
+                    "data": row[date_idx] if date_idx < len(row) else "",
+                }
+                updates_applied += 1
 
     logger.debug("Updates applied to prezzi: {}", updates_applied)
 
@@ -468,7 +479,7 @@ def _filter_and_transform_combined(
     distance_limit = float(params.distance) if params else float("inf")
     fuel = normalize_fuel_type(params.fuel) if params and params.fuel else ""
     fuel_key = fuel
-    max_items = int(params.results) if params else 5
+    max_items = int(params.results) if params else DEFAULT_RESULTS_COUNT
 
     excluded_no_price = 0
     excluded_stale = 0

@@ -49,6 +49,42 @@ interface AppMapMixin {
   updateMap?: () => void;
 }
 
+function getStationMarkerIcon(): unknown {
+  return (
+    L as unknown as {
+      divIcon: (opts: {
+        className: string;
+        html: string;
+        iconSize: [number, number];
+        iconAnchor: [number, number];
+      }) => unknown;
+    }
+  ).divIcon({
+    className: "station-marker",
+    html: '<span class="station-marker-dot" aria-hidden="true"></span>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+}
+
+function getUserLocationIcon(): unknown {
+  return (
+    L as unknown as {
+      divIcon: (opts: {
+        className: string;
+        html: string;
+        iconSize: [number, number];
+        iconAnchor: [number, number];
+      }) => unknown;
+    }
+  ).divIcon({
+    className: "user-location-marker",
+    html: "",
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+}
+
 window.appMapMixin = {
   /**
    * Remove all markers from the map and clear the internal registry.
@@ -65,6 +101,10 @@ window.appMapMixin = {
       }
       this.mapMarkers = {};
     }
+    (
+      this as { _userMarker?: { remove?: () => void } | null }
+    )._userMarker?.remove?.();
+    (this as { _userMarker?: unknown })._userMarker = null;
   },
 
   /**
@@ -97,7 +137,10 @@ window.appMapMixin = {
       const stationId = station.id;
       const marker = (
         L as unknown as {
-          marker: (coords: [number, number]) => {
+          marker: (
+            coords: [number, number],
+            options?: { icon?: unknown },
+          ) => {
             addTo: (map: unknown) => {
               __station?: unknown;
               bindPopup: (content: string) => void;
@@ -106,7 +149,9 @@ window.appMapMixin = {
           };
         }
       )
-        .marker([station.latitude, station.longitude])
+        .marker([station.latitude, station.longitude], {
+          icon: getStationMarkerIcon(),
+        })
         .addTo(this.map);
       marker.__station = station;
       marker.bindPopup(this.buildPopupContent(station));
@@ -132,6 +177,25 @@ window.appMapMixin = {
       padding: window.CONFIG.MAP_PADDING,
       maxZoom: window.CONFIG.MAX_ZOOM,
     });
+
+    // Render the user's own position when a locate-me search is active.
+    if (this.userLocation) {
+      (
+        this as { _userMarker?: { remove?: () => void } | null }
+      )._userMarker?.remove?.();
+      this._userMarker = (
+        L as unknown as {
+          marker: (
+            coords: [number, number],
+            options?: { icon?: unknown },
+          ) => { addTo: (map: unknown) => unknown };
+        }
+      )
+        .marker([this.userLocation.lat, this.userLocation.lon], {
+          icon: getUserLocationIcon(),
+        })
+        .addTo(this.map);
+    }
   },
 
   /**

@@ -7,7 +7,8 @@
       name="description"
       content="Trova i distributori di benzina vicino a te e confronta i prezzi dei carburanti in Italia. Cerca per città, raggio e tipo di carburante."
     >
-    <meta name="theme-color" content="#1c1917">
+    <meta name="theme-color" content="#0d1512" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f6f4ee" media="(prefers-color-scheme: light)">
     <title>BenzoApp – Trova distributori e confronta i prezzi dei carburanti</title>
     <link rel="icon" href="/favicon.png" type="image/x-icon">
     <!-- Inline theme bootstrap avoids a flash of incorrect theme on first paint. -->
@@ -17,17 +18,25 @@
       var theme;
       try {
         stored = localStorage.getItem("app-theme");
-        theme = stored === "light" || stored === "dark" ? stored : "light";
+        theme =
+          stored === "light" || stored === "dark"
+            ? stored
+            : window.matchMedia?.("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark";
         document.documentElement.setAttribute("data-theme", theme);
-      } catch (_e) {
+      } catch {
         document.documentElement.setAttribute("data-theme", "light");
       }
     })();
     </script>
-    <!-- Google Fonts - Inter -->
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    >
     <!-- Custom Design System -->
     <!-- i18next CDN -->
     <script
@@ -47,8 +56,6 @@
     <script type="module" defer src="/static/js/app.ui.dom.js"></script>
     <script type="module" defer src="/static/js/app.ui.interactions.js"></script>
     <script defer src="/static/js/app.js"></script>
-    <!-- Styles -->
-    <link rel="stylesheet" href="/static/css/styles.split.css">
     <!-- Leaflet -->
     <link
       rel="stylesheet"
@@ -56,6 +63,8 @@
       integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
       crossorigin="anonymous"
     >
+    <!-- Styles (after Leaflet so .leaflet-* overrides win) -->
+    <link rel="stylesheet" href="/static/css/styles.split.css">
     <script
       defer
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -68,32 +77,9 @@
       darkMode: "class",
       theme: {
         extend: {
-          colors: {
-            primary: {
-              DEFAULT: "#f97316",
-              hover: "#ea580c",
-              light: "#fed7aa",
-              dark: "#c2410c",
-            },
-            benzina: {
-              DEFAULT: "#15803d",
-              light: "#4ade80",
-            },
-            gasolio: {
-              DEFAULT: "#a16207",
-              light: "#fbbf24",
-            },
-            gpl: {
-              DEFAULT: "#1d4ed8",
-              light: "#60a5fa",
-            },
-            metano: {
-              DEFAULT: "#0f766e",
-              light: "#2dd4bf",
-            },
-          },
           fontFamily: {
-            sans: ["Inter", "system-ui", "sans-serif"],
+            sans: ["Instrument Sans", "system-ui", "sans-serif"],
+            display: ["Bricolage Grotesque", "Instrument Sans", "system-ui", "sans-serif"],
             mono: ["JetBrains Mono", "Fira Code", "monospace"],
           },
           borderRadius: {
@@ -103,26 +89,21 @@
             xl: "24px",
           },
           boxShadow: {
-            sm: "0 1px 2px rgba(28, 25, 23, 0.05)",
-            md: "0 4px 6px -1px rgba(28, 25, 23, 0.08), 0 2px 4px -2px rgba(28, 25, 23, 0.05)",
-            lg: "0 10px 15px -3px rgba(28, 25, 23, 0.08), 0 4px 6px -4px rgba(28, 25, 23, 0.05)",
-            xl: "0 20px 25px -5px rgba(28, 25, 23, 0.1), 0 8px 10px -6px rgba(28, 25, 23, 0.05)",
-            card: "0 4px 12px rgba(249, 115, 22, 0.08)",
+            sm: "var(--shadow-sm)",
+            md: "var(--shadow-md)",
+            lg: "var(--shadow-lg)",
+            xl: "var(--shadow-xl)",
+            card: "var(--shadow-card)",
           },
           animation: {
             shimmer: "shimmer 1.5s infinite",
             spin: "spin 1s linear infinite",
-            "pulse-badge": "pulse-badge 2s ease-in-out infinite",
             "loading-pulse": "loading-pulse 1.5s ease-in-out infinite",
           },
           keyframes: {
             shimmer: {
               "0%": { backgroundPosition: "200% 0" },
               "100%": { backgroundPosition: "-200% 0" },
-            },
-            "pulse-badge": {
-              "0%, 100%": { boxShadow: "0 0 0 0 rgba(249, 115, 22, 0.6)" },
-              "50%": { boxShadow: "0 0 0 8px rgba(249, 115, 22, 0)" },
             },
             "loading-pulse": {
               "0%, 100%": { opacity: "1" },
@@ -153,7 +134,9 @@
     </script>
   </head>
 
-  <body class="bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen font-sans transition-colors duration-250">
+  <body
+    class="bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen font-sans transition-colors duration-[250ms]"
+  >
     <!-- Skip links for keyboard navigation -->
     <a href="#main-content" class="skip-link" data-i18n="skip_to_content">Vai al contenuto</a>
     <a href="#search-container" class="skip-link" data-i18n="skip_to_search">Vai alla ricerca</a>

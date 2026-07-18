@@ -26,9 +26,13 @@ window.APP_USER_LANG = userLang;
  * @param fallback - The fallback text if translation not found
  * @returns Translated text or fallback
  */
-function t(key: string, fallback = ""): string {
+function t(
+  key: string,
+  fallback = "",
+  params?: Record<string, unknown>,
+): string {
   if (typeof i18next !== "undefined" && i18next.t) {
-    const translated = i18next.t(key);
+    const translated = i18next.t(key, params);
     if (translated === key) {
       return fallback || key;
     }
@@ -139,29 +143,34 @@ function updateDataI18nElements(): void {
   for (const el of Array.from(document.querySelectorAll("[data-i18n]"))) {
     const key = el.getAttribute("data-i18n");
     if (key) {
-      const fallback = el.textContent?.trim() || "";
-      (el as HTMLElement).innerText = t(key, fallback);
+      const htmlEl = el as HTMLElement;
+      // Cache the server-rendered text once so translated text never becomes fallback text.
+      if (!htmlEl.dataset.i18nFallback)
+        htmlEl.dataset.i18nFallback = (htmlEl.textContent || "").trim();
+      htmlEl.innerText = t(key, htmlEl.dataset.i18nFallback);
     }
   }
   for (const el of Array.from(
     document.querySelectorAll("[data-i18n-placeholder]"),
   )) {
     const key = el.getAttribute("data-i18n-placeholder");
-    if (key)
-      (el as HTMLInputElement).placeholder = t(
-        key,
-        (el as HTMLInputElement).placeholder,
-      );
+    if (key) {
+      const input = el as HTMLInputElement;
+      if (!input.dataset.i18nFallback)
+        input.dataset.i18nFallback = input.placeholder;
+      input.placeholder = t(key, input.dataset.i18nFallback);
+    }
   }
   for (const el of Array.from(
     document.querySelectorAll("[data-i18n-aria-label]"),
   )) {
     const key = el.getAttribute("data-i18n-aria-label");
-    if (key)
-      (el as HTMLElement).setAttribute(
-        "aria-label",
-        t(key, el.getAttribute("aria-label") || ""),
-      );
+    if (key) {
+      const htmlEl = el as HTMLElement;
+      if (!htmlEl.dataset.i18nFallback)
+        htmlEl.dataset.i18nFallback = htmlEl.getAttribute("aria-label") || "";
+      htmlEl.setAttribute("aria-label", t(key, htmlEl.dataset.i18nFallback));
+    }
   }
 }
 
@@ -171,6 +180,10 @@ function updateDataI18nElements(): void {
  * This sets the initial language and triggers loading of translation resources.
  */
 function initI18next(): void {
+  if (typeof i18next === "undefined") {
+    // CDN unavailable: keep the server-rendered text, translations disabled.
+    return;
+  }
   i18next.init(
     {
       lng: window.APP_USER_LANG,
@@ -193,6 +206,7 @@ function initI18next(): void {
  * @param lang - Language code to load (e.g., 'it' or 'en').
  */
 async function loadTranslations(lang: string): Promise<void> {
+  if (typeof i18next === "undefined") return;
   try {
     const response = await fetch(`/static/locales/${lang}.json`);
     if (response.ok) {

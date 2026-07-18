@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -50,7 +51,7 @@ async def _write_json_file(path: str, payload: dict[str, Any]) -> None:
     """Write a dictionary to a JSON file **atomically**.
 
     Strategy:
-    - Serialize to a temporary file next to the final path (``<name>.part``).
+    - Serialize to a temporary file next to the final path (``<name>.<uuid>.part``).
     - Atomically replace the final file with ``Path.replace`` (with retries on Windows).
     - Fall back to direct overwrite if atomic replace fails after retries.
     - On any error, ensure no temporary file leaks remain.
@@ -71,7 +72,7 @@ async def _write_json_file(path: str, payload: dict[str, Any]) -> None:
                 await asyncio.to_thread(parent.mkdir, parents=True, exist_ok=True)
 
         # write to temp file in same directory then atomically replace
-        tmp = p.with_name(f"{p.name}.part")
+        tmp = p.with_name(f"{p.name}.{uuid.uuid4().hex}.part")
         text = json.dumps(payload, ensure_ascii=False)
         await asyncio.to_thread(tmp.write_text, text, "utf-8")
 

@@ -88,11 +88,11 @@ Object.assign(window.appUiMixin, {
             return distance;
         return `${num.toFixed(1)} km`;
     },
-    translate(key, fallback = "") {
+    translate(key, fallback = "", params) {
         if (typeof window.t === "function")
-            return window.t(key, fallback);
+            return window.t(key, fallback, params);
         if (typeof i18next !== "undefined" && i18next.t) {
-            const translated = i18next.t(key);
+            const translated = i18next.t(key, params);
             if (translated === key)
                 return fallback || key;
             return translated;
