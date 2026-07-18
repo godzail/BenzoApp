@@ -178,7 +178,8 @@ Object.assign(window.appUiMixin, {
                     csvUpdated?.classList.remove("hidden");
                     if (csvUpdated) {
                         const date = new Date(status.last_updated);
-                        csvUpdated.textContent = date.toLocaleString("it-IT", {
+                        const locale = this.currentLang === "en" ? "en-US" : "it-IT";
+                        csvUpdated.textContent = date.toLocaleString(locale, {
                             day: "2-digit",
                             month: "2-digit",
                             year: "numeric",

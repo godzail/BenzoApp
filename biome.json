@@ -46,7 +46,6 @@
     "globals": [
       "$",
       "_",
-      "Alpine",
       "Tabulator",
       "mdc",
       "L",

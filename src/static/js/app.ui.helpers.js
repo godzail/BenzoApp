@@ -1,10 +1,9 @@
-"use strict";
 /**
  * Small helper utilities split out of `app.ui.ts`.
  */
 // @ts-nocheck
 /** Escape a value for safe interpolation into HTML text contexts. */
-function escapeHtml(value) {
+export function escapeHtml(value) {
     return String(value ?? "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -72,7 +71,7 @@ Object.assign(window.appUiMixin, {
             this.loadingBar.setAttribute("aria-hidden", "false");
             this.loadingBar.setAttribute("aria-valuenow", "50");
             if (statusEl && typeof window.t === "function") {
-                statusEl.textContent = window.t("translation.loading", "Loading...");
+                statusEl.textContent = window.t("loading", "Loading...");
             }
         }
         else {
@@ -131,14 +130,15 @@ Object.assign(window.appUiMixin, {
         const colors = {
             benzina: "text-[var(--fuel-benzina-color)]",
             gasolio: "text-[var(--fuel-gasolio-color)]",
-            GPL: "text-[var(--fuel-gpl-color)]",
+            gpl: "text-[var(--fuel-gpl-color)]",
             metano: "text-[var(--fuel-metano-color)]",
         };
-        return colors[fuelType] || "";
+        const key = (fuelType || "").toLowerCase();
+        return colors[key] || "";
     },
     buildPopupContent(station) {
-        const title = station.gestore || this.translate("translation.station", "Gas Station");
-        const addressLabel = this.translate("translation.address", "Address");
+        const title = station.gestore || this.translate("station", "Gas Station");
+        const addressLabel = this.translate("address", "Address");
         const titleValue = escapeHtml(title);
         const addressValue = station.address ? escapeHtml(station.address) : "";
         const addressBlock = addressValue

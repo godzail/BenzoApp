@@ -21,7 +21,10 @@ interface AppMapMixin {
     radius: string;
     fuel: string;
     results: string;
+    latitude?: number | null;
+    longitude?: number | null;
   };
+  userLocation?: { lat: number; lon: number } | null;
   [key: string]: unknown;
 
   clearMapMarkers(): void;
@@ -41,6 +44,8 @@ interface AppMapMixin {
     address?: string;
   }): string;
   submitForm(): Promise<void>;
+  translate(key: string, fallback?: string): string;
+  updateResultsUI?: () => void;
   updateMap?: () => void;
 }
 
@@ -245,7 +250,7 @@ window.appMapMixin = {
     const station = (
       marker as { __station?: { latitude?: number; longitude?: number } }
     ).__station;
-    if (station?.latitude && station?.longitude) {
+    if (station?.latitude != null && station?.longitude != null) {
       (
         this.map as {
           setView: (center: [number, number], zoom: number) => void;
@@ -282,7 +287,7 @@ window.appMapMixin = {
    * @param station - Object containing `latitude` and `longitude` of the destination.
    */
   getDirections(station: { latitude?: number; longitude?: number }): void {
-    if (!(station?.latitude && station.longitude)) {
+    if (!(station?.latitude != null && station.longitude != null)) {
       return;
     }
     const url = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`;
@@ -294,21 +299,45 @@ window.appMapMixin = {
 
   /**
    * Attempt to locate the user via the browser `geolocation` API and submit a search for the current location.
-   * Sets an error message if location cannot be retrieved.
+   * Surfaces localized error messages via the standard UI path.
    */
   locateUser(): void {
     if (!navigator.geolocation) {
-      this.error = "Geolocation is not supported by your browser";
+      this.error = this.translate(
+        "geolocation_unsupported",
+        "Geolocation is not supported by your browser",
+      );
+      this.updateResultsUI?.();
       return;
     }
+    const locationBtn = document.getElementById(
+      "location-btn",
+    ) as HTMLButtonElement | null;
+    if (locationBtn) locationBtn.disabled = true;
     navigator.geolocation.getCurrentPosition(
-      (_position) => {
-        this.formData.city = "Current Location";
+      (position) => {
+        this.formData.latitude = position.coords.latitude;
+        this.formData.longitude = position.coords.longitude;
+        this.formData.city = this.translate(
+          "current_location",
+          "Current location",
+        );
+        this.userLocation = {
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+        };
         this.submitForm();
+        if (locationBtn) locationBtn.disabled = false;
       },
       (_error) => {
-        this.error = "Unable to retrieve your location";
+        this.error = this.translate(
+          "geolocation_error",
+          "Unable to retrieve your location",
+        );
+        if (locationBtn) locationBtn.disabled = false;
+        this.updateResultsUI?.();
       },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
     );
   },
 } as AppMapMixin;

@@ -45,5 +45,16 @@
   "update_csv_popup_body": "Fuel price data is missing or outdated. Click the button below to fetch the latest data.",
   "update_csv_popup_btn": "Update data",
   "update_csv_popup_loading": "Updating data, please wait\u2026",
-  "best_price_short": "Best"
+  "best_price_short": "Best",
+  "skip_to_content": "Skip to main content",
+  "skip_to_search": "Skip to search",
+  "language_changed": "Language changed",
+  "geolocation_unsupported": "Geolocation is not supported by your browser",
+  "geolocation_error": "Unable to retrieve your location",
+  "results_count": "No results found",
+  "results_count_one": "1 station found",
+  "results_count_other": "{{count}} stations found",
+  "price_unavailable": "n/a",
+  "empty_increase_radius": "Search within {{km}} km",
+  "empty_suggestion": "Try adjusting your search radius or selecting a different fuel type"
 }

@@ -42,7 +42,7 @@ def test_search_surfaces_csv_schema_error(client: TestClient, monkeypatch) -> No
     """When upstream CSV parsing reports a schema error (422) surface that exact message to the client."""
     from fastapi import HTTPException
 
-    def _raise_schema(_params, _settings, _http_client):
+    def _raise_schema(_params, _settings, _http_client, **_kwargs):
         raise HTTPException(status_code=422, detail="CSV schema error (prezzi): missing required column 'prezzo'")
 
     monkeypatch.setattr("src.services.fuel_api.fetch_gas_stations", _raise_schema)

@@ -26,6 +26,7 @@ datetime: Any = _datetime
 # Project root and data directories
 PROJECT_ROOT = csv_admin.PROJECT_ROOT
 LOCAL_DATA_DIR = csv_admin.LOCAL_DATA_DIR
+PROJECT_DATA_DIR = csv_admin.PROJECT_DATA_DIR
 
 # Validation constants
 MIN_CONTENT_LENGTH = 50
@@ -93,7 +94,104 @@ async def _load_single_csv(settings: Settings, glob_pattern: str) -> str:
     raise FileNotFoundError(msg)
 
 
-async def _fetch_csvs(  # noqa: C901, PLR0912, PLR0915
+def _build_conditional_headers(meta: dict[str, str]) -> tuple[dict[str, str], dict[str, str]]:
+    """Build If-None-Match / If-Modified-Since headers from persisted HTTP metadata.
+
+    Parameters:
+    - meta: Previously persisted HTTP metadata (etag/last-modified per CSV).
+
+    Returns:
+    - A tuple of (anagrafica_headers, prezzi_headers).
+    """
+    anag_headers: dict[str, str] = {}
+    prezzi_headers: dict[str, str] = {}
+    if etag := meta.get("anag_etag"):
+        anag_headers["If-None-Match"] = etag
+    if lm := meta.get("anag_last_modified"):
+        anag_headers["If-Modified-Since"] = lm
+    if etag := meta.get("prezzi_etag"):
+        prezzi_headers["If-None-Match"] = etag
+    if lm := meta.get("prezzi_last_modified"):
+        prezzi_headers["If-Modified-Since"] = lm
+    return anag_headers, prezzi_headers
+
+
+async def _handle_initial_fetch_error(
+    original_exc: Exception,
+    settings: Settings,
+) -> tuple[str, str]:
+    """Log a conditional-GET failure and fall back to local CSV files.
+
+    Parameters:
+    - original_exc: The exception raised while fetching or validating the initial responses.
+    - settings: Application settings used to locate local CSV fallbacks.
+
+    Returns:
+    - A tuple of (anagrafica_csv_text, prezzi_csv_text) loaded from local files.
+
+    Raises:
+    - Exception: Re-raises `original_exc` if the local fallback also fails.
+    """
+    status = getattr(original_exc, "response", None)
+    kind = "HTTPStatusError" if isinstance(original_exc, httpx.HTTPStatusError) else (
+        "RequestError" if isinstance(original_exc, httpx.RequestError) else type(original_exc).__name__
+    )
+    if isinstance(original_exc, httpx.HTTPStatusError) and status is not None:
+        logger.error(
+            "HTTP error fetching CSV: kind={} status={} url={}",
+            kind, status.status_code, original_exc.response.url,
+        )
+    elif isinstance(original_exc, httpx.RequestError):
+        url = str(getattr(getattr(original_exc, "request", None), "url", "unknown"))
+        logger.error("Network error fetching CSV: kind={} url={}", kind, url)
+    else:
+        logger.error("Unexpected error fetching CSV: kind={} err={}", kind, original_exc)
+    logger.warning("Attempting to fallback to local CSV files in {}", LOCAL_DATA_DIR)
+    try:
+        return await _load_local_csvs(settings)
+    except Exception:
+        logger.error("Local fallback failed, re-raising original exception")
+        logger.exception(original_exc)
+        raise original_exc from original_exc
+
+
+async def _fetch_one_csv(  # noqa: PLR0913 - small dataclass-style helper, OK to keep flat
+    http_client: httpx.AsyncClient,
+    settings: Settings,
+    url: str,
+    response: httpx.Response,
+    local_glob: str,
+    label: str,
+) -> tuple[str, httpx.Response]:
+    """Resolve one CSV's text from its conditional-GET response, refetching if the local cache is missing.
+
+    Parameters:
+    - http_client: The HTTP client to use for a forced unconditional refetch.
+    - settings: Application settings used to locate the local CSV fallback.
+    - url: The remote URL to refetch from if the local fallback file is missing.
+    - response: The response already received for this CSV (may be a 304).
+    - local_glob: Glob pattern for the local fallback file (e.g. "anagrafica_impianti_attivi*.csv").
+    - label: Human-readable CSV name used in log messages (e.g. "anagrafica" or "prezzi").
+
+    Returns:
+    - A tuple of (csv_text, response), where `response` is the original response unless a
+      forced refetch was required, in which case it is the fresh 200 response.
+    """
+    if response.status_code != HTTP_NOT_MODIFIED:
+        return response.content.decode("iso-8859-1"), response
+
+    logger.info("304 {}, loading local copy or refetching if missing", label)
+    try:
+        text = await _load_single_csv(settings, local_glob)
+    except FileNotFoundError:
+        logger.warning("304 {} ma cache locale assente — scarico fresh", label)
+        response = await http_client.get(url, headers={"Accept": "text/csv"})
+        response.raise_for_status()
+        text = response.content.decode("iso-8859-1")
+    return text, response
+
+
+async def _fetch_csvs(  # noqa: PLR0912
     http_client: httpx.AsyncClient,
     settings: Settings,
 ) -> tuple[str, str]:
@@ -111,22 +209,18 @@ async def _fetch_csvs(  # noqa: C901, PLR0912, PLR0915
     - httpx.RequestError: If there's a network error.
     """
     meta = await _load_http_meta(settings.prezzi_csv_http_meta_path)
-
-    anag_req_headers: dict[str, str] = {}
-    prezzi_req_headers: dict[str, str] = {}
-    if etag := meta.get("anag_etag"):
-        anag_req_headers["If-None-Match"] = etag
-    if lm := meta.get("anag_last_modified"):
-        anag_req_headers["If-Modified-Since"] = lm
-    if etag := meta.get("prezzi_etag"):
-        prezzi_req_headers["If-None-Match"] = etag
-    if lm := meta.get("prezzi_last_modified"):
-        prezzi_req_headers["If-Modified-Since"] = lm
+    anag_req_headers, prezzi_req_headers = _build_conditional_headers(meta)
 
     try:
         resp_anag, resp_prezzi = await asyncio.gather(
-            http_client.get(settings.prezzi_csv_anagrafica_url, headers=anag_req_headers),
-            http_client.get(settings.prezzi_csv_prezzi_url, headers=prezzi_req_headers),
+            http_client.get(
+                settings.prezzi_csv_anagrafica_url,
+                headers={**anag_req_headers, "Accept": "text/csv"},
+            ),
+            http_client.get(
+                settings.prezzi_csv_prezzi_url,
+                headers={**prezzi_req_headers, "Accept": "text/csv"},
+            ),
         )
         # 304 Not Modified è atteso — raise_for_status solo per errori 4xx/5xx
         if resp_anag.status_code != HTTP_NOT_MODIFIED:
@@ -134,27 +228,7 @@ async def _fetch_csvs(  # noqa: C901, PLR0912, PLR0915
         if resp_prezzi.status_code != HTTP_NOT_MODIFIED:
             resp_prezzi.raise_for_status()
     except Exception as original_exc:
-        status = getattr(original_exc, "response", None)
-        kind = "HTTPStatusError" if isinstance(original_exc, httpx.HTTPStatusError) else (
-            "RequestError" if isinstance(original_exc, httpx.RequestError) else type(original_exc).__name__
-        )
-        if isinstance(original_exc, httpx.HTTPStatusError) and status is not None:
-            logger.error(
-                "HTTP error fetching CSV: kind={} status={} url={}",
-                kind, status.status_code, original_exc.response.url,
-            )
-        elif isinstance(original_exc, httpx.RequestError):
-            url = str(getattr(getattr(original_exc, "request", None), "url", "unknown"))
-            logger.error("Network error fetching CSV: kind={} url={}", kind, url)
-        else:
-            logger.error("Unexpected error fetching CSV: kind={} err={}", kind, original_exc)
-        logger.warning("Attempting to fallback to local CSV files in {}", LOCAL_DATA_DIR)
-        try:
-            return await _load_local_csvs(settings)
-        except Exception:
-            logger.error("Local fallback failed, re-raising original exception")
-            logger.exception(original_exc)
-            raise original_exc from original_exc
+        return await _handle_initial_fetch_error(original_exc, settings)
 
     # 304 Not Modified per entrambi — usa file locali
     if resp_anag.status_code == HTTP_NOT_MODIFIED and resp_prezzi.status_code == HTTP_NOT_MODIFIED:
@@ -165,37 +239,22 @@ async def _fetch_csvs(  # noqa: C901, PLR0912, PLR0915
             logger.warning("304 ma cache locale assente/invalida — forzo download senza header condizionali")
             await _save_http_meta(settings.prezzi_csv_http_meta_path, {})
             resp_anag, resp_prezzi = await asyncio.gather(
-                http_client.get(settings.prezzi_csv_anagrafica_url),
-                http_client.get(settings.prezzi_csv_prezzi_url),
+                http_client.get(settings.prezzi_csv_anagrafica_url, headers={"Accept": "text/csv"}),
+                http_client.get(settings.prezzi_csv_prezzi_url, headers={"Accept": "text/csv"}),
             )
             resp_anag.raise_for_status()
             resp_prezzi.raise_for_status()
             # continua sotto con le risposte 200
 
-    # 304 parziale — carica il file locale per quello non modificato
-    if resp_anag.status_code == HTTP_NOT_MODIFIED:
-        logger.info("anagrafica CSV not modified (304), loading local copy")
-        try:
-            anag_text = await _load_single_csv(settings, "anagrafica_impianti_attivi*.csv")
-        except FileNotFoundError:
-            logger.warning("304 anag ma cache locale assente — scarico fresh")
-            resp_anag = await http_client.get(settings.prezzi_csv_anagrafica_url)
-            resp_anag.raise_for_status()
-            anag_text = resp_anag.content.decode("iso-8859-1")
-    else:
-        anag_text = resp_anag.content.decode("iso-8859-1")
-
-    if resp_prezzi.status_code == HTTP_NOT_MODIFIED:
-        logger.info("prezzi CSV not modified (304), loading local copy")
-        try:
-            prezzi_text = await _load_single_csv(settings, "prezzo_alle_8*.csv")
-        except FileNotFoundError:
-            logger.warning("304 prezzi ma cache locale assente — scarico fresh")
-            resp_prezzi = await http_client.get(settings.prezzi_csv_prezzi_url)
-            resp_prezzi.raise_for_status()
-            prezzi_text = resp_prezzi.content.decode("iso-8859-1")
-    else:
-        prezzi_text = resp_prezzi.content.decode("iso-8859-1")
+    # 304 parziale — carica il file locale per quello non modificato, o ri-scarica se assente
+    anag_text, resp_anag = await _fetch_one_csv(
+        http_client, settings, settings.prezzi_csv_anagrafica_url, resp_anag,
+        "anagrafica_impianti_attivi*.csv", "anagrafica",
+    )
+    prezzi_text, resp_prezzi = await _fetch_one_csv(
+        http_client, settings, settings.prezzi_csv_prezzi_url, resp_prezzi,
+        "prezzo_alle_8*.csv", "prezzi",
+    )
 
     # Persisti ETag/Last-Modified dalle risposte 200 per richieste future
     new_meta = dict(meta)
@@ -243,7 +302,7 @@ async def _load_local_csvs(settings: Settings) -> tuple[str, str]:
     missing = []
 
     local_dir = getattr(settings, "prezzi_local_data_dir", None)
-    preferred_dir = Path(local_dir) if local_dir else PROJECT_ROOT / "src" / "static" / "data"
+    preferred_dir = Path(local_dir) if local_dir else PROJECT_DATA_DIR
 
     for d in candidates:
         anag_files = sorted(d.glob("anagrafica_impianti_attivi*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)

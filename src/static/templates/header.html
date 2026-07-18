@@ -92,6 +92,7 @@
         type="text"
         id="city"
         name="city"
+        form="search-form"
         class="search-input flex-1 bg-transparent border-none text-[var(--text-primary)] text-base outline-none p-2 placeholder:text-[var(--text-muted)]"
         placeholder="Search city..."
         data-i18n-placeholder="search_placeholder"
@@ -109,6 +110,7 @@
         id="location-btn"
         class="location-pill flex items-center gap-2 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-full px-4 py-2 text-sm text-[var(--text-secondary)] cursor-pointer transition-all duration-150 hover:bg-[var(--color-primary-light)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary-dark)]"
         type="button"
+        data-i18n-aria-label="use_current_location"
       >
         <svg
           aria-hidden="true"
@@ -177,11 +179,12 @@
     </button>
 
     <!-- Language Switcher -->
-    <div class="lang-switcher flex gap-1">
+    <fieldset class="lang-switcher flex gap-1 m-0 p-0 border-0" data-i18n-aria-label="language">
       <button
         id="lang-en"
         class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--text-primary)]"
         type="button"
+        aria-pressed="false"
       >
         EN
       </button>
@@ -189,10 +192,11 @@
         id="lang-it"
         class="lang-btn px-3 py-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] cursor-pointer font-medium transition-all duration-150 hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--text-primary)]"
         type="button"
+        aria-pressed="true"
       >
         IT
       </button>
-    </div>
+    </fieldset>
 
     <!-- API Documentation Link -->
     <a

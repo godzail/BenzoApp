@@ -27,7 +27,7 @@ BenzoApp is a fast, user-friendly web application that helps users find and comp
 - 🌐 **Multi-language** - Support for Italian and English (i18n with i18next)
 - 📱 **Responsive Design** - Works seamlessly on desktop and mobile devices
 - ⚡ **Fast & Efficient** - Async operations with connection pooling, local caching, and conditional HTTP caching (ETag/304)
-- 🎨 **Modern UI** - Clean, accessible interface with Alpine.js, resizable layout
+- 🎨 **Modern UI** - Clean, accessible interface built with vanilla TypeScript, resizable layout
 - 🔄 **Data Management** - CSV data status indicator with manual reload capability
 - 📊 **Recent Searches** - Quick access to previous searches
 
@@ -45,7 +45,7 @@ BenzoApp is built with a modern, scalable architecture:
 
 ### Frontend
 
-- **Alpine.js** - Lightweight reactive framework
+- **Vanilla TypeScript** - Compiled 1:1 to native ES modules (no bundler, no framework)
 - **Leaflet** - Interactive mapping library
 - **i18next** - Internationalization framework
 - **Modern CSS** - Custom design system with Inter font
@@ -318,7 +318,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [MIMIT — Carburanti (open data)](https://www.mimit.gov.it/it/open-data/elenco-dataset/carburanti-prezzi-praticati-e-anagrafica-degli-impianti) — Official open dataset for fuel prices and station registry (Italian Ministry of Enterprises and Made in Italy)
 - [FastAPI](https://fastapi.tiangolo.com/) for the amazing web framework
 - [Leaflet](https://leafletjs.com/) for interactive maps
-- [Alpine.js](https://alpinejs.dev/) for reactive frontend components
+- [TypeScript](https://www.typescriptlang.org/) for the frontend
 - [Bun](https://bun.sh/) for fast JavaScript tooling
 
 ## 📧 Support

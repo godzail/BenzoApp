@@ -14,8 +14,8 @@ def test_header_button_styles_present() -> None:
 
 def test_recent_search_button_touch_size() -> None:
     """Test that recent search button has proper touch size."""
-    search_html = Path("src/static/templates/search.html").read_text()
-    assert "min-h-10" in search_html or "min-height: 40px" in search_html or "min-height: 48px" in search_html, (
+    interactions = Path("src/static/ts/app.ui.interactions.ts").read_text()
+    assert "min-h-10" in interactions or "min-height: 40px" in interactions or "min-height: 48px" in interactions, (
         "Recent search button should have increased padding or min-height"
     )
 
@@ -43,8 +43,8 @@ def test_set_fuel_type_triggers_submit_when_city_present() -> None:
 
 def test_results_use_translate_fuel() -> None:
     """Test that results use translateFuel function."""
-    results = Path("src/static/templates/results.html").read_text()
-    assert "translateFuel(" in results, "Expected templates to use translateFuel for fuel labels"
+    helpers = Path("src/static/ts/app.ui.helpers.ts").read_text()
+    assert "translateFuel" in helpers, "Expected TS source to define/use translateFuel for fuel labels"
 
 
 def test_user_docs_title_is_reactive() -> None:

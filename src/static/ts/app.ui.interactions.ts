@@ -3,15 +3,7 @@
  */
 // @ts-nocheck
 
-/** Escape a value for safe interpolation into HTML text/attribute contexts. */
-function escapeHtml(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+import { escapeHtml } from "./app.ui.helpers.js";
 
 function getFuelIcon(type: string, size = 14): string {
   const attrs = `aria-hidden="true" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"`;
@@ -98,8 +90,13 @@ Object.assign(window.appUiMixin, {
 
   selectCity(city: string): void {
     this.formData.city = city;
+    // Clear coords when an explicit city is chosen (locate-me was a one-shot).
+    this.formData.latitude = null;
+    this.formData.longitude = null;
+    this.userLocation = null;
     this.filteredCities = [];
     this.showCitySuggestions = false;
+    this.updateCitySuggestionsUI();
     this.updateSearchFormUI?.();
     this.updateSearchButtonUI?.();
   },
@@ -125,6 +122,7 @@ Object.assign(window.appUiMixin, {
     }
 
     const items = suggestions.querySelectorAll(".autocomplete-item");
+    const renderedCount = items.length;
     let highlightedIndex = -1;
     for (const [idx, item] of Array.from(items).entries()) {
       if (item.classList.contains("bg-[var(--bg-elevated)]"))
@@ -136,26 +134,33 @@ Object.assign(window.appUiMixin, {
       this.updateCitySuggestionsUI();
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      if (this.filteredCities.length > 0) {
-        highlightedIndex = Math.min(
-          highlightedIndex + 1,
-          this.filteredCities.length - 1,
-        );
-        this.updateHighlightedCity(highlightedIndex);
+      if (renderedCount > 0) {
+        const start = highlightedIndex < 0 ? 0 : highlightedIndex + 1;
+        const next = start >= renderedCount ? 0 : start;
+        this.updateHighlightedCity(next);
       }
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      if (this.filteredCities.length > 0) {
-        highlightedIndex = Math.max(highlightedIndex - 1, 0);
-        this.updateHighlightedCity(highlightedIndex);
+      if (renderedCount > 0) {
+        const prev =
+          highlightedIndex <= 0 ? renderedCount - 1 : highlightedIndex - 1;
+        this.updateHighlightedCity(prev);
       }
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (highlightedIndex >= 0 && this.filteredCities[highlightedIndex]) {
-        this.selectCity(this.filteredCities[highlightedIndex]);
+      if (highlightedIndex >= 0 && items[highlightedIndex]) {
+        const selectedEl = items[highlightedIndex] as HTMLElement;
+        const city = selectedEl.textContent || "";
+        if (city) this.selectCity(city);
       } else if (this.formData.city) {
         this.submitForm();
       }
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      if (renderedCount > 0) this.updateHighlightedCity(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      if (renderedCount > 0) this.updateHighlightedCity(renderedCount - 1);
     }
   },
 
@@ -329,6 +334,7 @@ Object.assign(window.appUiMixin, {
     const resultsSection = document.getElementById("results-section");
     const errorMessage = document.getElementById("error-message");
     const errorText = document.getElementById("error-text");
+    const resultsPanel = document.getElementById("results");
 
     if (this.loading && this.results.length === 0) {
       skeletonLoader?.classList.remove("hidden");
@@ -337,6 +343,16 @@ Object.assign(window.appUiMixin, {
       errorMessage?.classList.add("hidden");
     } else {
       skeletonLoader?.classList.add("hidden");
+    }
+
+    // While a refresh is in flight and we already have results, dim the panel
+    // so the user can see something is updating (skeleton alone would feel like
+    // results disappeared).
+    if (resultsPanel) {
+      resultsPanel.classList.toggle(
+        "is-refreshing",
+        this.loading && this.results.length > 0,
+      );
     }
 
     if (
@@ -348,6 +364,7 @@ Object.assign(window.appUiMixin, {
       emptyState?.classList.remove("hidden");
       resultsSection?.classList.add("hidden");
       errorMessage?.classList.add("hidden");
+      this.renderEmptyActions();
     } else if (this.results.length > 0) {
       emptyState?.classList.add("hidden");
       resultsSection?.classList.remove("hidden");
@@ -365,6 +382,59 @@ Object.assign(window.appUiMixin, {
   },
 
   /**
+   * Populate the empty-state quick-action chips (e.g. "Increase radius", "Switch fuel").
+   */
+  renderEmptyActions(): void {
+    const container = document.getElementById("empty-actions");
+    if (!container) return;
+    container.innerHTML = "";
+    const currentRadius = Number.parseInt(
+      this.formData.radius,
+      window.CONFIG.PARSE_INT_RADIX,
+    );
+    const actions: Array<{ label: string; onClick: () => void }> = [];
+
+    if (Number.isFinite(currentRadius) && currentRadius > 0) {
+      const doubled = Math.min(currentRadius * 2, 50);
+      if (doubled !== currentRadius) {
+        actions.push({
+          label: this.translate(
+            "empty_increase_radius",
+            `Search within ${doubled} km`,
+          ),
+          onClick: () => {
+            this.formData.radius = String(doubled);
+            this.updateSearchFormUI?.();
+            this.submitForm();
+          },
+        });
+      }
+    }
+
+    const allFuels = ["benzina", "gasolio", "GPL", "metano"] as const;
+    for (const f of allFuels) {
+      if (f.toLowerCase() !== (this.formData.fuel || "").toLowerCase()) {
+        const label = window.translateFuel ? window.translateFuel(f) : f;
+        actions.push({
+          label: label,
+          onClick: () => this.setFuelType(f),
+        });
+        break;
+      }
+    }
+
+    for (const action of actions) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "chip inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]";
+      btn.textContent = action.label;
+      btn.addEventListener("click", action.onClick);
+      container.appendChild(btn);
+    }
+  },
+
+  /**
    * Render the list of station cards into the results container.
    */
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: result-card rendering is one contained template.
@@ -376,30 +446,30 @@ Object.assign(window.appUiMixin, {
     for (const [index, station] of this.results.entries()) {
       const article = document.createElement("article");
       const fuelType = station.fuel_prices?.[0]?.type || "";
-      const price = station.fuel_prices?.[0]?.price || 0;
+      const price = station.fuel_prices?.[0]?.price;
+      const hasPrice = typeof price === "number" && Number.isFinite(price);
       const isCheapest = this.isCheapestStation(index);
       const fuelColorClass = this.getFuelColorClass(fuelType);
       const stationName =
         station.gestore || this.translate("station", "Gas Station");
-      const hasCoordinates = Boolean(station.latitude && station.longitude);
+      const hasCoordinates =
+        station.latitude != null && station.longitude != null;
       const stationFuelIcon = getFuelIcon(fuelType || this.formData.fuel, 18);
+      const naLabel = this.translate("price_unavailable", "n/a");
 
       article.className =
         "station-card bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 shadow-md transition-all duration-200 cursor-pointer relative min-h-[160px] hover:translate-y-[-2px] hover:shadow-xl hover:scale-[1.01] hover:border-[var(--color-primary-light)]";
       article.setAttribute("data-station-id", String(station.id ?? ""));
-      article.setAttribute("tabindex", "0");
+      // Card is clickable but not focusable as a single button to avoid
+      // nested <button> elements (the action buttons handle their own focus).
 
-      article.innerHTML = `\n        <div class="station-card-header mb-4 min-w-0">\n          <div class="flex items-center justify-between gap-4 mb-2">\n            <div class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1">\n              <div class="station-icon w-10 h-10 bg-gradient-to-br from-[var(--color-primary-light)] to-[var(--color-primary)] rounded-xl flex items-center justify-center text-white shadow-sm">\n                ${stationFuelIcon}\n              </div>\n              <span class="truncate overflow-hidden text-ellipsis whitespace-nowrap">${escapeHtml(stationName)}</span>\n            </div>\n            <div class="station-price flex flex-row items-center gap-2 flex-nowrap">\n              ${station.fuel_prices && station.fuel_prices.length > 0 ? `\n                <span class="uppercase tracking-wide text-sm ${fuelColorClass}">${escapeHtml(window.translateFuel ? window.translateFuel(fuelType) : fuelType)}</span>\n                <span class="text-2xl font-bold text-[var(--color-primary)]">${this.formatCurrency(price)}</span>\n              ` : ""}\n            </div>\n          </div>\n          <div class="flex items-center justify-end gap-3 pl-[calc(8px+2rem)]">\n            ${isCheapest ? `<span class="inline-block bg-gradient-to-r from-[var(--color-primary-dark)] to-[var(--color-primary-darker)] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md whitespace-nowrap">${this.translate("best_price", "Miglior Prezzo!")}</span>` : ""}\n            ${station.fuel_prices && station.fuel_prices.length > 0 && !isCheapest ? `<span class="text-sm text-red-500 font-medium">${this.getPriceDifference(index)}</span>` : ""}\n            ${station.distance ? `<span class="flex items-center gap-1 text-sm text-[var(--text-muted)]">\n              <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <circle cx="12" cy="12" r="10"></circle>\n                <polyline points="12 6 12 12 16 14"></polyline>\n              </svg>\n              ${this.formatDistance(station.distance)}\n            </span>` : ""}\n          </div>\n        </div>\n        <div class="station-card-body flex flex-col gap-2">\n          <div class="station-address-row flex items-start gap-2 text-sm text-[var(--text-secondary)] break-word overflow-wrap-break-word">\n            <svg aria-hidden="true" class="address-icon w-4 h-4 text-[var(--text-muted)] mt-0.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n              <circle cx="12" cy="10" r="3"></circle>\n            </svg>\n            <span class="break-word overflow-wrap-break-word leading-relaxed max-w-full">${escapeHtml(station.address || "")}</span>\n          </div>\n          <div class="station-actions-row flex gap-2 mt-4 pt-4 border-t border-[var(--border-color)]">\n            <button class="btn btn-primary flex-1 min-w-0 whitespace-nowrap bg-[var(--color-primary-dark)] text-white border-none rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--color-primary-darker)] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale disabled:transform-none" data-action="directions" data-id="${escapeHtml(station.id)}" aria-label="${escapeHtml(`${this.translate("navigate", "Navigate")}: ${stationName}`)}" ${hasCoordinates ? "" : "disabled"}>\n              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M9 18l6-6-6-6"></path>\n              </svg>\n              <span>${this.translate("navigate", "Navigate")}</span>\n            </button>\n            <button class="btn btn-secondary flex-1 min-w-0 whitespace-nowrap bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed" data-action="show-map" data-id="${escapeHtml(station.id)}" aria-label="${escapeHtml(`${this.translate("show_on_map", "Show on Map")}: ${stationName}`)}" ${hasCoordinates ? "" : "disabled"}>\n              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n                <circle cx="12" cy="10" r="3"></circle>\n              </svg>\n              <span>${this.translate("show_on_map", "Show on Map")}</span>\n            </button>\n          </div>\n        </div>\n      `;
+      article.innerHTML = `\n        <div class="station-card-header mb-4 min-w-0">\n          <div class="flex items-center justify-between gap-4 mb-2">\n            <div class="station-brand flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] min-w-0 flex-1">\n              <div class="station-icon w-10 h-10 bg-gradient-to-br from-[var(--color-primary-light)] to-[var(--color-primary)] rounded-xl flex items-center justify-center text-white shadow-sm">\n                ${stationFuelIcon}\n              </div>\n              <span class="truncate overflow-hidden text-ellipsis whitespace-nowrap">${escapeHtml(stationName)}</span>\n            </div>\n            <div class="station-price flex flex-row items-center gap-2 flex-nowrap">\n              ${station.fuel_prices && station.fuel_prices.length > 0 ? `\n                <span class="uppercase tracking-wide text-sm ${fuelColorClass}">${escapeHtml(window.translateFuel ? window.translateFuel(fuelType) : fuelType)}</span>\n                <span class="text-2xl font-bold text-[var(--color-primary)]">${hasPrice ? this.formatCurrency(price) : escapeHtml(naLabel)}</span>\n              ` : ""}\n            </div>\n          </div>\n          <div class="flex items-center justify-end gap-3 pl-[calc(8px+2rem)]">\n            ${isCheapest ? `<span class="inline-block bg-gradient-to-r from-[var(--color-primary-dark)] to-[var(--color-primary-darker)] text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md whitespace-nowrap">${this.translate("best_price", "Miglior Prezzo!")}</span>` : ""}\n            ${station.fuel_prices && station.fuel_prices.length > 0 && !isCheapest ? `<span class="text-sm text-red-500 font-medium">${this.getPriceDifference(index)}</span>` : ""}\n            ${station.distance ? `<span class="flex items-center gap-1 text-sm text-[var(--text-muted)]">\n              <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <circle cx="12" cy="12" r="10"></circle>\n                <polyline points="12 6 12 12 16 14"></polyline>\n              </svg>\n              ${this.formatDistance(station.distance)}\n            </span>` : ""}\n          </div>\n        </div>\n        <div class="station-card-body flex flex-col gap-2">\n          <div class="station-address-row flex items-start gap-2 text-sm text-[var(--text-secondary)] break-word overflow-wrap-break-word">\n            <svg aria-hidden="true" class="address-icon w-4 h-4 text-[var(--text-muted)] mt-0.5" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n              <circle cx="12" cy="10" r="3"></circle>\n            </svg>\n            <span class="break-word overflow-wrap-break-word leading-relaxed max-w-full">${escapeHtml(station.address || "")}</span>\n          </div>\n          <div class="station-actions-row flex gap-2 mt-4 pt-4 border-t border-[var(--border-color)]">\n            <button class="btn btn-primary flex-1 min-w-0 whitespace-nowrap bg-[var(--color-primary-dark)] text-white border-none rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--color-primary-darker)] hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale disabled:transform-none" data-action="directions" data-id="${escapeHtml(station.id)}" aria-label="${escapeHtml(`${this.translate("navigate", "Navigate")}: ${stationName}`)}" ${hasCoordinates ? "" : "disabled"}>\n              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M9 18l6-6-6-6"></path>\n              </svg>\n              <span>${this.translate("navigate", "Navigate")}</span>\n            </button>\n            <button class="btn btn-secondary flex-1 min-w-0 whitespace-nowrap bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg py-2 px-3 text-sm font-semibold cursor-pointer transition-all duration-150 inline-flex items-center justify-center hover:bg-[var(--bg-surface)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed" data-action="show-map" data-id="${escapeHtml(station.id)}" aria-label="${escapeHtml(`${this.translate("show_on_map", "Show on Map")}: ${stationName}`)}" ${hasCoordinates ? "" : "disabled"}>\n              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">\n                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>\n                <circle cx="12" cy="10" r="3"></circle>\n              </svg>\n              <span>${this.translate("show_on_map", "Show on Map")}</span>\n            </button>\n          </div>\n        </div>\n      `;
 
-      article.addEventListener("click", () =>
-        this.selectStationForMap(station.id),
-      );
-
-      article.addEventListener("keydown", (e: KeyboardEvent) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          this.selectStationForMap(station.id);
-        }
+      article.addEventListener("click", (e) => {
+        // Ignore clicks on inner buttons (they handle their own action).
+        const target = e.target as HTMLElement;
+        if (target.closest("button")) return;
+        this.selectStationForMap(station.id);
       });
 
       list.appendChild(article);
@@ -572,10 +642,26 @@ Object.assign(window.appUiMixin, {
     this.error = "";
     this.searched = true;
     this.saveRecentSearch?.({ ...this.formData });
+    this.updateRecentSearchesUI?.();
     const fuelToSend =
       this.formData.fuel === "diesel" ? "gasolio" : this.formData.fuel;
 
+    const hasCoords =
+      typeof this.formData.latitude === "number" &&
+      typeof this.formData.longitude === "number";
+
+    // Abort any in-flight search so a slow response cannot overwrite a newer one.
+    const previousController = (
+      this as { _activeController?: AbortController | null }
+    )._activeController;
     const controller = new AbortController();
+    (this as { _activeController?: AbortController | null })._activeController =
+      controller;
+    const seqHolder = this as { _requestSeq?: number };
+    const requestSeq = (seqHolder._requestSeq ?? 0) + 1;
+    seqHolder._requestSeq = requestSeq;
+    previousController?.abort();
+
     const timeoutMs = window.CONFIG.SEARCH_TIMEOUT_MS || 12000;
     const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -595,15 +681,29 @@ Object.assign(window.appUiMixin, {
             this.formData.results,
             window.CONFIG.PARSE_INT_RADIX,
           ),
+          ...(hasCoords
+            ? {
+                latitude: this.formData.latitude,
+                longitude: this.formData.longitude,
+              }
+            : {}),
         }),
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.detail || `HTTP error! status: ${response.status}`,
-        );
+        const detail = Array.isArray(errorData?.detail)
+          ? errorData.detail
+              .map((d: { msg?: string; loc?: unknown[] }) => d?.msg || "")
+              .filter(Boolean)
+              .join("; ")
+          : errorData?.detail;
+        throw new Error(detail || `HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
+      // Drop stale responses from a search that has been superseded.
+      if (requestSeq !== (this as { _requestSeq?: number })._requestSeq) {
+        return;
+      }
       if (data.warning) {
         this.error = data.warning;
         this.results = [];
@@ -617,12 +717,22 @@ Object.assign(window.appUiMixin, {
         this.error = "";
       }
 
+      // After geocoded search, drop coords so future city edits use the geocoder.
+      if (hasCoords && !this.userLocation) {
+        this.formData.latitude = null;
+        this.formData.longitude = null;
+      }
+
       this.updateResultsUI?.();
+      this.announceResultsCount?.();
       Promise.resolve().then(() => {
         this.updateMap?.();
         if (window.updateI18nTexts) window.updateI18nTexts();
       });
     } catch (err) {
+      if (requestSeq !== (this as { _requestSeq?: number })._requestSeq) {
+        return;
+      }
       if ((err as Error & { name?: string }).name === "AbortError")
         this.error = "Request timed out. Please try again.";
       else this.error = err instanceof Error ? err.message : "Unknown error";
@@ -630,12 +740,32 @@ Object.assign(window.appUiMixin, {
       this.debug?.("Search failed:", this.error);
       this.updateResultsUI?.();
     } finally {
-      clearTimeout(timeoutHandle);
-      this.loading = false;
-      this.setLoadingBar?.(false);
-      this.updateSearchButtonUI?.();
-      this.updateResultsUI?.();
+      if (requestSeq === (this as { _requestSeq?: number })._requestSeq) {
+        clearTimeout(timeoutHandle);
+        this.loading = false;
+        this.setLoadingBar?.(false);
+        this.updateSearchButtonUI?.();
+        this.updateResultsUI?.();
+      }
     }
+  },
+
+  /**
+   * Announce the number of results to assistive technology via the polite live region.
+   */
+  announceResultsCount(): void {
+    const statusEl = document.getElementById("status-messages");
+    if (!statusEl || typeof window.t !== "function") return;
+    const n = this.results.length;
+    let msg: string;
+    if (n === 0) {
+      msg = window.t("results_count", "No results found");
+    } else if (n === 1) {
+      msg = window.t("results_count_one", "1 station found");
+    } else {
+      msg = window.t("results_count_other", `${n} stations found`);
+    }
+    statusEl.textContent = msg;
   },
 
   placeMapAccordingToViewport(): void {

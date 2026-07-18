@@ -52,11 +52,15 @@ def _parse_date(date_string: str | None) -> datetime | None:
     for fmt in ("%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M", "%d/%m/%Y"):
         try:
             dt = datetime.strptime(date_string, fmt)  # noqa: DTZ007
-            return dt.replace(tzinfo=UTC)
         except ValueError:
             continue
+        else:
+            return dt.replace(tzinfo=UTC)
 
-    dt = dateutil_parse(date_string)
+    try:
+        dt = dateutil_parse(date_string)
+    except (ValueError, TypeError, OverflowError):
+        return None
     return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
 
 
@@ -471,7 +475,7 @@ def _filter_and_transform_combined(
     excluded_invalid_coords = 0
     excluded_out_of_distance = 0
 
-    for station in combined.values():
+    for station_id, station in combined.items():
         if not fuel or fuel_key not in station.get("prezzi", {}):
             excluded_no_price += 1
             continue
@@ -494,6 +498,7 @@ def _filter_and_transform_combined(
 
         stations.append(
             {
+                "id_impianto": station_id,
                 "gestore": station.get("gestore"),
                 "indirizzo": station.get("indirizzo"),
                 "prezzo": price_info.get("prezzo"),

@@ -113,11 +113,11 @@ class Settings(BaseSettings):
         description="CSV URL for prezzi (prezzo_alle_8.csv).",
     )
     prezzi_cache_path: str = Field(
-        "src/static/data/prezzi_data.json",
+        "data/prezzi_data.json",
         description="Path to cached combined prezzi JSON file.",
     )
     prezzi_csv_http_meta_path: str = Field(
-        "src/static/data/prezzi_csv_http_meta.json",
+        "data/prezzi_csv_http_meta.json",
         description="Path per salvare ETag/Last-Modified per richieste CSV condizionali.",
     )
     prezzi_cache_hours: int = Field(24, description="Number of hours to consider the cache fresh.")
@@ -132,9 +132,8 @@ class Settings(BaseSettings):
         None,
         description=(
             "Optional directory to read/write Prezzi CSV files. "
-            "If None, falls back first to 'src/static/data' (project-level), "
-            "then to 'src/services/static/data' (service-local), "
-            "and finally to project 'data'."
+            "If None, falls back first to 'data' (project-level, outside public static mount), "
+            "then to 'src/static/data' (legacy), and finally to 'src/services/static/data'."
         ),
     )
     prezzi_keep_versions: int = Field(
@@ -189,10 +188,20 @@ class SearchRequest(BaseModel):
     radius: int = Field(default=MIN_SEARCH_RADIUS_KM, ge=MIN_SEARCH_RADIUS_KM, le=MAX_SEARCH_RADIUS_KM)
     fuel: str = Field(min_length=3)
     results: int = Field(default=DEFAULT_RESULTS_COUNT, ge=1, le=MAX_RESULTS_COUNT)
+    latitude: float | None = Field(default=None, ge=-90.0, le=90.0)
+    longitude: float | None = Field(default=None, ge=-180.0, le=180.0)
 
     model_config = {
         "json_schema_extra": {
             "examples": [
+                {
+                    "city": "Venezia",
+                    "radius": 10,
+                    "fuel": "gasolio",
+                    "results": 5,
+                    "latitude": 45.438759,
+                    "longitude": 12.327145,
+                },
                 {
                     "city": "Venezia",
                     "radius": 10,
@@ -230,6 +239,7 @@ class Station(BaseModel):
     """Represents a single gas station."""
 
     id: str
+    gestore: str | None = None
     address: str
     latitude: float = Field(..., ge=-90.0, le=90.0)
     longitude: float = Field(..., ge=-180.0, le=180.0)
@@ -241,6 +251,7 @@ class Station(BaseModel):
             "examples": [
                 {
                     "id": "12345",
+                    "gestore": "Eni",
                     "address": "Via Roma 1, 30100 Venezia VE",
                     "latitude": 45.438759,
                     "longitude": 12.327145,

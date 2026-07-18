@@ -28,7 +28,7 @@ window.CONFIG = {
   PARSE_INT_RADIX: 10,
   MAP_RESIZE_DELAY: 100,
   CITY_SUGGESTION_HIDE_DELAY: 150,
-  FALLBACK_CITIES: ["Rome", "Milan", "Naples"],
+  FALLBACK_CITIES: ["Roma", "Milano", "Napoli"],
   THEME_STORAGE_KEY: "app-theme",
   DEFAULT_THEME: "light",
   DEBOUNCE_DELAY_MS: 100,

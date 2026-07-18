@@ -30,17 +30,17 @@ if TYPE_CHECKING:
 
 @pytest.fixture(autouse=True)
 def cleanup_project_csv_files():
-    """Guarantee cleanup of CSV files created in src/static/data for tests."""
-    project_dir = csv_fetcher.PROJECT_ROOT / "src" / "static" / "data"
-    project_dir.mkdir(parents=True, exist_ok=True)
-    files_to_clean = [
-        project_dir / "anagrafica_impianti_attivi.csv",
-        project_dir / "prezzo_alle_8.csv",
-    ]
-    timestamped = list(project_dir.glob("anagrafica_impianti_attivi_*.csv")) + list(
-        project_dir.glob("prezzo_alle_8_*.csv"),
-    )
-    files_to_clean.extend(timestamped)
+    """Guarantee cleanup of CSV files created in data/ and src/static/data for tests."""
+    project_data = csv_fetcher.PROJECT_DATA_DIR
+    project_static = csv_fetcher.PROJECT_ROOT / "src" / "static" / "data"
+    for project_dir in (project_data, project_static):
+        project_dir.mkdir(parents=True, exist_ok=True)
+    files_to_clean: list[Path] = []
+    for project_dir in (project_data, project_static):
+        files_to_clean.append(project_dir / "anagrafica_impianti_attivi.csv")
+        files_to_clean.append(project_dir / "prezzo_alle_8.csv")
+        files_to_clean.extend(project_dir.glob("anagrafica_impianti_attivi_*.csv"))
+        files_to_clean.extend(project_dir.glob("prezzo_alle_8_*.csv"))
     for f in files_to_clean:
         with suppress(Exception):
             f.unlink()
@@ -731,11 +731,11 @@ def test_load_local_csvs_uses_custom_dir(tmp_path):
 
 
 def test_candidate_dir_order_preference():
-    """Verify that the preferred candidate directory is 'src/static/data' (project-level) when no custom dir is set."""
+    """Verify that the preferred candidate directory is 'data' (project-level) when no custom dir is set."""
     settings = Settings()
     settings.prezzi_local_data_dir = None
     candidates = csv_fetcher._candidate_local_csv_dirs(settings)
-    expected_first = csv_fetcher.PROJECT_ROOT / "src" / "static" / "data"
+    expected_first = csv_fetcher.PROJECT_DATA_DIR
     assert candidates[0] == expected_first
 
 
@@ -851,9 +851,9 @@ def test_load_from_project_src_static_data_dir():
 
 
 def test_load_migrates_from_service_to_project_dir():
-    """If CSVs exist in service-local dir but not in project src/static/data, they should be copied over and loaded."""
+    """If CSVs exist in service-local dir but not in the preferred `data/`, they should be copied over and loaded."""
     service_dir = Path(prezzi_csv.__file__).parent / "static" / "data"
-    project_dir = csv_fetcher.PROJECT_ROOT / "src" / "static" / "data"
+    project_data = csv_fetcher.PROJECT_DATA_DIR
     service_dir.mkdir(parents=True, exist_ok=True)
     anag = service_dir / "anagrafica_impianti_attivi.csv"
     pre = service_dir / "prezzo_alle_8.csv"
@@ -883,14 +883,13 @@ def test_load_migrates_from_service_to_project_dir():
     assert "GestoreX" in anag_text
     assert "benzina" in prezzi_text
 
-    assert (project_dir / "anagrafica_impianti_attivi.csv").exists()
-    assert (project_dir / "prezzo_alle_8.csv").exists()
+    assert (project_data / "anagrafica_impianti_attivi.csv").exists()
+    assert (project_data / "prezzo_alle_8.csv").exists()
 
 
 def test_load_migrates_from_project_data_to_src_static():
-    """If CSVs exist in project-level `data/` they should be migrated to `src/static/data` and loaded."""
-    project_data = csv_fetcher.PROJECT_ROOT / "data"
-    project_src = csv_fetcher.PROJECT_ROOT / "src" / "static" / "data"
+    """If CSVs exist in project-level `data/` they should be loaded directly (data/ is now the preferred dir)."""
+    project_data = csv_fetcher.PROJECT_DATA_DIR
     project_data.mkdir(parents=True, exist_ok=True)
 
     anag = project_data / "anagrafica_impianti_attivi.csv"
@@ -921,8 +920,8 @@ def test_load_migrates_from_project_data_to_src_static():
     assert "GestoreX" in anag_text
     assert "benzina" in prezzi_text
 
-    assert (project_src / "anagrafica_impianti_attivi.csv").exists()
-    assert (project_src / "prezzo_alle_8.csv").exists()
+    assert (project_data / "anagrafica_impianti_attivi.csv").exists()
+    assert (project_data / "prezzo_alle_8.csv").exists()
 
 
 def test_get_latest_csv_timestamp_prefers_project_src_static():

@@ -118,7 +118,7 @@ biome check src/static --write
 - Use modern ES6+ JavaScript
 - Follow accessibility best practices (ARIA labels, semantic HTML)
 - Maintain responsive design principles
-- Keep Alpine.js directives clean and readable
+- Keep TypeScript modules focused and readable
 - Ensure i18n keys are added to both `en.json` and `it.json`
 
 ## 🧪 Testing Guidelines

@@ -1,5 +1,6 @@
 """Fuel station API service."""
 
+import asyncio
 from typing import Any
 
 import httpx2 as httpx
@@ -24,6 +25,7 @@ async def fetch_gas_stations(
     params: StationSearchParams,
     settings: Settings,
     http_client: httpx.AsyncClient,
+    cold_path_lock: asyncio.Lock | None = None,
 ) -> dict | list[Any]:
     """Fetch gas stations from Prezzi Carburante API.
 
@@ -31,6 +33,7 @@ async def fetch_gas_stations(
     - params: Station search parameters including latitude, longitude, distance, fuel, and results.
     - settings: Application settings containing API URL.
     - http_client: Shared HTTP client for making requests.
+    - cold_path_lock: Optional lock to serialize cold-cache downloads.
 
     Returns:
     - The JSON response from the Prezzi Carburante API.
@@ -46,7 +49,12 @@ async def fetch_gas_stations(
             settings.prezzi_csv_prezzi_url,
             params.model_dump(),
         )
-        payload = await fetch_and_combine_csv_data(settings, http_client, params=params)
+        payload = await fetch_and_combine_csv_data(
+            settings,
+            http_client,
+            params=params,
+            cold_path_lock=cold_path_lock,
+        )
         logger.info(
             "CSV gas station payload size: {}",
             len(payload) if payload else 0,
@@ -103,8 +111,16 @@ def parse_and_normalize_stations(
             skipped_count += 1
             continue
         try:
-            prezzo_raw = data.get("prezzo", 0.0)
-            price: float = float(prezzo_raw) if prezzo_raw is not None else 0.0
+            prezzo_raw = data.get("prezzo")
+            if prezzo_raw is None:
+                logger.warning("Skipping station {} because price is missing", idx)
+                skipped_count += 1
+                continue
+            price = float(prezzo_raw)
+            if price <= 0:
+                logger.warning("Skipping station {} because price is not positive: {}", idx, price)
+                skipped_count += 1
+                continue
             lat = float(data.get("latitudine") or 0.0)
             lon = float(data.get("longitudine") or 0.0)
             # Filter out invalid coordinates at (0.0, 0.0)
@@ -116,8 +132,10 @@ def parse_and_normalize_stations(
             distance = None
             if search_lat is not None and search_lon is not None:
                 distance = calculate_distance(search_lat, search_lon, lat, lon)
+            plant_id = data.get("id_impianto") or data.get("id") or idx
             station = Station(
-                id=str(idx),
+                id=str(plant_id),
+                gestore=data.get("gestore") or None,
                 address=data.get("indirizzo", "") or "",
                 latitude=lat,
                 longitude=lon,

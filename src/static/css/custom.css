@@ -410,6 +410,13 @@ input[type="range"]:focus-visible {
   animation: slideIn 0.25s ease;
 }
 
+/* Results panel: dim while a refresh is in flight and we already have results. */
+#results.is-refreshing {
+  opacity: 0.6;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
 /* Loading bar animation */
 .loading-bar-progress {
   width: 0%;
@@ -420,6 +427,10 @@ input[type="range"]:focus-visible {
   );
   transition: width 0.3s ease;
   box-shadow: 0 0 10px var(--color-primary);
+}
+
+.loading-bar.active {
+  opacity: 1;
 }
 
 .loading-bar.active .loading-bar-progress {
@@ -515,54 +526,31 @@ details[open] .recent-searches-title::before {
   display: none;
 }
 
-/* Chip base styles - fuel colors */
+/* Chip base styles - fuel colors, sourced from base.css tokens (Italian pump conventions) */
 .chip.benzina {
-  --chip-color: #e65100;
-  --chip-bg: rgba(255, 145, 0, 0.12);
-  --chip-border: rgba(255, 145, 0, 0.35);
+  --chip-color: var(--fuel-benzina-color);
 }
 
 .chip.gasolio {
-  --chip-color: #455a64;
-  --chip-bg: rgba(144, 164, 174, 0.12);
-  --chip-border: rgba(144, 164, 174, 0.35);
+  --chip-color: var(--fuel-gasolio-color);
 }
 
 .chip.GPL {
-  --chip-color: #d84315;
-  --chip-bg: rgba(255, 87, 34, 0.12);
-  --chip-border: rgba(255, 87, 34, 0.35);
+  --chip-color: var(--fuel-gpl-color);
 }
 
 .chip.metano {
-  --chip-color: #1565c0;
-  --chip-bg: rgba(33, 150, 243, 0.12);
-  --chip-border: rgba(33, 150, 243, 0.35);
+  --chip-color: var(--fuel-metano-color);
 }
 
-/* Light theme chip colors */
-[data-theme="light"] .chip.benzina {
-  --chip-color: #e65100;
-  --chip-bg: rgba(255, 145, 0, 0.15);
-  --chip-border: rgba(255, 145, 0, 0.4);
+.chip {
+  --chip-bg: color-mix(in srgb, var(--chip-color) 12%, transparent);
+  --chip-border: color-mix(in srgb, var(--chip-color) 35%, transparent);
 }
 
-[data-theme="light"] .chip.gasolio {
-  --chip-color: #455a64;
-  --chip-bg: rgba(144, 164, 174, 0.15);
-  --chip-border: rgba(144, 164, 174, 0.4);
-}
-
-[data-theme="light"] .chip.GPL {
-  --chip-color: #d84315;
-  --chip-bg: rgba(255, 87, 34, 0.15);
-  --chip-border: rgba(255, 87, 34, 0.4);
-}
-
-[data-theme="light"] .chip.metano {
-  --chip-color: #1565c0;
-  --chip-bg: rgba(33, 150, 243, 0.15);
-  --chip-border: rgba(33, 150, 243, 0.4);
+[data-theme="light"] .chip {
+  --chip-bg: color-mix(in srgb, var(--chip-color) 15%, transparent);
+  --chip-border: color-mix(in srgb, var(--chip-color) 40%, transparent);
 }
 
 /* Focus visible for accessibility */
@@ -583,7 +571,7 @@ details[open] .recent-searches-title::before {
 /* Fuel chip active state - Solid fill with clear accessible contrast */
 .chip.active {
   background: var(--chip-color);
-  color: #fff;
+  color: var(--chip-active-text);
   border-color: var(--chip-color);
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.15),
@@ -596,7 +584,7 @@ details[open] .recent-searches-title::before {
 }
 
 .chip.active svg {
-  color: #fff;
+  color: var(--chip-active-text);
 }
 
 /* ── CSV Update Startup Popup ─────────────────────────────── */

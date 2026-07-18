@@ -41,13 +41,20 @@ window.setLang = (lang) => {
     if (app?.debugMode) {
         console.debug("[DEBUG] i18next.changeLanguage called with lang:", lang);
     }
+    // Reflect language in <html lang="..."> for screen readers and SEO.
+    try {
+        document.documentElement.lang = lang;
+    }
+    catch {
+        // ignore non-browser environments
+    }
     const refreshUi = () => {
         updateI18nTexts();
         window.dispatchEvent(new CustomEvent("languageChanged", { detail: { lang } }));
         const statusEl = document.getElementById("status-messages");
         if (statusEl) {
-            const langName = lang === "it" ? "Italian" : "English";
-            statusEl.textContent = `Language reset and changed to ${langName}`;
+            const statusMsg = t("language_changed", "Language changed");
+            statusEl.textContent = statusMsg;
             setTimeout(() => {
                 statusEl.textContent = "";
             }, STATUS_MESSAGE_DURATION);

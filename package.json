@@ -10,15 +10,9 @@
         "format:ts": "biome check src/static --write"
     },
     "devDependencies": {
-        "@playwright/test": "latest",
-        "@types/bun": "latest",
-        "@types/dompurify": "latest",
-        "@types/i18next": "latest",
-        "@types/leaflet": "latest",
-        "typescript": "latest"
-    },
-    "dependencies": {
-        "dompurify": "latest",
-        "leaflet": "latest"
+        "@playwright/test": "^1.58.2",
+        "@types/bun": "^1.3.9",
+        "@types/leaflet": "^1.9.21",
+        "typescript": "^5.9.3"
     }
 }

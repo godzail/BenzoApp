@@ -50,6 +50,15 @@ Object.assign(window.appUiMixin, {
     const layoutEl = mainLayout as HTMLElement;
 
     let isResizing = false;
+    let lastPercentage = 50;
+
+    const applyPercentage = (pct: number) => {
+      const clamped = Math.max(10, Math.min(90, pct));
+      lastPercentage = clamped;
+      layoutEl.style.gridTemplateColumns = `${clamped}% 4px 1fr`;
+      resizer.setAttribute("aria-valuenow", String(Math.round(clamped)));
+    };
+
     resizer.addEventListener("mousedown", () => {
       isResizing = true;
       document.body.style.cursor = "col-resize";
@@ -61,10 +70,8 @@ Object.assign(window.appUiMixin, {
       const containerRect = layoutEl.getBoundingClientRect();
       const relativeX = e.clientX - containerRect.left;
       const totalWidth = containerRect.width;
-      let percentage = (relativeX / totalWidth) * 100;
-      percentage = Math.max(10, Math.min(90, percentage));
-      layoutEl.style.gridTemplateColumns = `${percentage}% 4px 1fr`;
-      resizer.setAttribute("aria-valuenow", String(Math.round(percentage)));
+      const percentage = (relativeX / totalWidth) * 100;
+      applyPercentage(percentage);
       if (
         this.map &&
         typeof (this.map as { invalidateSize?: () => void }).invalidateSize ===
@@ -88,6 +95,27 @@ Object.assign(window.appUiMixin, {
             (this.map as { invalidateSize: () => void }).invalidateSize();
           }
         }, window.CONFIG.MAP_RESIZE_DELAY);
+      }
+    });
+
+    // Keyboard support: arrows nudge, Home/End jump to extremes.
+    resizer.addEventListener("keydown", (e: KeyboardEvent) => {
+      const step = e.shiftKey ? 10 : 2;
+      let next: number | null = null;
+      if (e.key === "ArrowLeft") next = lastPercentage - step;
+      else if (e.key === "ArrowRight") next = lastPercentage + step;
+      else if (e.key === "Home") next = 10;
+      else if (e.key === "End") next = 90;
+      if (next !== null) {
+        e.preventDefault();
+        applyPercentage(next);
+        if (
+          this.map &&
+          typeof (this.map as { invalidateSize?: () => void })
+            .invalidateSize === "function"
+        ) {
+          (this.map as { invalidateSize: () => void }).invalidateSize();
+        }
       }
     });
   },

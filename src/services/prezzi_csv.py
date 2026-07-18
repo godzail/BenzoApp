@@ -54,6 +54,7 @@ async def fetch_and_combine_csv_data(
     settings: Settings,
     http_client: httpx.AsyncClient,
     params: StationSearchParams | None = None,
+    cold_path_lock: asyncio.Lock | None = None,
 ) -> list[dict[str, Any]]:
     """Fetch CSVs, merge them and return a list of stations filtered by params.
 
@@ -61,6 +62,9 @@ async def fetch_and_combine_csv_data(
     - settings: Application settings containing cache and CSV configuration.
     - http_client: The HTTP client to use for fetching remote CSVs.
     - params: Optional search parameters for filtering results.
+    - cold_path_lock: Optional lock that serializes the cold-cache fetch+parse+write path
+      so concurrent requests with a stale/missing cache do not stampede the remote service
+      or interleave writes to the cache file.
 
     Returns:
     - A list of station dictionaries filtered and sorted by price.
@@ -85,22 +89,36 @@ async def fetch_and_combine_csv_data(
         combined = None
 
     if combined is None:
-        anag_text, prezzi_text = await _fetch_csvs(http_client, settings)
-        force_delimiter = None if settings.prezzi_csv_delimiter == "auto" else settings.prezzi_csv_delimiter
-        combined = await asyncio.to_thread(
-            lambda: _parse_and_combine_sync(anag_text, prezzi_text, force_delimiter),
-        )
-        logger.debug("Combined CSV stations count: %d", len(combined) if combined else 0)
-        await _write_json_file(settings.prezzi_cache_path, combined)
-        saved_dir = await _save_csv_files(anag_text, prezzi_text, settings)
-        if saved_dir:
-            try:
-                anag_text2, prezzi_text2 = await _load_local_csvs(settings)
-                combined2 = await asyncio.to_thread(
-                    lambda: _parse_and_combine_sync(anag_text2, prezzi_text2, force_delimiter),
-                )
-                await _write_json_file(settings.prezzi_cache_path, combined2)
-            except Exception as e:
-                logger.warning("Failed to refresh cache after saving CSVs: {}", e)
+        if cold_path_lock is not None:
+            # Serialise cold-path downloads. A second caller arriving after
+            # the cache is repopulated will hit the fresh branch above.
+            async with cold_path_lock:
+                # Re-check inside the lock in case another worker filled the cache.
+                try:
+                    is_fresh = await _is_cache_fresh(settings.prezzi_cache_path, settings.prezzi_cache_hours)
+                    if is_fresh:
+                        cached = await _load_cached_combined(settings.prezzi_cache_path)
+                        if cached:
+                            combined = cached
+                except Exception as err:
+                    logger.warning("Cache recheck failed: {}", err)
+        if combined is None:
+            anag_text, prezzi_text = await _fetch_csvs(http_client, settings)
+            force_delimiter = None if settings.prezzi_csv_delimiter == "auto" else settings.prezzi_csv_delimiter
+            combined = await asyncio.to_thread(
+                lambda: _parse_and_combine_sync(anag_text, prezzi_text, force_delimiter),
+            )
+            logger.debug("Combined CSV stations count: %d", len(combined) if combined else 0)
+            await _write_json_file(settings.prezzi_cache_path, combined)
+            saved_dir = await _save_csv_files(anag_text, prezzi_text, settings)
+            if saved_dir:
+                try:
+                    anag_text2, prezzi_text2 = await _load_local_csvs(settings)
+                    combined2 = await asyncio.to_thread(
+                        lambda: _parse_and_combine_sync(anag_text2, prezzi_text2, force_delimiter),
+                    )
+                    await _write_json_file(settings.prezzi_cache_path, combined2)
+                except Exception as e:
+                    logger.warning("Failed to refresh cache after saving CSVs: {}", e)
 
     return _filter_and_transform_combined(combined, params)

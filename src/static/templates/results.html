@@ -62,16 +62,15 @@
     >
       No results found
     </h3>
-    <p class="empty-suggestion text-sm text-[var(--text-muted)] max-w-xs mx-auto">
+    <p class="empty-suggestion text-sm text-[var(--text-muted)] max-w-xs mx-auto mb-4" data-i18n="empty_suggestion">
       Try adjusting your search radius or selecting a different fuel type
     </p>
+    <div class="empty-actions flex flex-wrap gap-2 justify-center" id="empty-actions"></div>
   </div>
 
   <!-- Results -->
   <section id="results-section" class="hidden" aria-labelledby="results-heading">
     <h2 id="results-heading" class="sr-only" data-i18n="results_heading">Results</h2>
-    <!-- Include translateFuel reference for template-level checks (hidden) -->
-    <span class="sr-only" id="translateFuel-sample">translateFuel('benzina')</span>
     <div id="stations-list" class="flex flex-col gap-3"></div>
   </section>
 

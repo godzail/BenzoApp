@@ -113,3 +113,112 @@ def test_primary_color_contrast_possible():
     assert ratio >= MIN_CONTRAST_THRESHOLD, (
         f"Primary color contrast against white is {ratio:.2f}, below {MIN_CONTRAST_THRESHOLD}"
     )
+
+
+WCAG_AA_MINIMUM = 4.5
+
+FUEL_COLOR_VARS = ("fuel-benzina-color", "fuel-gasolio-color", "fuel-gpl-color", "fuel-metano-color")
+
+
+def _extract_root_and_light_blocks(css: str) -> tuple[str, str]:
+    """Split base.css into its `:root` and `[data-theme="light"]` blocks.
+
+    Parameters:
+    - css: Full contents of base.css.
+
+    Returns:
+    - A tuple of (root_block, light_block) raw text.
+    """
+    root_matches = re.findall(r":root\s*\{([^}]*)\}", css)
+    light_matches = re.findall(r'\[data-theme="light"\]\s*\{([^}]*)\}', css)
+    if not root_matches or not light_matches:
+        msg = 'Could not locate :root or [data-theme="light"] block in base.css'
+        raise RuntimeError(msg)
+    return "\n".join(root_matches), "\n".join(light_matches)
+
+
+def _var_from_block(block: str, var_name: str) -> str:
+    """Read a CSS variable value from a single CSS block's raw text.
+
+    Parameters:
+    - block: Raw declaration text between the braces of a CSS rule.
+    - var_name: Variable name without the leading `--`.
+
+    Returns:
+    - The variable's value, stripped of whitespace.
+    """
+    match = re.search(rf"--{re.escape(var_name)}:\s*([^;]+);", block)
+    if not match:
+        msg = f"Variable --{var_name} not found in block"
+        raise RuntimeError(msg)
+    return match.group(1).strip()
+
+
+def test_fuel_colors_meet_wcag_aa_against_theme_background():
+    """Each fuel color must be readable (>=4.5:1) against its own theme's background."""
+    with Path.open(Path(BASE_CSS), encoding="utf-8") as f:
+        css = f.read()
+    root_block, light_block = _extract_root_and_light_blocks(css)
+
+    dark_bg = hex_to_rgb(parse_hex_string(_var_from_block(root_block, "bg-primary")))
+    light_bg = hex_to_rgb(parse_hex_string(_var_from_block(light_block, "bg-primary")))
+
+    for var in FUEL_COLOR_VARS:
+        dark_rgb = hex_to_rgb(parse_hex_string(_var_from_block(root_block, var)))
+        light_rgb = hex_to_rgb(parse_hex_string(_var_from_block(light_block, var)))
+
+        dark_ratio = contrast_ratio(dark_rgb, dark_bg)
+        assert dark_ratio >= WCAG_AA_MINIMUM, (
+            f"--{var} (dark) contrast against dark --bg-primary is {dark_ratio:.2f}, below {WCAG_AA_MINIMUM}"
+        )
+
+        light_ratio = contrast_ratio(light_rgb, light_bg)
+        assert light_ratio >= WCAG_AA_MINIMUM, (
+            f"--{var} (light) contrast against light --bg-primary is {light_ratio:.2f}, below {WCAG_AA_MINIMUM}"
+        )
+
+
+def test_chip_active_text_meets_wcag_aa_against_fuel_fills():
+    """Active chip text must be readable (>=4.5:1) against each fuel color used as a fill."""
+    with Path.open(Path(BASE_CSS), encoding="utf-8") as f:
+        css = f.read()
+    root_block, light_block = _extract_root_and_light_blocks(css)
+
+    dark_chip_text = hex_to_rgb(parse_hex_string(_var_from_block(root_block, "chip-active-text")))
+    light_chip_text = hex_to_rgb(parse_hex_string(_var_from_block(light_block, "chip-active-text")))
+
+    for var in FUEL_COLOR_VARS:
+        dark_fill = hex_to_rgb(parse_hex_string(_var_from_block(root_block, var)))
+        light_fill = hex_to_rgb(parse_hex_string(_var_from_block(light_block, var)))
+
+        dark_ratio = contrast_ratio(dark_chip_text, dark_fill)
+        assert dark_ratio >= WCAG_AA_MINIMUM, (
+            f"--chip-active-text (dark) contrast against --{var} fill is {dark_ratio:.2f}, below {WCAG_AA_MINIMUM}"
+        )
+
+        light_ratio = contrast_ratio(light_chip_text, light_fill)
+        assert light_ratio >= WCAG_AA_MINIMUM, (
+            f"--chip-active-text (light) contrast against --{var} fill is {light_ratio:.2f}, below {WCAG_AA_MINIMUM}"
+        )
+
+
+def test_text_muted_meets_wcag_aa_against_theme_background():
+    """--text-muted must remain readable (>=4.5:1) against --bg-primary in both themes."""
+    with Path.open(Path(BASE_CSS), encoding="utf-8") as f:
+        css = f.read()
+    root_block, light_block = _extract_root_and_light_blocks(css)
+
+    dark_bg = hex_to_rgb(parse_hex_string(_var_from_block(root_block, "bg-primary")))
+    light_bg = hex_to_rgb(parse_hex_string(_var_from_block(light_block, "bg-primary")))
+    dark_muted = hex_to_rgb(parse_hex_string(_var_from_block(root_block, "text-muted")))
+    light_muted = hex_to_rgb(parse_hex_string(_var_from_block(light_block, "text-muted")))
+
+    dark_ratio = contrast_ratio(dark_muted, dark_bg)
+    assert dark_ratio >= WCAG_AA_MINIMUM, (
+        f"--text-muted (dark) contrast against --bg-primary is {dark_ratio:.2f}, below {WCAG_AA_MINIMUM}"
+    )
+
+    light_ratio = contrast_ratio(light_muted, light_bg)
+    assert light_ratio >= WCAG_AA_MINIMUM, (
+        f"--text-muted (light) contrast against --bg-primary is {light_ratio:.2f}, below {WCAG_AA_MINIMUM}"
+    )

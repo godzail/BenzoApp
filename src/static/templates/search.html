@@ -10,16 +10,7 @@
       Ricerche Recenti:
     </summary>
     <section class="recent-searches-container pt-2" aria-labelledby="recent-searches-i18n">
-      <div id="recent-searches-list" class="recent-searches-list flex flex-wrap gap-2">
-        <!-- Placeholder kept for static analysis / accessibility tests -->
-        <button
-          type="button"
-          disabled
-          class="recent-search-btn flex items-center gap-1 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-full px-3 py-2 text-sm text-[var(--text-secondary)] cursor-pointer transition-all duration-150 min-h-10 hidden"
-        >
-          Sample
-        </button>
-      </div>
+      <div id="recent-searches-list" class="recent-searches-list flex flex-wrap gap-2"></div>
     </section>
   </details>
 </div>
@@ -139,7 +130,7 @@
         id="radius-slider"
         class="radius-slider flex-1 cursor-pointer accent-[var(--color-primary)]"
         min="1"
-        max="50"
+        max="200"
         step="1"
         aria-labelledby="radius-label radius-value"
       >

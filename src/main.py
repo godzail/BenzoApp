@@ -15,6 +15,7 @@ Intended for use as the backend of a web application to help users find nearby g
 import asyncio
 import html as _html
 import sys
+import threading
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -67,17 +68,39 @@ FAVICON_CACHE_SECONDS = 3600
 STATIC_CACHE_SECONDS = 3600
 CSV_SCHEMA_ERROR_STATUS = 422
 
+# HTTP status codes (named to keep magic-number comparisons linter-clean).
+HTTP_STATUS_NOT_FOUND = 404
+HTTP_STATUS_FORBIDDEN = 403
+HTTP_STATUS_BAD_GATEWAY = 502
+HTTP_STATUS_RATE_LIMITED = 429
+HTTP_STATUS_SERVICE_UNAVAILABLE = 503
+
 
 class AppContext:
     """Container for runtime state shared across the FastAPI application."""
 
-    __slots__ = ("csv_freshly_downloaded", "http_client", "settings")
+    __slots__ = ("csv_fetch_lock", "csv_fresh_flag_lock", "csv_freshly_downloaded", "http_client", "settings")
 
     def __init__(self, settings: Settings, http_client: httpx.AsyncClient) -> None:
         """Initialize with immutable settings and shared HTTP client."""
         self.settings = settings
         self.http_client = http_client
         self.csv_freshly_downloaded: bool = False
+        self.csv_fetch_lock: asyncio.Lock = asyncio.Lock()
+        # threading.Lock so the sync pop helper below does not need async context.
+        self.csv_fresh_flag_lock: threading.Lock = threading.Lock()
+
+    def pop_freshly_downloaded(self) -> bool:
+        """Atomically read+clear the freshly_downloaded flag.
+
+        Returns:
+        - True exactly once after a fresh download completes; False otherwise.
+        """
+        with self.csv_fresh_flag_lock:
+            fresh = self.csv_freshly_downloaded
+            if fresh:
+                self.csv_freshly_downloaded = False
+            return fresh
 
 
 def get_settings() -> Settings:
@@ -96,8 +119,8 @@ def get_settings() -> Settings:
 
 
 def _csv_http_headers(settings: Settings) -> dict[str, str]:
-    """Build headers for CSV and geocoding HTTP clients."""
-    return {"User-Agent": settings.user_agent, "Accept": "text/csv"}
+    """Build default headers for the shared HTTP client."""
+    return {"User-Agent": settings.user_agent}
 
 
 async def _check_preferred_csv_dir(settings: Settings) -> None:
@@ -182,10 +205,7 @@ async def _geocode_for_search(
 ) -> dict[str, float] | SearchResponse:
     """Geocode a search city or return the existing error response."""
     try:
-        location = await asyncio.wait_for(
-            geocode_city(city, settings, app_context.http_client),
-            timeout=settings.search_timeout_seconds,
-        )
+        location = await geocode_city(city, settings, app_context.http_client)
     except TimeoutError:
         logger.warning("Search timed out during geocoding for city: {}", city)
         return SearchResponse(stations=[], warning="Search timed out. Please try again later.", error=True)
@@ -195,12 +215,17 @@ async def _geocode_for_search(
             warning="City geocoding service is temporarily unavailable. Please try again later.",
             error=True,
         )
-    except HTTPException:
-        return SearchResponse(
-            stations=[],
-            warning="City not found. Please check the city name and try again.",
-            error=True,
-        )
+    except HTTPException as exc:
+        code = getattr(exc, "status_code", 500)
+        if code == HTTP_STATUS_NOT_FOUND:
+            warning = "City not found. Please check the city name and try again."
+        elif code in {HTTP_STATUS_RATE_LIMITED, HTTP_STATUS_SERVICE_UNAVAILABLE}:
+            warning = "Geocoding is temporarily unavailable. Please try again later."
+        elif code in {HTTP_STATUS_FORBIDDEN, HTTP_STATUS_BAD_GATEWAY}:
+            warning = "Geocoding service error. Please try again later."
+        else:
+            warning = "Geocoding failed. Please try again later."
+        return SearchResponse(stations=[], warning=warning, error=True)
 
     if location is None:
         return SearchResponse(stations=[], warning="Unexpected error during geocoding.", error=True)
@@ -215,9 +240,11 @@ async def _fetch_stations_for_search(
 ) -> dict | list | SearchResponse:
     """Fetch station data or return the existing error response."""
     try:
-        return await asyncio.wait_for(
-            fuel_api.fetch_gas_stations(params, settings, app_context.http_client),
-            timeout=settings.search_timeout_seconds,
+        return await fuel_api.fetch_gas_stations(
+            params,
+            settings,
+            app_context.http_client,
+            cold_path_lock=app_context.csv_fetch_lock,
         )
     except TimeoutError:
         logger.warning("Search timed out while fetching stations for city: {}", city)
@@ -330,9 +357,9 @@ async def _build_csv_status(settings: Settings, app_context: AppContext) -> dict
     except Exception as err:
         logger.debug("Failed to check cache status: {}", err)
 
-    freshly_downloaded = app_context.csv_freshly_downloaded
-    if freshly_downloaded:
-        app_context.csv_freshly_downloaded = False
+    # Atomically read+clear the freshly_downloaded flag to prevent
+    # concurrent /api/csv-status callers from racing on the flag.
+    freshly_downloaded = app_context.pop_freshly_downloaded()
     return {
         "last_updated": last_updated,
         "source": source,
@@ -355,8 +382,12 @@ async def _remove_cache_file(cache_path: Path) -> None:
         logger.warning("Could not remove cache file (it may be in use); continuing reload: {} - {}", cache_path, err)
 
 
-async def _run_csv_reload(settings: Settings) -> None:
-    """Fetch, parse, cache, save, and clean CSV data for manual reload."""
+async def _run_csv_reload(settings: Settings) -> bool:
+    """Fetch, parse, cache, save, and clean CSV data for manual reload.
+
+    Returns:
+    - True on success, False if any step raised an exception.
+    """
     try:
         logger.debug("Starting CSV fetch...")
         async with httpx.AsyncClient(
@@ -381,6 +412,9 @@ async def _run_csv_reload(settings: Settings) -> None:
     except Exception as err:
         logger.error("Async CSV reload failed: {}", err)
         logger.exception(err)
+        return False
+    else:
+        return True
 
 
 # --- Lifespan Management ---
@@ -507,31 +541,47 @@ async def search_gas_stations(
     radius: int = min(max(request.radius or 1, 1), MAX_SEARCH_RADIUS_KM)
 
     app_context = _request.app.state.app_context
-    location_or_response = await _geocode_for_search(city, settings, app_context)
-    if isinstance(location_or_response, SearchResponse):
-        return location_or_response
 
-    params, normalized_fuel = _build_station_search_params(request, location_or_response, radius, results)
-    stations_payload = await _fetch_stations_for_search(params, settings, city, app_context)
-    if isinstance(stations_payload, SearchResponse):
-        return stations_payload
+    async def _run_pipeline() -> SearchResponse:
+        if request.latitude is not None and request.longitude is not None:
+            location_or_response: dict[str, float] | SearchResponse = {
+                "latitude": request.latitude,
+                "longitude": request.longitude,
+            }
+        else:
+            location_or_response = await _geocode_for_search(city, settings, app_context)
+        if isinstance(location_or_response, SearchResponse):
+            return location_or_response
 
-    if stations_payload is None:
-        return SearchResponse(stations=[], warning="Unexpected error fetching station data.", error=True)
+        params, normalized_fuel = _build_station_search_params(request, location_or_response, radius, results)
+        stations_payload = await _fetch_stations_for_search(params, settings, city, app_context)
+        if isinstance(stations_payload, SearchResponse):
+            return stations_payload
 
-    # Parse and normalize stations
-    stations, skipped_count = fuel_api.parse_and_normalize_stations(
-        stations_payload,
-        normalized_fuel,
-        results,
-        search_lat=location_or_response["latitude"],
-        search_lon=location_or_response["longitude"],
-    )
+        if stations_payload is None:
+            return SearchResponse(stations=[], warning="Unexpected error fetching station data.", error=True)
 
-    return SearchResponse(
-        stations=stations,
-        warning=f"{skipped_count} stations were excluded due to incomplete data." if skipped_count else None,
-    )
+        stations, skipped_count = fuel_api.parse_and_normalize_stations(
+            stations_payload,
+            normalized_fuel,
+            results,
+            search_lat=location_or_response["latitude"],
+            search_lon=location_or_response["longitude"],
+        )
+        return SearchResponse(
+            stations=stations,
+            warning=f"{skipped_count} stations were excluded due to incomplete data." if skipped_count else None,
+        )
+
+    try:
+        return await asyncio.wait_for(_run_pipeline(), timeout=settings.search_timeout_seconds)
+    except TimeoutError:
+        logger.warning("Search pipeline timed out for city={}, fuel={}", city, request.fuel)
+        return SearchResponse(
+            stations=[],
+            warning="Search timed out. Please try again later.",
+            error=True,
+        )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -657,17 +707,21 @@ async def reload_csv(
     try:
         cache_path = Path(settings.prezzi_cache_path)
         await _remove_cache_file(cache_path)
-
-        task = asyncio.create_task(_run_csv_reload(settings))
-        app.state._reload_task = task  # noqa: SLF001
-        await task
     except Exception as err:
-        logger.error("Failed to trigger CSV reload: {}", err)
+        logger.error("Failed to clear cache before reload: {}", err)
         logger.exception(err)
         return {
             "status": "error",
-            "message": "Failed to trigger CSV reload",
+            "message": "Failed to clear CSV cache",
         }
+
+    ok = await _run_csv_reload(settings)
+    if not ok:
+        return {
+            "status": "error",
+            "message": "CSV reload failed; see server logs",
+        }
+
     last_updated = get_latest_csv_timestamp(settings)
     return {
         "status": "success",

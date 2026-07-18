@@ -16,7 +16,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from src.models import Settings
 
 # Global cache for geocoding results: city name -> location dict
-# maxsize=1000 items, ttl=86400 seconds (24 hours)
+# Initialized lazily from Settings on first use
 geocoding_cache: TTLCache[str, dict[str, float]] = TTLCache(maxsize=1000, ttl=86400)
 _cache_lock = threading.Lock()
 
@@ -91,6 +91,17 @@ def set_in_cache(key: str, value: dict[str, float]) -> None:
     """Thread-safe set in geocoding cache."""
     with _cache_lock:
         geocoding_cache[key] = value
+
+
+def _reconfigure_cache(settings: Settings) -> None:
+    """Reconfigure the global geocoding cache from application settings (idempotent)."""
+    global geocoding_cache  # noqa: PLW0603
+    with _cache_lock:
+        desired_max = settings.geocoding_cache_maxsize
+        desired_ttl = settings.geocoding_cache_ttl_seconds
+        if geocoding_cache.maxsize == desired_max and geocoding_cache.ttl == desired_ttl:
+            return
+        geocoding_cache = TTLCache(maxsize=desired_max, ttl=desired_ttl)
 
 
 # Small alias mapping for common English/Italian city name pairs
@@ -232,6 +243,217 @@ def normalize_city_input(city: str) -> str:
     return ALIASES.get(c, c)
 
 
+def _build_nominatim_params(normalized_city: str) -> dict[str, Any]:
+    """Build the Nominatim query params for a city search.
+
+    Parameters:
+    - normalized_city: The normalized city name to search for.
+
+    Returns:
+    - A dictionary of query parameters for the Nominatim `/search` endpoint.
+    """
+    return {
+        "q": normalized_city,
+        "format": "json",
+        "limit": 1,
+        "countrycodes": "it",
+        "accept-language": "it",
+    }
+
+
+async def _fetch_from_nominatim(
+    city: str,
+    normalized_city: str,
+    settings: Settings,
+    http_client: AsyncGeocodingClient,
+) -> dict[str, float]:
+    """Query Nominatim for a city and extract its coordinates.
+
+    Parameters:
+    - city: The original (non-normalized) city name, used in error messages.
+    - normalized_city: The normalized city name to search for.
+    - settings: Application settings containing API URL and user agent.
+    - http_client: Shared HTTP client for making requests.
+
+    Returns:
+    - A dictionary with 'latitude' and 'longitude' keys. When Nominatim
+      returns no results, local fallback coordinates are returned instead
+      (already cached) if available.
+
+    Raises:
+    - HTTPException: If the city is not found and no local fallback exists.
+    - httpx.HTTPStatusError: If Nominatim returns an HTTP error status.
+    - httpx.RequestError: If the request fails at the network level.
+    """
+    response = await http_client.get(
+        settings.nominatim_api_url,
+        params=_build_nominatim_params(normalized_city),
+        headers={"User-Agent": settings.user_agent},
+    )
+    response.raise_for_status()
+    data = response.json()
+    if not data:
+        coords = _get_local_city_coords(settings, normalized_city)
+        if coords is not None:
+            logger.warning(
+                "Using local fallback coordinates for '{}' because provider returned no results",
+                normalized_city,
+            )
+            set_in_cache(normalized_city, coords)
+            return coords
+        raise HTTPException(status_code=404, detail=f"City '{city}' not found")
+
+    location = data[0]
+    return {"latitude": float(location["lat"]), "longitude": float(location["lon"])}
+
+
+async def _handle_rate_limited_status(
+    err: httpx.HTTPStatusError,
+    status: int | None,
+    normalized_city: str,
+    settings: Settings,
+) -> dict[str, float]:
+    """Handle a 429/509 rate-limit response: wait, then fall back to local coordinates.
+
+    Parameters:
+    - err: The original HTTP status error, used as the raised exception's cause.
+    - status: The HTTP status code that triggered this handler.
+    - normalized_city: The normalized city name being geocoded.
+    - settings: Application settings used to look up local fallback coordinates.
+
+    Returns:
+    - Local fallback coordinates, if available.
+
+    Raises:
+    - HTTPException: 503 if no local fallback coordinates are available.
+    """
+    retry_after = err.response.headers.get("Retry-After") if err.response is not None else None
+    reason = getattr(err.response, "reason_phrase", "") if err.response is not None else ""
+
+    logger.warning(
+        "Geocoding provider rate-limited: status={} reason={} retry_after={}",
+        status,
+        reason,
+        retry_after,
+    )
+
+    await _sleep_for_retry_after(retry_after)
+
+    coords = _get_local_city_coords(settings, normalized_city)
+    if coords is not None:
+        logger.warning(
+            "Using local fallback coordinates for '{}' due to provider rate limit",
+            normalized_city,
+        )
+        set_in_cache(normalized_city, coords)
+        return coords
+
+    # Surface a 503 to the client (tenacity retries will still apply to outer attempts)
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            "Geocoding service is currently rate-limited (bandwidth exceeded). "
+            "Please try again later or try a nearby city."
+        ),
+    ) from err
+
+
+async def _handle_forbidden_status(
+    status: int | None,
+    normalized_city: str,
+    settings: Settings,
+    http_client: AsyncGeocodingClient,
+) -> dict[str, float] | None:
+    """Try Photon as a fallback provider for 403/502/503 Nominatim responses.
+
+    Parameters:
+    - status: The HTTP status code that triggered this fallback attempt.
+    - normalized_city: The normalized city name being geocoded.
+    - settings: Application settings containing the Photon API URL.
+    - http_client: Shared HTTP client for making requests.
+
+    Returns:
+    - Coordinates from Photon (already cached), or None if Photon also failed.
+    """
+    logger.warning("Nominatim returned {} - trying Photon fallback", status)
+    photon_result = await _geocode_with_photon(normalized_city, settings, http_client)
+    if photon_result is not None:
+        set_in_cache(normalized_city, photon_result)
+    return photon_result
+
+
+async def _handle_nominatim_status_error(
+    err: httpx.HTTPStatusError,
+    normalized_city: str,
+    settings: Settings,
+    http_client: AsyncGeocodingClient,
+) -> dict[str, float]:
+    """Translate a Nominatim HTTPStatusError into fallback coordinates or an HTTPException.
+
+    Parameters:
+    - err: The HTTP status error raised by the Nominatim request.
+    - normalized_city: The normalized city name being geocoded.
+    - settings: Application settings used by fallback providers.
+    - http_client: Shared HTTP client for making fallback requests.
+
+    Returns:
+    - Fallback coordinates from a local dataset or the Photon provider.
+
+    Raises:
+    - HTTPException: If no fallback succeeds.
+    """
+    status = err.response.status_code if err.response is not None else None
+    reason = getattr(err.response, "reason_phrase", "") if err.response is not None else ""
+
+    if status in (429, 509):
+        return await _handle_rate_limited_status(err, status, normalized_city, settings)
+
+    if status in (403, 502, 503):
+        photon_result = await _handle_forbidden_status(status, normalized_city, settings, http_client)
+        if photon_result is not None:
+            return photon_result
+
+    logger.error("Geocoding API returned error: {} - {}", status, reason)
+    raise HTTPException(
+        status_code=status or 502,
+        detail=f"Geocoding service error: {reason}",
+    ) from err
+
+
+def _handle_nominatim_request_error(
+    err: httpx.RequestError,
+    normalized_city: str,
+    settings: Settings,
+) -> dict[str, float]:
+    """Fall back to local coordinates or raise 503 for network-level Nominatim failures.
+
+    Parameters:
+    - err: The request error raised while contacting Nominatim.
+    - normalized_city: The normalized city name being geocoded.
+    - settings: Application settings used to look up local fallback coordinates.
+
+    Returns:
+    - Local fallback coordinates, if available.
+
+    Raises:
+    - HTTPException: 503 if no local fallback coordinates are available.
+    """
+    logger.warning("Geocoding request error: {}", err)
+    coords = _get_local_city_coords(settings, normalized_city)
+    if coords is not None:
+        logger.warning(
+            "Using local fallback coordinates for '{}' due to request error",
+            normalized_city,
+        )
+        set_in_cache(normalized_city, coords)
+        return coords
+
+    raise HTTPException(
+        status_code=503,
+        detail="Geocoding service is temporarily unavailable. Please try again later.",
+    ) from err
+
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10), reraise=True)
 async def geocode_city(
     city: str,
@@ -253,6 +475,7 @@ async def geocode_city(
     - RetryError: If all retry attempts fail.
     """
     # Normalize city input and check cache first
+    _reconfigure_cache(settings)
     normalized_city = normalize_city_input(city)
     cached_result = get_from_cache(normalized_city)
     if cached_result is not None:
@@ -261,107 +484,15 @@ async def geocode_city(
 
     # Rate limiting: acquire semaphore to ensure max 1 request per second
     async with _rate_limiter:
-        # Try Nominatim first
         try:
-            response = await http_client.get(
-                settings.nominatim_api_url,
-                params={
-                    "q": normalized_city,
-                    "format": "json",
-                    "limit": 1,
-                    "countrycodes": "it",
-                    "accept-language": "it",
-                },
-                headers={"User-Agent": settings.user_agent},
-            )
-            response.raise_for_status()
-            data = response.json()
-            if not data:
-                coords = _get_local_city_coords(settings, normalized_city)
-                if coords is not None:
-                    logger.warning(
-                        "Using local fallback coordinates for '{}' because provider returned no results",
-                        normalized_city,
-                    )
-                    set_in_cache(normalized_city, coords)
-                    return coords
-                raise HTTPException(status_code=404, detail=f"City '{city}' not found")
-
-            location = data[0]
-            result = {"latitude": float(location["lat"]), "longitude": float(location["lon"])}
+            result = await _fetch_from_nominatim(city, normalized_city, settings, http_client)
         except httpx.HTTPStatusError as err:
-            status = err.response.status_code if err.response is not None else None
-            reason = getattr(err.response, "reason_phrase", "") if err.response is not None else ""
-
-            # Handle rate-limit / bandwidth-exceeded cases with retry-after and local fallback
-            if status in (429, 509):
-                retry_after = None
-                if err.response is not None:
-                    retry_after = err.response.headers.get("Retry-After")
-
-                logger.warning(
-                    "Geocoding provider rate-limited: status={} reason={} retry_after={}",
-                    status,
-                    reason,
-                    retry_after,
-                )
-
-                await _sleep_for_retry_after(retry_after)
-
-                # Try to find local city coordinates as a fallback
-                coords = _get_local_city_coords(settings, normalized_city)
-                if coords is not None:
-                    logger.warning(
-                        "Using local fallback coordinates for '{}' due to provider rate limit",
-                        normalized_city,
-                    )
-                    set_in_cache(normalized_city, coords)
-                    return coords
-
-                # Surface a 503 to the client (tenacity retries will still apply to outer attempts)
-                raise HTTPException(
-                    status_code=503,
-                    detail=(
-                        "Geocoding service is currently rate-limited (bandwidth exceeded). "
-                        "Please try again later or try a nearby city."
-                    ),
-                ) from err
-
-            # For 403 (Forbidden) or other errors, try Photon fallback
-            if status in (403, 502, 503):
-                logger.warning("Nominatim returned {} - trying Photon fallback", status)
-                photon_result = await _geocode_with_photon(normalized_city, settings, http_client)
-                if photon_result is not None:
-                    set_in_cache(normalized_city, photon_result)
-                    return photon_result
-
-            # Other HTTP errors — surface upstream
-            logger.error(
-                "Geocoding API returned error: {} - {}",
-                status,
-                reason,
-            )
-            raise HTTPException(
-                status_code=status or 502,
-                detail=f"Geocoding service error: {reason}",
-            ) from err
+            return await _handle_nominatim_status_error(err, normalized_city, settings, http_client)
         except httpx.RequestError as err:
-            logger.warning("Geocoding request error: {}", err)
-            # Try local fallback coordinates before failing
-            coords = _get_local_city_coords(settings, normalized_city)
-            if coords is not None:
-                logger.warning(
-                    "Using local fallback coordinates for '{}' due to request error",
-                    normalized_city,
-                )
-                set_in_cache(normalized_city, coords)
-                return coords
+            return _handle_nominatim_request_error(err, normalized_city, settings)
 
-            raise HTTPException(
-                status_code=503,
-                detail="Geocoding service is temporarily unavailable. Please try again later.",
-            ) from err
-        else:
-            # Update cache only if request succeeded
-            set_in_cache(normalized_city, result)
-            return result
+        # Update cache only if request succeeded
+        set_in_cache(normalized_city, result)
+        # Soft rate limit: Nominatim allows max 1 request per second
+        await asyncio.sleep(1.0)
+        return result

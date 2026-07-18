@@ -24,6 +24,8 @@ interface FormDataType {
   radius: string;
   fuel: string;
   results: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 /**

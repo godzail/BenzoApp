@@ -126,7 +126,7 @@ window.appMapMixin = {
             return;
         }
         const station = marker.__station;
-        if (station?.latitude && station?.longitude) {
+        if (station?.latitude != null && station?.longitude != null) {
             this.map.setView([station.latitude, station.longitude], 16);
             marker.openPopup();
         }
@@ -154,7 +154,7 @@ window.appMapMixin = {
      * @param station - Object containing `latitude` and `longitude` of the destination.
      */
     getDirections(station) {
-        if (!(station?.latitude && station.longitude)) {
+        if (!(station?.latitude != null && station.longitude != null)) {
             return;
         }
         const url = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`;
@@ -165,19 +165,34 @@ window.appMapMixin = {
     },
     /**
      * Attempt to locate the user via the browser `geolocation` API and submit a search for the current location.
-     * Sets an error message if location cannot be retrieved.
+     * Surfaces localized error messages via the standard UI path.
      */
     locateUser() {
         if (!navigator.geolocation) {
-            this.error = "Geolocation is not supported by your browser";
+            this.error = this.translate("geolocation_unsupported", "Geolocation is not supported by your browser");
+            this.updateResultsUI?.();
             return;
         }
-        navigator.geolocation.getCurrentPosition((_position) => {
-            this.formData.city = "Current Location";
+        const locationBtn = document.getElementById("location-btn");
+        if (locationBtn)
+            locationBtn.disabled = true;
+        navigator.geolocation.getCurrentPosition((position) => {
+            this.formData.latitude = position.coords.latitude;
+            this.formData.longitude = position.coords.longitude;
+            this.formData.city = this.translate("current_location", "Current location");
+            this.userLocation = {
+                lat: position.coords.latitude,
+                lon: position.coords.longitude,
+            };
             this.submitForm();
+            if (locationBtn)
+                locationBtn.disabled = false;
         }, (_error) => {
-            this.error = "Unable to retrieve your location";
-        });
+            this.error = this.translate("geolocation_error", "Unable to retrieve your location");
+            if (locationBtn)
+                locationBtn.disabled = false;
+            this.updateResultsUI?.();
+        }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
     },
 };
 //# sourceMappingURL=app.map.js.map

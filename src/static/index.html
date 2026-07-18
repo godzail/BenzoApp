@@ -5,10 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta
       name="description"
-      content="Find nearby gas stations and compare fuel prices in Italy. Search by city, radius, and fuel type."
+      content="Trova i distributori di benzina vicino a te e confronta i prezzi dei carburanti in Italia. Cerca per città, raggio e tipo di carburante."
     >
-    <title>Gas Station App - Find Nearby Fuel Stations</title>
+    <meta name="theme-color" content="#1c1917">
+    <title>BenzoApp – Trova distributori e confronta i prezzi dei carburanti</title>
     <link rel="icon" href="/favicon.png" type="image/x-icon">
+    <!-- Inline theme bootstrap avoids a flash of incorrect theme on first paint. -->
+    <script>
+    (() => {
+      var stored;
+      var theme;
+      try {
+        stored = localStorage.getItem("app-theme");
+        theme = stored === "light" || stored === "dark" ? stored : "light";
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (_e) {
+        document.documentElement.setAttribute("data-theme", "light");
+      }
+    })();
+    </script>
     <!-- Google Fonts - Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -61,20 +76,20 @@
               dark: "#c2410c",
             },
             benzina: {
-              DEFAULT: "#ea580c",
-              light: "#fb923c",
+              DEFAULT: "#15803d",
+              light: "#4ade80",
             },
             gasolio: {
-              DEFAULT: "#475569",
-              light: "#94a3b8",
+              DEFAULT: "#a16207",
+              light: "#fbbf24",
             },
             gpl: {
-              DEFAULT: "#dc2626",
-              light: "#f87171",
+              DEFAULT: "#1d4ed8",
+              light: "#60a5fa",
             },
             metano: {
-              DEFAULT: "#0369a1",
-              light: "#38bdf8",
+              DEFAULT: "#0f766e",
+              light: "#2dd4bf",
             },
           },
           fontFamily: {
@@ -120,15 +135,13 @@
     </script>
     <!-- Tailwind CSS -->
     <script defer src="https://cdn.tailwindcss.com"></script>
-    <!-- Canonical URL -->
-    <link rel="canonical" href="https://yourdomain.com/">
     <!-- Structured Data -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
-      "name": "Gas Station Finder",
-      "description": "Find nearby gas stations and compare fuel prices in Italy",
+      "name": "BenzoApp",
+      "description": "Trova i distributori di benzina vicino a te e confronta i prezzi dei carburanti in Italia",
       "applicationCategory": "Utilities",
       "operatingSystem": "Web",
       "offers": {
@@ -142,8 +155,8 @@
 
   <body class="bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen font-sans transition-colors duration-250">
     <!-- Skip links for keyboard navigation -->
-    <a href="#main-content" class="skip-link">Skip to main content</a>
-    <a href="#search-container" class="skip-link">Skip to search</a>
+    <a href="#main-content" class="skip-link" data-i18n="skip_to_content">Vai al contenuto</a>
+    <a href="#search-container" class="skip-link" data-i18n="skip_to_search">Vai alla ricerca</a>
 
     <!-- Status messages for screen readers -->
     <div aria-live="polite" aria-atomic="true" id="status-messages" class="sr-only"></div>
@@ -166,7 +179,6 @@
       <div class="header-content max-w-[1600px] mx-auto flex items-center justify-between gap-6 flex-wrap"></div>
     </header>
     <main id="main-content" class="max-w-[1600px] mx-auto p-4 lg:p-6">
-      <h1 class="sr-only">Gas Station Finder Application</h1>
       <div class="main-layout flex flex-col gap-8 lg:grid lg:grid-cols-[1fr_4px_1fr] lg:gap-0 lg:items-start">
         <!-- Left Column: Search + Results -->
         <div class="search-column flex flex-col" id="search-column">

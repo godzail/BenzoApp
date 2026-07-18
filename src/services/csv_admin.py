@@ -27,12 +27,19 @@ def preferred_local_csv_dir(settings: Settings) -> Path:
 
 
 def candidate_local_csv_dirs(settings: Settings) -> list[Path]:
-    """Return local CSV directories in lookup preference order."""
+    """Return local CSV directories in lookup preference order.
+
+    Notes:
+    - Preference order when `prezzi_local_data_dir` is None:
+        1. `data` (project-level, outside public static mount)
+        2. `src/static/data` (legacy; kept for backward compatibility)
+        3. `src/services/static/data` (service-local)
+    """
     candidates: list[Path] = []
     local_dir = getattr(settings, "prezzi_local_data_dir", None)
     if local_dir:
         candidates.append(Path(local_dir))
-    candidates.extend((LOCAL_DATA_DIR, SERVICE_DATA_DIR, PROJECT_DATA_DIR))
+    candidates.extend((PROJECT_DATA_DIR, LOCAL_DATA_DIR, SERVICE_DATA_DIR))
     return candidates
 
 
