@@ -97,7 +97,6 @@ ty check .
 - Write **docstrings** for modules, classes, and public functions
 - Keep functions focused and single-purpose
 - Follow the **role definition** in `agents.md` - act as a senior backend engineer
-- Adhere to guidelines in `docs/agents/py.instructions.md` (if available)
 
 ### Frontend Code (JavaScript, HTML, CSS)
 

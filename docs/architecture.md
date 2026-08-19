@@ -12,6 +12,7 @@ BenzoApp is a web application for searching and analyzing gas stations in Italy.
 
 - **Backend**: FastAPI (async-capable, high-performance Python framework)
 - **Frontend**: TypeScript (compiled to vanilla ES2020), Tailwind CSS, Leaflet maps, and i18next
+- **Visual system**: CSS custom properties in `src/static/css/base.css`, with petroleum-teal surfaces/accent, amber petrol highlights, and WCAG-checked fuel chips for dark/light themes
 - **Data Sources**: OpenStreetMap Nominatim (geocoding), MIMIT official CSV feeds
 - **Caching**: Memory-based (TTLCache) + local JSON/CSV files
 - **Architecture**: Monolithic backend with clear service separation
@@ -244,6 +245,26 @@ class Settings(BaseSettings):
 │    { stations: [...], warning?: "..." }            │
 └────────────────────────────────────────────────────┘
 ```
+
+### Frontend result ranking and cost model
+
+The API continues to return stations and their €/L prices; the trip comparison is a
+client-side presentation layer in `src/static/ts/trip-cost.ts` and
+`src/static/ts/app.ui.interactions.ts`:
+
+1. The response is normalized and ranked by estimated refuelling cost by default.
+2. The estimate combines the configured litres with the station price and adds fuel
+   for the reported round-trip detour (`distance × 2`, consumption in L/100 km).
+3. Users can switch to price or distance sorting and change litres, consumption and
+   reference fuel price without another `/search` request.
+4. Cards expose separate best-choice, lowest-price and closest badges, all available
+   fuel prices in a native `<details>` disclosure, update freshness and savings
+   indicators.
+
+The display intentionally omits savings or detour values when the required price or
+distance is missing. Translation resources in `src/static/locales/it.json` and
+`en.json` contain the dynamic labels; the i18n fallback also interpolates values so
+the UI never exposes a raw `{amount}` placeholder during asynchronous loading.
 
 ---
 

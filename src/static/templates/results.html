@@ -71,6 +71,81 @@
   <!-- Results -->
   <section id="results-section" class="hidden" aria-labelledby="results-heading">
     <h2 id="results-heading" class="sr-only" data-i18n="results_heading">Results</h2>
+
+    <!-- Savings summary header -->
+    <p id="summary-header" class="summary-header mt-0 mb-3 text-base font-semibold text-[var(--color-primary)]" aria-live="polite"></p>
+
+    <!-- Trip preference bar: liters / consumption / reference price / sort -->
+    <div
+      id="trip-pref-bar"
+      class="trip-pref-bar mb-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-color)] p-4 flex flex-col gap-3"
+    >
+      <fieldset class="flex flex-wrap items-center gap-2 border-0 m-0 p-0" aria-label="Ordina risultati" data-i18n-aria-label="sort_by">
+        <legend class="text-sm font-semibold text-[var(--text-secondary)]" data-i18n="sort_by">Ordina per</legend>
+        <button
+          type="button"
+          class="chip rounded-full px-3 py-1 text-sm border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] cursor-pointer"
+          data-trip-sort="total"
+          aria-pressed="true"
+          data-i18n="sort_total"
+        >Totale</button>
+        <button
+          type="button"
+          class="chip rounded-full px-3 py-1 text-sm border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] cursor-pointer"
+          data-trip-sort="price"
+          aria-pressed="false"
+          data-i18n="sort_price"
+        >Prezzo</button>
+        <button
+          type="button"
+          class="chip rounded-full px-3 py-1 text-sm border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] cursor-pointer"
+          data-trip-sort="distance"
+          aria-pressed="false"
+          data-i18n="sort_distance"
+        >Distanza</button>
+      </fieldset>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <label class="block text-sm text-[var(--text-secondary)]" for="trip-liters">
+          <span class="block mb-1 font-medium" data-i18n="trip_liters">Litri per pieno</span>
+          <input
+            type="number"
+            id="trip-liters"
+            name="trip-liters"
+            min="1"
+            max="200"
+            step="1"
+            inputmode="numeric"
+            class="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] px-3 py-2"
+          />
+        </label>
+        <label class="block text-sm text-[var(--text-secondary)]" for="trip-consumption">
+          <span class="block mb-1 font-medium" data-i18n="trip_consumption">Consumo (L/100 km)</span>
+          <input
+            type="number"
+            id="trip-consumption"
+            name="trip-consumption"
+            min="1"
+            max="30"
+            step="0.1"
+            inputmode="decimal"
+            class="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] px-3 py-2"
+          />
+        </label>
+        <label class="block text-sm text-[var(--text-secondary)]" for="trip-fuel-price">
+          <span class="block mb-1 font-medium" data-i18n="trip_fuel_price">Prezzo riferimento (€/L)</span>
+          <input
+            type="number"
+            id="trip-fuel-price"
+            name="trip-fuel-price"
+            min="0.5"
+            max="5"
+            step="0.01"
+            inputmode="decimal"
+            class="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[var(--text-primary)] px-3 py-2"
+          />
+        </label>
+      </div>
+    </div>
     <div id="stations-list" class="flex flex-col gap-3"></div>
   </section>
 

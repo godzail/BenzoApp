@@ -596,6 +596,42 @@ details[open] .recent-searches-title::before {
   color: var(--chip-active-text);
 }
 
+/* ── Price freshness badges ─────────────────────────────────── */
+.freshness-badge {
+  border: 1px solid transparent;
+}
+
+.freshness-badge.freshness-fresh {
+  background: color-mix(in srgb, var(--color-success, #22a559) 15%, transparent);
+  border-color: color-mix(in srgb, var(--color-success, #22a559) 40%, transparent);
+  color: var(--color-success, #22a559);
+}
+
+.freshness-badge.freshness-warn {
+  background: color-mix(in srgb, var(--color-warning, #b26a00) 15%, transparent);
+  border-color: color-mix(in srgb, var(--color-warning, #b26a00) 40%, transparent);
+  color: var(--color-warning, #b26a00);
+}
+
+.freshness-badge.freshness-old,
+.freshness-badge.freshness-unknown {
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-error) 35%, transparent);
+  color: var(--color-error);
+}
+
+/* ── Trip preference bar sort chips ─────────────────────────── */
+#trip-pref-bar .chip[aria-pressed="true"] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--chip-active-text, #fff);
+}
+
+#trip-pref-bar .chip[aria-pressed="false"]:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 /* ── CSV Update Startup Popup ─────────────────────────────── */
 #csv-update-popup {
   position: fixed;

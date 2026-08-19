@@ -515,6 +515,7 @@ def _filter_and_transform_combined(
                 "prezzo": price_info.get("prezzo"),
                 "self": price_info.get("self"),
                 "data": price_info.get("data"),
+                "prezzi": station.get("prezzi", {}),
                 "distanza": round(dist, 2) if dist is not None else None,
                 "latitudine": lat,
                 "longitudine": lon,

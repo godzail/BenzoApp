@@ -7,9 +7,9 @@
 ---
 
 <p align="center">
-  <img src="docs/screenshots/main.jpg" alt="Main Interface" />
+  <img src="docs/screenshots/main.jpg" alt="BenzoApp main interface with petroleum palette, fuel filters, cost comparison, and map" />
   <br />
-  <em>Figure 1: The main interface of BenzoApp showing the search input, filters, and interactive map</em>
+  <em>Figure 1: BenzoApp's petroleum-themed interface with fuel filters, trip-cost comparison, station badges, and interactive map</em>
 </p>
 
 ---

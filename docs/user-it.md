@@ -1,6 +1,6 @@
 # Guida Utente di BenzoApp
 
-**Versione 1.2** | Ultimo aggiornamento: Giugno 2026
+**Versione 1.3 in sviluppo** | Ultimo aggiornamento: Agosto 2026
 
 ---
 
@@ -12,8 +12,8 @@ BenzoApp fornisce dati sui prezzi in tempo reale da fonti ufficiali, mostrati at
 
 ### Vista principale
 
-![Interfaccia principale](screenshots/main.jpg)
-*Figura 1: L'interfaccia principale di BenzoApp che mostra il campo di ricerca, gli slider etichettati per raggio e numero di risultati, i chip carburante e la mappa interattiva*
+![Interfaccia principale di BenzoApp con palette petrolio, filtri carburante, confronto del costo e mappa](screenshots/main.jpg)
+*Figura 1: L'interfaccia aggiornata di BenzoApp con palette petrolio/teal, filtri carburante, confronto del costo del pieno, badge della stazione e mappa interattiva*
 
 ---
 
@@ -121,6 +121,8 @@ Il pannello dei risultati mostra per ogni stazione:
 - **Prezzi dei carburanti**: prezzi correnti per i carburanti disponibili
 - **Differenza prezzo**: mostra quanto più costosa rispetto alla stazione più economica
 - **Formato prezzo**: tutti i prezzi mostrati in €/litro con 3 decimali
+- **Costo stimato del pieno**: il valore `≈` include i litri configurati e il carburante necessario per la deviazione
+- **Dati del prezzo**: ogni scheda indica la data dell'ultimo aggiornamento quando disponibile
 
 #### Marker sulla mappa
 
@@ -129,9 +131,11 @@ Il pannello dei risultati mostra per ogni stazione:
 - **I marker si raggruppano** quando la mappa è zoomata indietro
 - **La mappa si adatta automaticamente** per mostrare tutti i risultati
 
-#### Evidenziazione del miglior prezzo
+#### Confronto del costo reale
 
-La stazione con il prezzo più basso per il carburante selezionato è contrassegnata con il badge "Miglior Prezzo!".
+Il pannello ordina inizialmente le stazioni per il costo stimato di un pieno, non solo per il prezzo al litro. La stazione con il costo totale più basso è contrassegnata con **Miglior scelta**. Sono inoltre disponibili i badge **Prezzo più basso** e **Più vicino** quando rappresentano criteri diversi.
+
+Sotto i risultati viene mostrato il risparmio massimo stimato tra le stazioni elencate. Le singole schede mostrano il risparmio rispetto alla media dei prezzi presenti e il costo aggiuntivo della deviazione. Se il prezzo o la distanza non sono disponibili, il valore non viene inventato e il relativo indicatore resta assente.
 
 ### 3. Interazione con la mappa
 
@@ -170,6 +174,17 @@ Se una stazione non è visibile nella vista corrente:
 2. La mappa si centrerà su quella stazione
 
 ### 5. Gestione preferenze
+
+#### Preferenze del pieno
+
+Nel pannello dei risultati puoi impostare:
+
+- **Litri per pieno** (1–200)
+- **Consumo** in L/100 km (1–30)
+- **Prezzo di riferimento** in €/L (0,50–5,00), usato per stimare il carburante della deviazione
+- **Ordinamento** per costo totale, prezzo o distanza
+
+Le modifiche ricalcolano e ridisegnano i risultati localmente, senza ripetere la chiamata di ricerca. Le preferenze vengono salvate nel browser e ripristinate alla visita successiva.
 
 #### Cambio tema
 
@@ -415,6 +430,7 @@ Vedi il repository per le linee guida di contribuzione.
 - **Strumenti di build**: Bun per gestione pacchetti e scripting
 - **API**: OpenStreetMap Nominatim, download file CSV Ministero dello Sviluppo Economico
 - **Design**: CSS personalizzato con font Inter
+- **Palette**: tema petrolio/teal con accento amber per la benzina e colori dedicati per ogni carburante, mantenendo il contrasto nei temi chiaro e scuro
 
 ### Fornitori dati
 
@@ -435,6 +451,14 @@ BenzoApp è rilasciata sotto licenza MIT. Vedi il file LICENSE per i dettagli.
 - Ristilizzato lo stato attivo dei chip carburante con riempimento opaco ad alto contrasto e testo bianco
 - Rimosse regole CSS duplicate e in conflitto per gli slider e le frecce di discesa
 - Aggiornata la documentazione con lo stack frontend TypeScript/Tailwind attuale
+
+### In sviluppo (Agosto 2026)
+
+- Aggiunto il modello di costo del pieno con deviazione e ordinamento per costo totale, prezzo o distanza
+- Aggiunti badge distinti per miglior scelta, prezzo più basso e stazione più vicina
+- Aggiunti dettagli espandibili per tutti i carburanti, freschezza dei prezzi e risparmio rispetto alla media
+- Completate le traduzioni IT/EN delle nuove etichette e corretta l'interpolazione dei valori dinamici (`amount`)
+- Rinnovata la palette visiva con colori petrolio/teal e accenti carburante ad alto contrasto
 
 ### v1.1.0 (Febbraio 2026)
 

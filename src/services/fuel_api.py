@@ -79,6 +79,31 @@ async def fetch_gas_stations(
         return payload
 
 
+def _build_fuel_prices(data: dict[str, Any], fuel_type: str, primary_price: float) -> list[FuelPrice]:
+    """Build the list of fuel prices a station carries, primary fuel first.
+
+    The requested fuel is listed first so existing ``fuel_prices[0]`` consumers
+    keep working; the remaining fuels power the expandable "all fuels" detail
+    view. Malformed or non-positive prices are skipped.
+    """
+    fuel_by_type: dict[str, float] = {fuel_type: primary_price}
+    all_fuels = data.get("prezzi")
+    if isinstance(all_fuels, dict):
+        for ftype, finfo in all_fuels.items():
+            if not isinstance(ftype, str):
+                continue
+            raw = finfo.get("prezzo") if isinstance(finfo, dict) else None
+            if raw is None:
+                continue
+            try:
+                fprice = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if fprice > 0:
+                fuel_by_type.setdefault(ftype, fprice)
+    return [FuelPrice(type=ftype, price=fprice) for ftype, fprice in fuel_by_type.items()]
+
+
 def parse_and_normalize_stations(
     stations_payload: dict | list,
     fuel_type: str,
@@ -144,8 +169,9 @@ def parse_and_normalize_stations(
                 address=data.get("indirizzo", "") or "",
                 latitude=lat,
                 longitude=lon,
-                fuel_prices=[FuelPrice(type=fuel_type, price=price)],
+                fuel_prices=_build_fuel_prices(data, fuel_type, price),
                 distance=round(distance, 1) if distance is not None else None,
+                updated_at=data.get("data"),
             )
             stations.append(station)
         except (ValueError, TypeError) as err:

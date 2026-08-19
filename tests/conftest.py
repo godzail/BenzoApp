@@ -106,6 +106,7 @@ class DummyClientCsvConditional:
         prezzi_status: int = 200,
         anag_content: bytes = b"anag",
         prezzi_content: bytes = b"prezzi",
+        *,
         anag_resp_headers: dict | None = None,
         prezzi_resp_headers: dict | None = None,
     ) -> None:

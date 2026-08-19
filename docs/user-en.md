@@ -1,6 +1,6 @@
 # BenzoApp User Guide
 
-**Version 1.2** | Last Updated: June 2026
+**Version 1.3 in development** | Last Updated: August 2026
 
 ---
 
@@ -12,8 +12,8 @@ BenzoApp provides real-time fuel price data from official sources, displayed thr
 
 ### Main View
 
-![Main Interface](screenshots/main.jpg)
-*Figure 1: The main interface of BenzoApp showing the search input, labeled radius and results sliders, fuel chips, and interactive map*
+![BenzoApp main interface with petroleum palette, fuel filters, cost comparison, and map](screenshots/main.jpg)
+*Figure 1: The updated BenzoApp interface with petroleum/teal palette, fuel filters, refuelling cost comparison, station badges, and interactive map*
 
 ---
 
@@ -120,6 +120,8 @@ The results panel displays each gas station with:
 - **Fuel Prices**: Current prices for available fuel types
 - **Price Difference**: Shows how much more expensive compared to the cheapest station
 - **Price Format**: All prices shown as €/liter with 3 decimal places
+- **Estimated refuelling cost**: the `≈` value includes the configured litres and the fuel needed for the detour
+- **Price freshness**: each card shows the latest update timestamp when available
 
 #### Map Markers
 
@@ -128,9 +130,11 @@ The results panel displays each gas station with:
 - **Multiple markers** cluster when zoomed out
 - **Map automatically adjusts** to show all results
 
-#### Best Price Highlight
+#### Total-cost comparison
 
-The station offering the lowest price for your selected fuel type is marked with a "Miglior Prezzo!" (Best Price!) badge.
+Results are initially sorted by the estimated total cost of a refuelling, not only by €/L. The station with the lowest total is marked **Best choice**. **Lowest price** and **Closest** badges are shown separately when those criteria identify a different station.
+
+The summary below the results shows the maximum estimated saving across the listed stations. Individual cards show saving versus the listed average and the additional fuel cost of the detour. When a price or distance is unavailable, the value is omitted instead of being guessed.
 
 ### 3. Interacting with the Map
 
@@ -169,6 +173,17 @@ If a station is not visible on the current map view:
 2. The map will center on that station
 
 ### 5. Managing Preferences
+
+#### Refuelling preferences
+
+The results panel lets you configure:
+
+- **Litres per refuelling** (1–200)
+- **Consumption** in L/100 km (1–30)
+- **Reference price** in €/L (0.50–5.00), used to estimate detour fuel cost
+- **Sorting** by total cost, price or distance
+
+Changes re-rank and redraw the current results locally without another search request. Preferences are saved in the browser and restored on the next visit.
 
 #### Theme Switching
 
@@ -424,6 +439,7 @@ See the project repository for contribution guidelines.
 - **Build Tools**: Bun for package management and scripting
 - **APIs**: OpenStreetMap Nominatim, Italian Ministry of Economic Development CSV downloads
 - **Design**: Custom CSS with Inter font
+- **Palette**: petroleum/teal theme with an amber gasoline accent and dedicated fuel colors, keeping contrast in both light and dark themes
 
 ### Data Providers
 
@@ -444,6 +460,14 @@ BenzoApp is released under the MIT License. See LICENSE file for details.
 - Restyled active fuel chip state with a solid, high-contrast fill and white text
 - Removed duplicate and conflicting CSS rules for range sliders and disclosure arrows
 - Updated documentation to reflect the current TypeScript/Tailwind frontend stack
+
+### In development (August 2026)
+
+- Added the refuelling-plus-detour cost model and sorting by total cost, price or distance
+- Added separate Best choice, Lowest price and Closest badges
+- Added expandable all-fuel details, price freshness and saving-versus-average indicators
+- Completed IT/EN translations for the new labels and fixed interpolation of dynamic `amount` values
+- Refreshed the visual palette with petroleum/teal surfaces and high-contrast fuel accents
 
 ### v1.1.0 (February 2026)
 

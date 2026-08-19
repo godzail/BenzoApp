@@ -17,6 +17,19 @@ catch {
 }
 window.APP_USER_LANG = userLang;
 /**
+ * Interpolate the small fallback messages used before i18next is ready.
+ * i18next handles interpolation for loaded resources, but a missing resource
+ * must still produce a user-facing message instead of exposing `{amount}`.
+ */
+function interpolateFallback(message, params) {
+    if (!params)
+        return message;
+    return message.replace(/\{\{?([A-Za-z0-9_]+)\}?\}/g, (match, key) => {
+        const value = params[key];
+        return value === undefined || value === null ? match : String(value);
+    });
+}
+/**
  * Safely get translation with fallback
  * @param key - The translation key
  * @param fallback - The fallback text if translation not found
@@ -26,11 +39,11 @@ function t(key, fallback = "", params) {
     if (typeof i18next !== "undefined" && i18next.t) {
         const translated = i18next.t(key, params);
         if (translated === key) {
-            return fallback || key;
+            return interpolateFallback(fallback || key, params);
         }
         return translated;
     }
-    return fallback || key;
+    return interpolateFallback(fallback || key, params);
 }
 /**
  * Set the application language

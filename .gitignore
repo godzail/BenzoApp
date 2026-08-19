@@ -258,23 +258,23 @@ typings/
 .cache
 
 # Local assistant-control files: keep on disk, never in git
-/AGENTS.md
-/CLAUDE.md
-/.agent/
-/.agents/
-/.claude/
-/.codex/
-/.complexipy_cache/
-/.github/
-/.githooks/
-/.playwright-cli/
-/.remember/
-/backlog/
-/.github/agents/
-/.github/chatmodes/
-/.github/instructions/
-/.github/prompts/
-/docs/agents/
+AGENTS.md
+CLAUDE.md
+.agent/
+.agents/
+.claude/
+.codex/
+.complexipy_cache/
+.github/
+.githooks/
+.playwright-cli/
+.remember/
+backlog/
+.github/agents/
+.github/chatmodes/
+.github/instructions/
+.github/prompts/
+docs/agents/
 
 # Next.js build output
 .next

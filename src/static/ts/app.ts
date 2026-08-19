@@ -24,8 +24,9 @@ interface GasStationApp {
     address?: string;
     latitude?: number;
     longitude?: number;
-    fuel_prices?: Array<{ price?: number }>;
+    fuel_prices?: Array<{ type?: string; price?: number }>;
     distance?: string | number;
+    updated_at?: string | null;
   }>;
   error: string;
   searched: boolean;
@@ -41,6 +42,8 @@ interface GasStationApp {
   csvLastUpdated: string | null;
   csvReloading: boolean;
   csvStatusLoading: boolean;
+  tripPrefs: { liters: number; consumptionLp100: number; fuelBasePrice: number; sort?: string };
+  sortMode: string;
   csvStatusInterval: ReturnType<typeof setInterval> | null;
   init: () => Promise<void>;
 }
@@ -91,11 +94,18 @@ function createInitialState() {
       address?: string;
       latitude?: number;
       longitude?: number;
-      fuel_prices?: Array<{ price?: number }>;
       distance?: string | number;
+      fuel_prices?: Array<{ price?: number }>;
     }>,
-    error: "",
+    tripPrefs: {
+      liters: 40,
+      consumptionLp100: 6.5,
+      fuelBasePrice: 1.85,
+      sort: "total",
+    },
+    sortMode: "total",
     searched: false,
+    error: "",
     currentTheme: getInitialTheme(),
     currentLang: null as string | null,
     map: null,

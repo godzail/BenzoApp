@@ -161,9 +161,10 @@ async def _handle_initial_fetch_error(
         raise original_exc from original_exc
 
 
-async def _fetch_one_csv(  # noqa: PLR0913 - small dataclass-style helper, OK to keep flat
+async def _fetch_one_csv(  # noqa: PLR0913 - small helper; trailing args are keyword-only to stay readable
     http_client: httpx.AsyncClient,
     settings: Settings,
+    *,
     url: str,
     response: httpx.Response,
     local_glob: str,
@@ -254,12 +255,20 @@ async def _fetch_csvs(  # noqa: PLR0912
 
     # 304 parziale — carica il file locale per quello non modificato, o ri-scarica se assente
     anag_text, resp_anag = await _fetch_one_csv(
-        http_client, settings, settings.prezzi_csv_anagrafica_url, resp_anag,
-        "anagrafica_impianti_attivi*.csv", "anagrafica",
+        http_client,
+        settings,
+        url=settings.prezzi_csv_anagrafica_url,
+        response=resp_anag,
+        local_glob="anagrafica_impianti_attivi*.csv",
+        label="anagrafica",
     )
     prezzi_text, resp_prezzi = await _fetch_one_csv(
-        http_client, settings, settings.prezzi_csv_prezzi_url, resp_prezzi,
-        "prezzo_alle_8*.csv", "prezzi",
+        http_client,
+        settings,
+        url=settings.prezzi_csv_prezzi_url,
+        response=resp_prezzi,
+        local_glob="prezzo_alle_8*.csv",
+        label="prezzi",
     )
 
     # Persisti ETag/Last-Modified dalle risposte 200 per richieste future

@@ -628,48 +628,20 @@ async def render_docs(page: str) -> HTMLResponse:
             <link rel='icon' href='/favicon.ico'>
             <base href='/docs-static/'>
             <title>Documentation</title>
-            <script>
-            window.tailwind = window.tailwind || {{}};
-            window.tailwind.config = {{
-              darkMode: 'class',
-              theme: {{
-                extend: {{
-                  fontFamily: {{
-                    sans: ['Instrument Sans', 'system-ui', 'sans-serif'],
-                    display: ['Bricolage Grotesque', 'Instrument Sans', 'system-ui', 'sans-serif'],
-                  }},
-                  borderRadius: {{ sm: '8px', md: '12px', lg: '16px', xl: '24px' }},
-                  boxShadow: {{
-                    sm: 'var(--shadow-sm)',
-                    md: 'var(--shadow-md)',
-                    lg: 'var(--shadow-lg)',
-                    xl: 'var(--shadow-xl)',
-                    card: 'var(--shadow-card)',
-                  }},
-                }},
-              }},
-            }};
-            </script>
-            <script defer src='https://cdn.tailwindcss.com'></script>
         </head>
-        <body class='bg-[var(--bg-primary)] text-[var(--text-primary)]
-        min-h-screen font-sans transition-colors duration-[250ms]'>
-            <div class='max-w-3xl mx-auto px-6 py-12 relative'>
-                <div class='docs-content mt-4'>{rendered}</div>
+        <body class='docs-page'>
+            <div class='docs-shell'>
+                <div class='docs-content'>{rendered}</div>
                 <button
                 onclick="(history.length > 1) ? history.back() : (window.location.href='/')"
                 aria-label='Back to main page'
-                class='absolute top-6 left-6 p-1.5 rounded-lg border border-[var(--border-color)]
-                bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-colors
-                cursor-pointer text-[var(--text-primary)] shadow-sm'>
+                class='docs-control docs-back-control'>
                     <svg class='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15 19l-7-7 7-7'/>
                     </svg>
                 </button>
                 <button id='docs-theme-toggle' aria-label='Toggle theme'
-                class='absolute top-6 right-6 p-1.5 rounded-lg border border-[var(--border-color)]
-                bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition-colors
-                cursor-pointer text-[var(--text-primary)] shadow-sm'>
+                class='docs-control docs-theme-control'>
                     <svg id='theme-icon-sun' class='w-4 h-4' fill='none' stroke='currentColor'
                     viewBox='0 0 24 24'>
                         <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2'
@@ -690,7 +662,12 @@ async def render_docs(page: str) -> HTMLResponse:
         </body>
         </html>""")
 
-    return HTMLResponse(content=html_page, headers={"Cache-Control": "public, max-age=3600"})
+    # Documentation is edited and served from the workspace; never keep an old
+    # rendered page around after a content or theme update.
+    return HTMLResponse(
+        content=html_page,
+        headers={"Cache-Control": "no-cache, must-revalidate"},
+    )
 
 
 @app.get("/health")

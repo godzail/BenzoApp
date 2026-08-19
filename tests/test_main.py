@@ -173,6 +173,42 @@ def test_reload_csv_triggers_fetch_and_saves(client: TestClient, monkeypatch) ->
     assert data.get("last_updated") == "2026-02-13T12:00:00+00:00"
 
 
+def test_search_station_exposes_updated_at_and_all_fuels(client, monkeypatch) -> None:
+    """The stations response exposes the price-update timestamp and all fuel prices."""
+    import src.main as _main
+
+    async def _fast_geocode(city, settings, app_context):
+        return {"latitude": 41.9028, "longitude": 12.4964}
+
+    async def _fake_fetch(params, settings, city, app_context):
+        return [
+            {
+                "id_impianto": "999",
+                "gestore": "Eni",
+                "indirizzo": "Via Roma 1",
+                "prezzo": 1.85,
+                "data": "26/02/2026 08:00:00",
+                "distanza": 1.5,
+                "latitudine": 41.9,
+                "longitudine": 12.49,
+                "prezzi": {
+                    "benzina": {"prezzo": 1.85, "self": True, "data": "26/02/2026 08:00:00"},
+                    "gasolio": {"prezzo": 1.7, "self": False, "data": "26/02/2026 07:00:00"},
+                },
+            },
+        ]
+
+    monkeypatch.setattr(_main, "_geocode_for_search", _fast_geocode)
+    monkeypatch.setattr(_main, "_fetch_stations_for_search", _fake_fetch)
+
+    payload = {"city": "Rome", "radius": 5, "fuel": "benzina", "results": 2}
+    response = client.post("/search", json=payload)
+    assert response.status_code == 200
+    station = response.json()["stations"][0]
+    assert station["updated_at"] == "26/02/2026 08:00:00"
+    assert {fp["type"] for fp in station["fuel_prices"]} == {"benzina", "gasolio"}
+
+
 def test_startup_triggers_background_reload(monkeypatch) -> None:
     """When a fresh cache exists the app should schedule a background CSV reload."""
     import asyncio

@@ -85,8 +85,17 @@ tests/
 ├── test_sensitive_scan.py     # Secret/credential leakage scan
 ├── test_ui_accessibility.py   # Accessibility tests
 ├── test_ui_buttons.py    # UI button tests
+├── test_trip_cost_ui.py  # Trip-cost ranking and preference-bar contracts
 └── e2e/                  # Playwright E2E tests
 ```
+
+### Trip-cost UI checks
+
+`tests/test_trip_cost_ui.py` verifies the pure cost model, total-cost ranking,
+client-side preference updates, localStorage persistence and the result-card
+details. For a live browser smoke check, search for a city such as `Roma` and
+confirm that the summary, saving and detour labels contain numeric euro values;
+the page must not display `{amount}`, `undefined` or `NaN`.
 
 ---
 

@@ -241,6 +241,8 @@ class Station(BaseModel):
     longitude: float = Field(..., ge=-180.0, le=180.0)
     fuel_prices: list[FuelPrice] = Field(default_factory=list)
     distance: float | None = Field(None, ge=0.0)
+    # Price-update timestamp for the primary fuel, as provided by the CSV (string form).
+    updated_at: str | None = Field(None, description="CSV price-update timestamp for the station's fuel.")
 
     model_config = {
         "json_schema_extra": {

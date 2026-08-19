@@ -1,24 +1,26 @@
 /* Theme Variables - Used by Tailwind dark: variants and inline styles */
 :root {
-  /* Primary Accent - Signal Amber (station price-totem) */
-  --color-primary: #f0a424;
-  --color-primary-light: #ffd79a;
-  --color-primary-hover: #f7bc5c;
-  --color-primary-dark: #a16607;
-  --color-primary-darker: #8f5f0c;
-  --color-primary-text: #f7bc5c;
+  /* Primary Accent - Petroleum Teal (fuel / automotive interface) */
+  --color-primary: #18a78f;
+  --color-primary-light: #8be0d1;
+  --color-primary-hover: #39c1ae;
+  --color-primary-dark: #087a69;
+  --color-primary-darker: #07594e;
+  --color-primary-text: #63d7c3;
 
   /* Dark Theme - Petrol Ink Tones */
-  --bg-primary: #0d1512;
-  --bg-surface: #152019;
-  --bg-elevated: #203028;
-  --border-color: #31473b;
-  --text-primary: #eef5f0;
-  --text-secondary: #a9bdb1;
-  --text-muted: #82a08f;
+  --bg-primary: #081816;
+  --bg-surface: #0f2621;
+  --bg-elevated: #17372f;
+  --border-color: #2b5148;
+  --text-primary: #edf8f4;
+  --text-secondary: #b8d1c8;
+  --text-muted: #8cafa4;
 
   /* Feedback */
-  --color-error: #f87171;
+  --color-success: #5fd0a1;
+  --color-warning: #dfa33b;
+  --color-error: #f47b7b;
   --color-error-bg: color-mix(in srgb, var(--color-error) 12%, transparent);
   --color-error-border: color-mix(in srgb, var(--color-error) 25%, transparent);
 
@@ -42,19 +44,23 @@
     color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
-/* Light Theme - Warm Porcelain */
+/* Light Theme - Petrol Mist */
 [data-theme="light"] {
-  --bg-primary: #f6f4ee;
+  --bg-primary: #f0f6f3;
   --bg-surface: #ffffff;
-  --bg-elevated: #ece9df;
-  --border-color: #d8d3c3;
-  --text-primary: #182420;
-  --text-secondary: #46564d;
-  --text-muted: #5f7268;
-  --color-primary-hover: #c07f16;
-  --color-primary-darker: #8f5f0c;
-  --color-primary-text: #8a5a08;
-  --color-error: #b91c1c;
+  --bg-elevated: #dcebe6;
+  --border-color: #bdd2cb;
+  --text-primary: #11332b;
+  --text-secondary: #3e5d54;
+  --text-muted: #5a746b;
+  --color-primary-light: #bfe8df;
+  --color-primary-hover: #0d8f7b;
+  --color-primary-dark: #087a69;
+  --color-primary-darker: #07594e;
+  --color-primary-text: #087a69;
+  --color-success: #148466;
+  --color-warning: #8f6314;
+  --color-error: #b4232c;
 
   --shadow-sm: 0 1px 2px rgba(24, 36, 32, 0.06);
   --shadow-md:
@@ -67,32 +73,32 @@
     0 8px 10px -6px rgba(24, 36, 32, 0.06);
 }
 
-/* Fuel Type Colors - Italian pump-nozzle conventions; shades verified >=4.5:1 on --bg-primary */
+/* Fuel Type Colors - fuel categories, with contrast verified against each theme background */
 :root {
-  --fuel-benzina-color: #4ade80;
-  --fuel-gasolio-color: #fbbf24;
-  --fuel-gpl-color: #60a5fa;
-  --fuel-metano-color: #2dd4bf;
-  --chip-active-text: #14201a;
+  --fuel-benzina-color: #f2b84b;
+  --fuel-gasolio-color: #b8a77f;
+  --fuel-gpl-color: #83a9e8;
+  --fuel-metano-color: #68c9b8;
+  --chip-active-text: #07221d;
 }
 
 [data-theme="light"] {
-  --fuel-benzina-color: #137a3a;
-  --fuel-gasolio-color: #9a5e07;
-  --fuel-gpl-color: #1d4ed8;
-  --fuel-metano-color: #0f766e;
+  --fuel-benzina-color: #925b00;
+  --fuel-gasolio-color: #6b5a3d;
+  --fuel-gpl-color: #2c62b8;
+  --fuel-metano-color: #13786e;
   --chip-active-text: #ffffff;
 }
 
 /* Glass Morphism - Petrol Tones */
 :root {
-  --glass-bg: rgba(21, 32, 25, 0.85);
-  --glass-border: rgba(238, 245, 240, 0.08);
+  --glass-bg: rgba(15, 38, 33, 0.88);
+  --glass-border: rgba(237, 248, 244, 0.1);
 }
 
 [data-theme="light"] {
   --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(24, 36, 32, 0.08);
+  --glass-border: rgba(17, 51, 43, 0.12);
 }
 
 /* Accessibility: Focus visible */

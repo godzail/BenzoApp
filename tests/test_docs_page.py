@@ -12,6 +12,9 @@ def test_docs_user_page(client: TestClient) -> None:
     # The doc should render a table (converted from markdown) and the theme toggle should be present
     assert "<table" in response.text
     assert "id='docs-theme-toggle'" in response.text
+    assert "class='docs-page'" in response.text
+    assert "class='docs-shell'" in response.text
+    assert "cdn.tailwindcss.com" not in response.text
 
 
 def test_docs_page_not_found(client: TestClient) -> None:
@@ -34,6 +37,13 @@ def test_docs_css_served(client: TestClient) -> None:
     assert r.status_code == status.HTTP_200_OK
     # The docs page should include the docs-content CSS class styling inline
     assert ".docs-content" in r.text
+
+
+def test_docs_page_is_not_cached(client: TestClient) -> None:
+    """Documentation changes must be visible without waiting for an old cache entry."""
+    response = client.get("/help/user-it")
+
+    assert response.headers["cache-control"] == "no-cache, must-revalidate"
 
 
 def test_favicon_routes(client: TestClient) -> None:
